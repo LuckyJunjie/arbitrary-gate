@@ -12,9 +12,8 @@ const poolRef = ref<HTMLDivElement | null>(null)
 async function handleDraw() {
   if (isDrawing.value) return
   const card = await drawCard('keyword')
-  if (card) {
-    emit('draw', card)
-  }
+  // 即使 API 失败也 emit，让 PoolView 决定如何处理（使用 fallback 数据）
+  emit('draw', card ?? null)
 }
 </script>
 

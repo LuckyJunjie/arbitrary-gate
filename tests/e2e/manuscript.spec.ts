@@ -165,9 +165,8 @@ test.describe('手稿页面', () => {
 
 test.describe('手稿页面 - 从故事完结跳转', () => {
 
-  test.skip('完结此篇按钮应导航至手稿页', async ({ page }) => {
-    // TODO: 修复 StoryView → ManuscriptView 导航后的 manuscript 数据加载
-    // 复杂集成测试，需要完整的 StoryView API mock
+  test('完结此篇按钮应导航至手稿页', async ({ page }) => {
+    // 修复: StoryView → ManuscriptView 导航后的 manuscript 数据加载
     setupManuscriptMocks(page, '1')
 
     // Mock chapter endpoint - return an end chapter (no options) so finish button appears

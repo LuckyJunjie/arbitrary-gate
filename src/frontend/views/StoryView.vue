@@ -582,15 +582,15 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
         <span class="dot-anim" />说书中
       </div>
     </div>
-  </div>
 
-  <!-- 涟漪动画 -->
-  <div
-    v-if="showChoiceRipple"
-    class="choice-ripple"
-    data-testid="choice-ripple"
-    :style="{ left: choiceRipplePos.x + 'px', top: choiceRipplePos.y + 'px' }"
-  />
+    <!-- 涟漪动画 -->
+    <div
+      v-if="showChoiceRipple"
+      class="choice-ripple"
+      data-testid="choice-ripple"
+      :style="{ left: choiceRipplePos.x + 'px', top: choiceRipplePos.y + 'px' }"
+    />
+  </div>
 </template>
 
 <style scoped>

@@ -56,6 +56,11 @@ test.describe('墨池抽卡模块', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}/pool`)
     await loginAsUser(page)
+    // Reset cardStore keywordCards to avoid accumulation across tests
+    await page.evaluate(() => {
+      // Access the Pinia store via window if available, or reset localStorage cards
+      localStorage.removeItem('ownedKeywordCards')
+    })
   })
 
   test('墨池页面应该正确加载', async ({ page }) => {
@@ -94,20 +99,20 @@ test.describe('墨池抽卡模块', () => {
     await expect(page.locator('[data-testid="ink-ripple-animation"]')).toBeVisible()
   })
 
-  test.skip('抽卡完成后卡片应该正确展示', async ({ page }) => {
-    // TODO: 需要 mock draw card API
+  test('抽卡完成后卡片应该正确展示', async ({ page }) => {
     // 点击墨池触发抽卡
     await page.locator('[data-testid="ink-pool-surface"]').click()
 
     // 等待卡片展示（动画结束后）
     await page.waitForSelector('[data-testid="card-reveal-container"]', { state: 'visible', timeout: 15000 })
 
-    // 验证卡片信息展示
-    await expect(page.locator('[data-testid="card-name"]')).toBeVisible()
-    await expect(page.locator('[data-testid="card-rarity"]')).toBeVisible()
+    // 验证卡片信息展示（使用 card-reveal-container 限定作用域避免重复 data-testid 冲突）
+    const cardContainer = page.locator('[data-testid="card-reveal-container"]')
+    await expect(cardContainer.locator('[data-testid="card-name"]')).toBeVisible()
+    await expect(cardContainer.locator('[data-testid="card-rarity"]')).toBeVisible()
 
     // 验证稀有度标签正确显示
-    const rarityBadge = page.locator('[data-testid="card-rarity-badge"]')
+    const rarityBadge = cardContainer.locator('[data-testid="card-rarity-badge"]')
     await expect(rarityBadge).toBeVisible()
     const rarityText = await rarityBadge.textContent()
     expect(['凡', '珍', '奇', '绝']).toContain(rarityText)

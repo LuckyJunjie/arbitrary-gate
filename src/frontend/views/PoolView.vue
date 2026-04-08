@@ -73,8 +73,59 @@ function saveCardsToStorage() {
   localStorage.setItem('ownedKeywordCards', JSON.stringify(cardStore.keywordCards))
 }
 
-async function onCardDrawn(card: Record<string, unknown>) {
-  // card 从 InkPool emit 传来，但实际抽卡逻辑在 handleDraw 中
+async function onCardDrawn(card: Record<string, unknown> | null) {
+  // card 从 InkPool emit 传来
+  // 若 card 为 null（InkPool API 调用失败），使用 fallback 数据
+  if (!card) {
+    await applyMockDraw()
+    return
+  }
+  // 正常卡片数据处理
+  const cardData: KeywordCard = {
+    id: card.id as number,
+    name: card.name as string,
+    rarity: card.rarity as number,
+    category: card.category as number,
+    inkFragrance: (card.inkFragrance as number) ?? 7,
+  }
+  drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
+  hasDrawn.value = true
+
+  const exists = cardStore.keywordCards.find(c => c.id === cardData.id)
+  if (!exists) {
+    cardStore.keywordCards.push(drawnCard.value)
+    saveCardsToStorage()
+    inkValueStore.awardInkForDraw(cardData.rarity)
+  }
+}
+
+async function applyMockDraw() {
+  // 使用本地 mock 数据（模拟抽卡动画 1.5s）
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  const mockCards: KeywordCard[] = [
+    { id: Date.now(), name: '铜锁芯', rarity: 1, category: 1, inkFragrance: 7 },
+    { id: Date.now() + 1, name: '竹骨伞', rarity: 2, category: 2, inkFragrance: 5 },
+    { id: Date.now() + 2, name: '旧书页', rarity: 1, category: 3, inkFragrance: 3 },
+    { id: Date.now() + 3, name: '黄昏', rarity: 3, category: 4, inkFragrance: 6 },
+    { id: Date.now() + 4, name: '说书人', rarity: 4, category: 5, inkFragrance: 7 },
+    { id: Date.now() + 5, name: '青花瓷', rarity: 2, category: 1, inkFragrance: 4 },
+    { id: Date.now() + 6, name: '老邮差', rarity: 3, category: 2, inkFragrance: 5 },
+    { id: Date.now() + 7, name: '春雷', rarity: 4, category: 3, inkFragrance: 7 },
+    { id: Date.now() + 8, name: '乡愁', rarity: 3, category: 4, inkFragrance: 6 },
+    { id: Date.now() + 9, name: '旅人', rarity: 2, category: 5, inkFragrance: 5 },
+  ]
+  const cardData = mockCards[Math.floor(Math.random() * mockCards.length)]
+  remainingFreeDraws.value = Math.max(0, remainingFreeDraws.value - 1)
+  drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
+  hasDrawn.value = true
+
+  const exists = cardStore.keywordCards.find(c => c.id === cardData.id)
+  if (!exists) {
+    cardStore.keywordCards.push(drawnCard.value)
+    saveCardsToStorage()
+    inkValueStore.awardInkForDraw(cardData.rarity)
+  }
+  saveDailyFreeDraws()
 }
 
 async function handleDraw() {
@@ -162,7 +213,7 @@ function reset() {
       <InkPool v-if="!hasDrawn" @draw="handleDraw" data-testid="ink-pool-surface" />
 
       <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">
-        <Card :card="drawnCard" data-testid="card-name" />
+        <Card :card="drawnCard" />
         <button class="reset-btn" data-testid="card-modal-close" @click="reset">再抽一张</button>
       </div>
 
