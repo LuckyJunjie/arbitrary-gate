@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
+import { initCardStore } from './stores/cardStore'
 
 // Views
 import HomeView from './views/HomeView.vue'
@@ -26,6 +27,10 @@ const router = createRouter({
 })
 
 const app = createApp(App)
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
+
+// app 挂载后静默初始化 card store（从 localStorage 恢复 + 异步拉取后端）
 app.mount('#app')
+initCardStore()

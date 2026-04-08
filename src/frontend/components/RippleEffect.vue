@@ -98,7 +98,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <canvas ref="canvasRef" class="ripple-canvas" />
+  <div data-testid="ink-ripple-animation">
+    <canvas ref="canvasRef" class="ripple-canvas" />
+  </div>
 </template>
 
 <style scoped>

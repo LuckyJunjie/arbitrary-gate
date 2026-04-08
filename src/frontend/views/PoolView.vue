@@ -139,28 +139,29 @@ function reset() {
 </script>
 
 <template>
-  <div class="pool-view">
+  <div class="pool-view" data-testid="ink-pool-container">
     <header class="pool-header">
-      <h2>墨池</h2>
+      <h2 data-testid="ink-pool-title">墨池</h2>
       <div class="free-draws">
         <span class="free-label">今日免费</span>
-        <span class="free-count">{{ remainingFreeDraws }} / {{ DAILY_FREE_LIMIT }}</span>
+        <span class="free-count" data-testid="free-draws-count">{{ remainingFreeDraws }} / {{ DAILY_FREE_LIMIT }}</span>
       </div>
     </header>
 
     <div class="pool-stage">
-      <RippleEffect :active="!hasDrawn" />
-      <InkPool v-if="!hasDrawn" @draw="handleDraw" />
+      <RippleEffect :active="!hasDrawn" data-testid="ink-ripple-animation" />
+      <InkPool v-if="!hasDrawn" @draw="handleDraw" data-testid="ink-pool-surface" />
 
-      <div v-if="hasDrawn && drawnCard" class="card-reveal">
-        <Card :card="drawnCard" />
-        <button class="reset-btn" @click="reset">再抽一张</button>
+      <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">
+        <Card :card="drawnCard" data-testid="card-name" />
+        <button class="reset-btn" data-testid="card-modal-close" @click="reset">再抽一张</button>
       </div>
 
       <!-- 抽卡按钮浮层 -->
       <button
         v-if="!hasDrawn"
         class="draw-btn"
+        data-testid="draw-btn"
         :disabled="isDrawing || remainingFreeDraws <= 0"
         @click="handleDraw"
       >

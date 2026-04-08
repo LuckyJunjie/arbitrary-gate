@@ -21,7 +21,13 @@ const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173'
 async function loginAsUser(page: any, userId: number = 1): Promise<void> {
   // 模拟登录（实际项目中应该调用真实的登录API）
   await page.evaluate((uid: number) => {
-    localStorage.setItem('userId', String(uid))
+    localStorage.setItem('currentUserId', String(uid))
+    // PoolView 使用 dailyFreeDraws 格式
+    localStorage.setItem('dailyFreeDraws', JSON.stringify({
+      date: new Date().toDateString(),
+      remaining: 3,
+    }))
+    // 墨晶余额
     localStorage.setItem('inkStone', '500') // 初始500墨晶
   }, userId)
 }
@@ -34,14 +40,12 @@ async function getInkStone(page: any): Promise<number> {
 
 async function getTodayFreeDraws(page: any): Promise<number> {
   return page.evaluate(() => {
-    const lastDraw = localStorage.getItem('lastDrawDate')
+    const saved = localStorage.getItem('dailyFreeDraws')
+    if (!saved) return 3
+    const data = JSON.parse(saved)
     const today = new Date().toDateString()
-
-    if (lastDraw !== today) {
-      return 3 // 重置免费次数
-    }
-
-    return parseInt(localStorage.getItem('todayFreeDraws') || '3')
+    if (data.date !== today) return 3
+    return data.remaining ?? 3
   })
 }
 

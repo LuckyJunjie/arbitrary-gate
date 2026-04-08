@@ -109,47 +109,47 @@ export interface Manuscript {
 
 // 抽关键词卡（GET，查询免费次数等）
 export async function fetchKeywordCard(): Promise<{ card: KeywordCard; remainingFreeDraws: number; isFree: boolean }> {
-  return api.get('/api/card/keyword')
+  return api.get('/card/keyword')
 }
 
 // 抽关键词卡（POST，实际执行抽卡）
 export async function drawKeywordCard(): Promise<DrawResponse> {
-  return api.post('/api/card/draw/keyword')
+  return api.post('/card/draw/keyword')
 }
 
 // 获取历史事件列表
 export async function fetchHistoryEvents(): Promise<HistoryEvent[]> {
-  return api.get('/api/events')
+  return api.get('/events')
 }
 
 // 开始新故事
 export async function startNewStory(payload: { title?: string; keywords?: number[] }): Promise<Story> {
-  return api.post('/api/story/start', payload)
+  return api.post('/story/start', payload)
 }
 
 // 提交章节选择
 export async function submitChapterChoice(storyId: string, chapterNo: number, optionId: number): Promise<{ chapter: Chapter; deviation: number }> {
-  return api.post(`/api/story/${storyId}/chapter/${chapterNo}/choose`, { optionId })
+  return api.post(`/story/${storyId}/chapter/${chapterNo}/choose`, { optionId })
 }
 
 // 获取故事章节
 export async function fetchChapter(storyId: string, chapterNo: number): Promise<Chapter> {
-  return api.get(`/api/story/${storyId}/chapter/${chapterNo}`)
+  return api.get(`/story/${storyId}/chapter/${chapterNo}`)
 }
 
 // 获取手稿
 export async function fetchManuscript(storyId: string): Promise<Manuscript> {
-  return api.get(`/api/story/${storyId}/manuscript`)
+  return api.get(`/story/${storyId}/manuscript`)
 }
 
 // 获取故事列表
 export async function fetchStoryList(): Promise<Story[]> {
-  return api.get('/api/story/list')
+  return api.get('/story/list')
 }
 
 // 完成故事（触发 AI 生成手稿）
 export async function finishStory(storyId: string): Promise<Manuscript> {
-  return api.post(`/api/story/${storyId}/finish`)
+  return api.post(`/story/${storyId}/finish`)
 }
 
 export default api

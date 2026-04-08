@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useCardStore } from '@/stores/cardStore'
+import Card from '@/components/Card.vue'
+import type { KeywordCard } from '@/services/api'
 
 const cardStore = useCardStore()
 const activeTab = ref<'keyword' | 'event'>('keyword')
@@ -13,6 +15,20 @@ const filteredCards = computed(() => {
   if (activeRarity.value === null) return cards
   return cards.filter(c => c.rarity === activeRarity.value)
 })
+
+const isEmpty = computed(() => filteredCards.value.length === 0)
+
+const emptyMessage = computed(() => {
+  if (cardStore.totalCount === 0) return '卡匣空空如也，去抽一张命运之卡吧'
+  if (activeRarity.value !== null) return `没有 {{ rarity }} 级的卡牌`[
+    activeRarity.value === 1 ? '凡' : activeRarity.value === 2 ? '珍' : activeRarity.value === 3 ? '奇' : '绝'
+  ] ? `没有${['', '凡', '珍', '奇', '绝'][activeRarity.value!]}级卡牌` : `没有${['', '凡', '珍', '奇', '绝'][activeRarity.value!]}级卡牌`
+  return '此类中暂无卡牌'
+})
+
+function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
+  // 翻转时不做额外处理，Card 组件自行管理
+}
 </script>
 
 <template>
@@ -45,20 +61,21 @@ const filteredCards = computed(() => {
     </div>
 
     <!-- 多宝格卡片墙 -->
-    <div class="card-grid">
+    <div class="card-grid" v-if="!isEmpty">
       <div
         v-for="card in filteredCards"
         :key="card.id"
         class="card-slot"
       >
-        <!-- TODO: 卡片组件渲染 -->
-        <div class="card-placeholder">
-          {{ card.name }}
-        </div>
+        <Card :card="card" @flip="handleCardFlip(card)" />
       </div>
     </div>
 
-    <!-- TODO: 空状态 -->
+    <!-- 空状态 -->
+    <div v-else class="empty-state">
+      <div class="empty-icon">笺</div>
+      <p class="empty-message">{{ cardStore.totalCount === 0 ? '卡匣空空如也，去抽一张命运之卡吧' : '此类中暂无卡牌' }}</p>
+    </div>
   </div>
 </template>
 
@@ -145,20 +162,39 @@ const filteredCards = computed(() => {
 }
 
 .card-slot {
-  aspect-ratio: 3 / 4;
-  border: 1px solid rgba(44, 31, 20, 0.15);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.card-placeholder {
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  gap: 1rem;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  border: 2px solid rgba(139, 115, 85, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: rgba(139, 115, 85, 0.5);
+  background: rgba(139, 115, 85, 0.05);
+}
+
+.empty-message {
+  font-size: 0.9rem;
   color: #8b7355;
-  background: rgba(200, 180, 140, 0.1);
+  text-align: center;
+  max-width: 260px;
+  line-height: 1.6;
 }
 </style>

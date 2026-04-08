@@ -77,14 +77,15 @@ import { computed } from 'vue'
       </div>
 
       <!-- 卡名 -->
-      <div class="card-name" :style="{ color: rarityConfig[rarity].borderColor }">
+      <div class="card-name" data-testid="card-name" :style="{ color: rarityConfig[rarity].borderColor }">
         {{ (card?.name as string) ?? '未知' }}
       </div>
 
       <!-- 稀有度 + 分类标签 -->
-      <div class="card-meta">
+      <div class="card-meta" data-testid="card-rarity">
         <span
           class="meta-tag rarity-tag"
+          data-testid="card-rarity-badge"
           :style="{ borderColor: rarityConfig[rarity].borderColor, color: rarityConfig[rarity].borderColor }"
         >
           {{ rarityConfig[rarity].label }}

@@ -22,6 +22,7 @@ async function handleDraw() {
   <div
     ref="poolRef"
     class="ink-pool"
+    data-testid="ink-pool-surface"
     @click="handleDraw"
     role="button"
     :aria-disabled="isDrawing"
