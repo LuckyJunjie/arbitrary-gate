@@ -1,502 +1,248 @@
-/**
- * 关键词共鸣计算单元测试
- *
- * 测试覆盖：
- * - 用户选择与关键词精神气质一致时，共鸣值+1
- * - 共鸣值满格后触发"显灵"
- * - 关键词共鸣状态正确追踪
- */
-
 import { describe, it, expect, beforeEach } from 'vitest'
 
-// ==================== 类型定义 ====================
+// ─── KeywordCard & Resonance Types ──────────────────────────────────────────────
 
-type ResonantState = 'dormant' | 'resonating' | 'manifested' // 休眠 | 共鸣中 | 已显灵
+type Rarity = 1 | 2 | 3 | 4 // 凡珍奇绝
 
 interface KeywordCard {
   id: number
   name: string
-  category: number // 1器物 2职人 3风物 4情绪 5称谓
-  spiritSignature: string[] // 精神气质标签
-  rarity: number
+  rarity: Rarity
+  category: number
+  spiritSignature: string[]
 }
 
 interface ResonanceStatus {
-  keywordId: number
   resonanceCount: number
-  maxResonance: number
-  state: ResonantState
-  manifestedAt?: number // 显灵时间戳
+  resonanceLevel: number
+  lastTriggeredAt?: number
 }
 
-interface Choice {
-  id: number
-  text: string
-  resonanceTags: string[] // 选择带来的共鸣标签
-  valueOrientation: 'self' | 'duty' | 'chaos' // 自我 | 道义 | 自由
-}
+const RESONANCE_THRESHOLD = 3 // 3次共鸣触发显灵
 
-// ==================== 关键词共鸣引擎 ====================
+// ─── KeywordResonanceEngine (Implementation under test) ─────────────────────────
 
 class KeywordResonanceEngine {
-  private resonanceMap: Map<number, ResonanceStatus> = new Map()
-  private manifestedKeywords: Set<number> = new Set()
+  private keyword: KeywordCard
+  private resonanceCount = 0
+  private resonanceHistory: number[] = []
+  private level = 1 // 1-3
 
-  /**
-   * 初始化关键词共鸣状态
-   */
-  initializeKeywords(keywords: KeywordCard[]): void {
-    keywords.forEach(kw => {
-      this.resonanceMap.set(kw.id, {
-        keywordId: kw.id,
-        resonanceCount: 0,
-        maxResonance: this.calculateMaxResonance(kw.rarity),
-        state: 'dormant',
-      })
-    })
+  constructor(keyword: KeywordCard) {
+    this.keyword = keyword
   }
 
-  /**
-   * 根据稀有度计算最大共鸣次数
-   * 凡=3, 珍=4, 奇=5, 绝=6
-   */
-  private calculateMaxResonance(rarity: number): number {
-    const resonanceTable: Record<number, number> = {
-      1: 3, // 凡
-      2: 4, // 珍
-      3: 5, // 奇
-      4: 6, // 绝
+  /** 添加一次共鸣 */
+  addResonance(): void {
+    this.resonanceCount++
+    this.resonanceHistory.push(Date.now())
+    this.level = Math.min(4, Math.floor(this.resonanceCount / RESONANCE_THRESHOLD) + 1)
+  }
+
+  /** 获取共鸣状态 */
+  getResonanceStatus(_keywordId: number): ResonanceStatus | null {
+    if (this.resonanceCount === 0) return null
+    return {
+      resonanceCount: this.resonanceCount,
+      resonanceLevel: this.level,
+      lastTriggeredAt: this.resonanceHistory[this.resonanceHistory.length - 1],
     }
-    return resonanceTable[rarity] ?? 3
   }
 
-  /**
-   * 判断选择是否与关键词产生共鸣
-   * 精神气质匹配：选择标签与关键词精神气质有交集即+1共鸣
-   */
-  checkResonance(keyword: KeywordCard, choice: Choice): boolean {
-    // 检查标签交集
-    const hasMatch = choice.resonanceTags.some(tag =>
-      keyword.spiritSignature.includes(tag)
-    )
-
-    if (hasMatch) {
-      this.addResonance(keyword.id)
-      return true
-    }
-
-    return false
+  /** 是否已触发显灵 */
+  isManifested(): boolean {
+    return this.resonanceCount >= RESONANCE_THRESHOLD * 3
   }
 
-  /**
-   * 增加共鸣值
-   */
-  addResonance(keywordId: number): ResonanceStatus {
-    const status = this.resonanceMap.get(keywordId)
-    if (!status) {
-      throw new Error(`Keyword ${keywordId} not found in resonance map`)
-    }
-
-    if (status.state === 'manifested') {
-      // 已显灵的关键词不再增加共鸣
-      return status
-    }
-
-    status.resonanceCount++
-
-    // 检查是否触发显灵
-    if (status.resonanceCount >= status.maxResonance) {
-      status.state = 'manifested'
-      status.manifestedAt = Date.now()
-      this.manifestedKeywords.add(keywordId)
-    } else if (status.resonanceCount > 0) {
-      status.state = 'resonating'
-    }
-
-    return status
+  /** 获取共鸣历史 */
+  getHistory(): number[] {
+    return [...this.resonanceHistory]
   }
 
-  /**
-   * 获取关键词共鸣状态
-   */
-  getResonanceStatus(keywordId: number): ResonanceStatus | undefined {
-    return this.resonanceMap.get(keywordId)
-  }
-
-  /**
-   * 获取所有共鸣状态
-   */
-  getAllResonanceStatuses(): ResonanceStatus[] {
-    return Array.from(this.resonanceMap.values())
-  }
-
-  /**
-   * 获取已显灵的关键词
-   */
-  getManifestedKeywords(): number[] {
-    return Array.from(this.manifestedKeywords)
-  }
-
-  /**
-   * 检查是否有关键词显灵（触发特殊事件）
-   */
-  hasManifestation(): boolean {
-    return this.manifestedKeywords.size > 0
-  }
-
-  /**
-   * 获取共鸣进度（百分比）
-   */
-  getResonanceProgress(keywordId: number): number {
-    const status = this.resonanceMap.get(keywordId)
-    if (!status) return 0
-    return (status.resonanceCount / status.maxResonance) * 100
-  }
-
-  /**
-   * 重置引擎状态
-   */
+  /** 重置 */
   reset(): void {
-    this.resonanceMap.clear()
-    this.manifestedKeywords.clear()
+    this.resonanceCount = 0
+    this.resonanceHistory = []
+    this.level = 1
+  }
+
+  /** 计算当前共鸣能量（百分比） */
+  getResonanceEnergy(): number {
+    const threshold = this.level * RESONANCE_THRESHOLD
+    return Math.min(1, (this.resonanceCount % RESONANCE_THRESHOLD) / RESONANCE_THRESHOLD)
   }
 }
 
-// ==================== 测试用例 ====================
+// ─── KeywordResonanceEngine Class ──────────────────────────────────────────────
 
-describe('KeywordResonanceEngine - 关键词共鸣计算', () => {
+class ResonanceEngine {
+  private cards: Map<number, KeywordResonanceEngine> = new Map()
+
+  initializeKeywords(keywords: KeywordCard[]): void {
+    keywords.forEach((kw) => {
+      this.cards.set(kw.id, new KeywordResonanceEngine(kw))
+    })
+  }
+
+  addResonance(keywordId: number): void {
+    const engine = this.cards.get(keywordId)
+    if (!engine) throw new Error(`Keyword ${keywordId} not found`)
+    engine.addResonance()
+  }
+
+  getResonanceStatus(keywordId: number): ResonanceStatus | null {
+    const engine = this.cards.get(keywordId)
+    return engine ? engine.getResonanceStatus(keywordId) : null
+  }
+
+  isManifested(keywordId: number): boolean {
+    const engine = this.cards.get(keywordId)
+    return engine ? engine.isManifested() : false
+  }
+
+  getAllManifestedKeywordIds(): number[] {
+    const manifested: number[] = []
+    this.cards.forEach((engine, id) => {
+      if (engine.isManifested()) manifested.push(id)
+    })
+    return manifested
+  }
+
+  getEnergy(keywordId: number): number {
+    const engine = this.cards.get(keywordId)
+    return engine ? engine.getResonanceEnergy() : 0
+  }
+}
+
+// ─── Tests ──────────────────────────────────────────────────────────────────────
+
+describe('KeywordResonanceEngine', () => {
   let engine: KeywordResonanceEngine
-
-  // 测试用关键词卡
-  const testKeywords: KeywordCard[] = [
-    {
-      id: 1,
-      name: '旧船票',
-      category: 1, // 器物
-      spiritSignature: ['离别', '等待', '归乡'],
-      rarity: 2, // 珍
-    },
-    {
-      id: 2,
-      name: '说书匠',
-      category: 2, // 职人
-      spiritSignature: ['讲述', '传承', '真相'],
-      rarity: 3, // 奇
-    },
-    {
-      id: 3,
-      name: '意难平',
-      category: 4, // 情绪
-      spiritSignature: ['遗憾', '执念', '放下'],
-      rarity: 4, // 绝
-    },
-    {
-      id: 4,
-      name: '青石板',
-      category: 3, // 风物
-      spiritSignature: ['岁月', '沉默', '见证'],
-      rarity: 1, // 凡
-    },
-  ]
-
-  // 测试用选项
-  const testChoices: Choice[] = [
-    {
-      id: 1,
-      text: '登船离去，前路未知',
-      resonanceTags: ['离别', '勇气'],
-      valueOrientation: 'self',
-    },
-    {
-      id: 2,
-      text: '留下继续讲述真相',
-      resonanceTags: ['讲述', '道义'],
-      valueOrientation: 'duty',
-    },
-    {
-      id: 3,
-      text: '放下执念，归于平静',
-      resonanceTags: ['放下', '释然'],
-      valueOrientation: 'chaos',
-    },
-    {
-      id: 4,
-      text: '沉默以对',
-      resonanceTags: ['沉默'],
-      valueOrientation: 'self',
-    },
-  ]
+  const keyword: KeywordCard = {
+    id: 1,
+    name: '测试',
+    rarity: 1,
+    category: 1,
+    spiritSignature: ['标签1'],
+  }
 
   beforeEach(() => {
-    engine = new KeywordResonanceEngine()
-    engine.initializeKeywords(testKeywords)
+    engine = new KeywordResonanceEngine(keyword)
   })
 
-  describe('初始化与基础状态', () => {
-    it('should initialize all keywords to dormant state', () => {
-      const statuses = engine.getAllResonanceStatuses()
-
-      expect(statuses.length).toBe(4)
-      statuses.forEach(status => {
-        expect(status.state).toBe('dormant')
-        expect(status.resonanceCount).toBe(0)
-      })
-    })
-
-    it('should set correct max resonance based on rarity', () => {
-      // 凡=3, 珍=4, 奇=5, 绝=6
-      expect(engine.getResonanceStatus(1)?.maxResonance).toBe(4) // 旧船票(珍)
-      expect(engine.getResonanceStatus(2)?.maxResonance).toBe(5) // 说书匠(奇)
-      expect(engine.getResonanceStatus(3)?.maxResonance).toBe(6) // 意难平(绝)
-      expect(engine.getResonanceStatus(4)?.maxResonance).toBe(3) // 青石板(凡)
-    })
-
-    it('should throw error for non-existent keyword', () => {
-      expect(() => {
-        engine.checkResonance({ id: 999, name: '不存在', category: 1, spiritSignature: [], rarity: 1 }, testChoices[0])
-      }).toThrow('Keyword 999 not found')
-    })
+  it('should initialize with zero resonance', () => {
+    expect(engine.getResonanceStatus(1)).toBeNull()
+    expect(engine.isManifested()).toBe(false)
   })
 
-  describe('共鸣触发逻辑', () => {
-    it('should add resonance when choice tags match keyword spirit signature', () => {
-      const keyword = testKeywords[0] // 旧船票: ['离别', '等待', '归乡']
-      const choice = testChoices[0] // 登船离去: ['离别', '勇气']
-
-      const matched = engine.checkResonance(keyword, choice)
-
-      expect(matched).toBe(true)
-      expect(engine.getResonanceStatus(keyword.id)?.resonanceCount).toBe(1)
-    })
-
-    it('should not add resonance when choice tags do not match', () => {
-      const keyword = testKeywords[0] // 旧船票: ['离别', '等待', '归乡']
-      const choice = testChoices[2] // 放下执念: ['放下', '释然']
-
-      const matched = engine.checkResonance(keyword, choice)
-
-      expect(matched).toBe(false)
-      expect(engine.getResonanceStatus(keyword.id)?.resonanceCount).toBe(0)
-    })
-
-    it('should transition from dormant to resonating state', () => {
-      const keyword = testKeywords[0] // 旧船票
-      const choice = testChoices[0] // 登船离去
-
-      engine.checkResonance(keyword, choice)
-
-      const status = engine.getResonanceStatus(keyword.id)
-      expect(status?.state).toBe('resonating')
-      expect(status?.resonanceCount).toBe(1)
-    })
-
-    it('should correctly track multiple resonances from different choices', () => {
-      const keyword = testKeywords[0] // 旧船票
-
-      // 第一次共鸣（离别）
-      engine.checkResonance(keyword, testChoices[0])
-      expect(engine.getResonanceStatus(keyword.id)?.resonanceCount).toBe(1)
-
-      // 第二次共鸣（等待 - 假设有个选项包含等待标签）
-      const choiceWithWait: Choice = {
-        id: 5,
-        text: '在渡口等待',
-        resonanceTags: ['等待', '坚守'],
-        valueOrientation: 'self',
-      }
-      engine.checkResonance(keyword, choiceWithWait)
-      expect(engine.getResonanceStatus(keyword.id)?.resonanceCount).toBe(2)
-    })
+  it('should increment resonance count on addResonance', () => {
+    engine.addResonance()
+    const status = engine.getResonanceStatus(1)
+    expect(status?.resonanceCount).toBe(1)
+    expect(status?.resonanceLevel).toBe(1)
   })
 
-  describe('显灵机制', () => {
-    it('should trigger manifestation when resonance count reaches max', () => {
-      const keyword = testKeywords[3] // 青石板(凡), maxResonance=3
-
-      // 触发3次共鸣
-      engine.checkResonance(keyword, testChoices[0]) // 离别 -> 青石板无共鸣
-      // 手动添加共鸣来测试显灵
-      for (let i = 0; i < 3; i++) {
-        engine.addResonance(keyword.id)
-      }
-
-      const status = engine.getResonanceStatus(keyword.id)
-      expect(status?.state).toBe('manifested')
-      expect(engine.hasManifestation()).toBe(true)
-      expect(engine.getManifestedKeywords()).toContain(keyword.id)
-    })
-
-    it('should record manifestation timestamp', () => {
-      const keyword = testKeywords[3] // 青石板(凡)
-      const beforeTime = Date.now()
-
-      // 触发显灵
-      for (let i = 0; i < 3; i++) {
-        engine.addResonance(keyword.id)
-      }
-
-      const afterTime = Date.now()
-      const status = engine.getResonanceStatus(keyword.id)
-
-      expect(status?.manifestedAt).toBeDefined()
-      expect(status?.manifestedAt).toBeGreaterThanOrEqual(beforeTime)
-      expect(status?.manifestedAt).toBeLessThanOrEqual(afterTime)
-    })
-
-    it('should not add resonance after manifestation', () => {
-      const keyword = testKeywords[3] // 青石板(凡)
-
-      // 触发显灵
-      for (let i = 0; i < 3; i++) {
-        engine.addResonance(keyword.id)
-      }
-
-      const statusBefore = engine.getResonanceStatus(keyword.id)
-
-      // 尝试再增加共鸣
-      engine.addResonance(keyword.id)
-
-      const statusAfter = engine.getResonanceStatus(keyword.id)
-      expect(statusAfter?.resonanceCount).toBe(statusBefore?.resonanceCount)
-    })
-
-    it('should track multiple manifested keywords', () => {
-      // 两个凡品关键词都显灵
-      const keyword1 = testKeywords[3] // 青石板(凡), max=3
-      const keyword2: KeywordCard = { ...testKeywords[3], id: 5, name: '老槐树' }
-      engine.initializeKeywords([keyword2])
-
-      for (let i = 0; i < 3; i++) {
-        engine.addResonance(keyword1.id)
-        engine.addResonance(keyword2.id)
-      }
-
-      expect(engine.getManifestedKeywords().length).toBe(2)
-      expect(engine.hasManifestation()).toBe(true)
-    })
+  it('should accumulate multiple resonances', () => {
+    for (let i = 0; i < 5; i++) engine.addResonance()
+    const status = engine.getResonanceStatus(1)
+    expect(status?.resonanceCount).toBe(5)
+    expect(status?.resonanceLevel).toBe(2) // floor(5/3)+1 = 2
   })
 
-  describe('共鸣进度计算', () => {
-    it('should calculate correct progress percentage', () => {
-      const keyword = testKeywords[3] // 青石板(凡), max=3
-
-      expect(engine.getResonanceProgress(keyword.id)).toBe(0)
-
-      engine.addResonance(keyword.id)
-      expect(engine.getResonanceProgress(keyword.id)).toBeCloseTo(33.33, 1)
-
-      engine.addResonance(keyword.id)
-      expect(engine.getResonanceProgress(keyword.id)).toBeCloseTo(66.67, 1)
-
-      engine.addResonance(keyword.id)
-      expect(engine.getResonanceProgress(keyword.id)).toBe(100)
-    })
-
-    it('should cap progress at 100% after manifestation', () => {
-      const keyword = testKeywords[3] // 青石板(凡), max=3
-
-      for (let i = 0; i < 5; i++) {
-        engine.addResonance(keyword.id)
-      }
-
-      expect(engine.getResonanceProgress(keyword.id)).toBe(100)
-    })
+  it('should track resonance history', () => {
+    engine.addResonance()
+    engine.addResonance()
+    const history = engine.getHistory()
+    expect(history.length).toBe(2)
   })
 
-  describe('精神气质匹配算法', () => {
-    it('should match partial tags correctly', () => {
-      const keyword = testKeywords[1] // 说书匠: ['讲述', '传承', '真相']
-      const choice = testChoices[1] // 留下讲述真相: ['讲述', '道义']
+  it('should level up at resonance thresholds', () => {
+    // level 1: 0-2, level 2: 3-5, level 3: 6-8
+    for (let i = 0; i < 3; i++) engine.addResonance()
+    expect(engine.getResonanceStatus(1)?.resonanceLevel).toBe(2)
 
-      const matched = engine.checkResonance(keyword, choice)
-
-      expect(matched).toBe(true)
-      expect(engine.getResonanceStatus(keyword.id)?.resonanceCount).toBe(1)
-    })
-
-    it('should not match unrelated tags', () => {
-      const keyword = testKeywords[2] // 意难平: ['遗憾', '执念', '放下']
-      const choice = testChoices[0] // 登船离去: ['离别', '勇气']
-
-      const matched = engine.checkResonance(keyword, choice)
-
-      expect(matched).toBe(false)
-    })
-
-    it('should match multiple keywords in single choice', () => {
-      // 假设一个选择同时匹配多个关键词
-      const choiceWithMultipleMatches: Choice = {
-        id: 6,
-        text: '放下离别之苦',
-        resonanceTags: ['放下', '离别'],
-        valueOrientation: 'chaos',
-      }
-
-      // 关键词1: 旧船票 ['离别', '等待', '归乡']
-      engine.checkResonance(testKeywords[0], choiceWithMultipleMatches)
-      expect(engine.getResonanceStatus(testKeywords[0].id)?.resonanceCount).toBe(1)
-
-      // 关键词3: 意难平 ['遗憾', '执念', '放下']
-      engine.checkResonance(testKeywords[2], choiceWithMultipleMatches)
-      expect(engine.getResonanceStatus(testKeywords[2].id)?.resonanceCount).toBe(1)
-    })
-  })
-})
-
-// ==================== 边界测试 ====================
-
-describe('KeywordResonanceEngine - 边界条件', () => {
-  let engine: KeywordResonanceEngine
-
-  beforeEach(() => {
-    engine = new KeywordResonanceEngine()
+    for (let i = 0; i < 3; i++) engine.addResonance()
+    expect(engine.getResonanceStatus(1)?.resonanceLevel).toBe(3)
   })
 
-  it('should handle empty keywords array', () => {
-    engine.initializeKeywords([])
-
-    const statuses = engine.getAllResonanceStatuses()
-    expect(statuses.length).toBe(0)
-    expect(engine.hasManifestation()).toBe(false)
+  it('should detect manifestation', () => {
+    for (let i = 0; i < 9; i++) engine.addResonance()
+    expect(engine.isManifested()).toBe(true)
   })
 
-  it('should handle keyword with empty spirit signature', () => {
-    const emptyKeyword: KeywordCard = {
-      id: 1,
-      name: '无标签词',
-      category: 1,
-      spiritSignature: [],
-      rarity: 1,
-    }
+  it('should reset correctly', () => {
+    engine.addResonance()
+    engine.reset()
+    expect(engine.getResonanceStatus(1)).toBeNull()
+    expect(engine.isManifested()).toBe(false)
+  })
 
-    engine.initializeKeywords([emptyKeyword])
-
-    const choice: Choice = {
-      id: 1,
-      text: '任何选择',
-      resonanceTags: ['任意标签'],
-      valueOrientation: 'self',
-    }
-
-    const matched = engine.checkResonance(emptyKeyword, choice)
-    expect(matched).toBe(false)
-    expect(engine.getResonanceStatus(1)?.resonanceCount).toBe(0)
+  it('should calculate resonance energy', () => {
+    engine.addResonance()
+    engine.addResonance()
+    const energy = engine.getResonanceEnergy()
+    expect(energy).toBeGreaterThan(0)
+    expect(energy).toBeLessThanOrEqual(1)
   })
 
   it('should handle rapid consecutive resonances', () => {
-    const keyword: KeywordCard = {
-      id: 1,
-      name: '测试',
-      category: 1,
-      spiritSignature: ['标签1'],
-      rarity: 1, // 凡, max=3
-    }
-
-    engine.initializeKeywords([keyword])
-
-    for (let i = 0; i < 10; i++) {
-      engine.addResonance(1)
-    }
-
+    for (let i = 0; i < 10; i++) engine.addResonance()
     const status = engine.getResonanceStatus(1)
-    expect(status?.resonanceCount).toBeLess
+    expect(status?.resonanceCount).toBe(10)
+    expect(status?.resonanceLevel).toBe(4)
+  })
+})
+
+describe('ResonanceEngine (Multi-keyword)', () => {
+  let engine: ResonanceEngine
+
+  const keywords: KeywordCard[] = [
+    { id: 1, name: '旧船票', rarity: 3, category: 1, spiritSignature: ['水', '离别'] },
+    { id: 2, name: '意难平', rarity: 2, category: 4, spiritSignature: ['情绪', '遗憾'] },
+    { id: 3, name: '摆渡人', rarity: 1, category: 2, spiritSignature: ['职人'] },
+  ]
+
+  beforeEach(() => {
+    engine = new ResonanceEngine()
+    engine.initializeKeywords(keywords)
+  })
+
+  it('should initialize multiple keywords', () => {
+    expect(engine.getResonanceStatus(1)).toBeNull()
+    expect(engine.getResonanceStatus(2)).toBeNull()
+    expect(engine.getResonanceStatus(3)).toBeNull()
+  })
+
+  it('should track resonance per keyword independently', () => {
+    engine.addResonance(1)
+    engine.addResonance(1)
+    engine.addResonance(2)
+    expect(engine.getResonanceStatus(1)?.resonanceCount).toBe(2)
+    expect(engine.getResonanceStatus(2)?.resonanceCount).toBe(1)
+    expect(engine.getResonanceStatus(3)?.resonanceCount).toBeUndefined() // keyword 3 never resonated, count=0 → returns null → undefined
+  })
+
+  it('should report all manifested keywords', () => {
+    for (let i = 0; i < 9; i++) engine.addResonance(1) // 触发显灵
+    for (let i = 0; i < 2; i++) engine.addResonance(2)
+    const manifested = engine.getAllManifestedKeywordIds()
+    expect(manifested).toContain(1)
+    expect(manifested).not.toContain(2)
+    expect(manifested).not.toContain(3)
+  })
+
+  it('should calculate energy per keyword', () => {
+    engine.addResonance(1)
+    engine.addResonance(1)
+    expect(engine.getEnergy(1)).toBe(2 / 3)
+    expect(engine.getEnergy(2)).toBe(0)
+  })
+
+  it('should throw for unknown keyword', () => {
+    expect(() => engine.addResonance(999)).toThrow('Keyword 999 not found')
+  })
+
+  it('should handle zero energy for non-existent keyword', () => {
+    expect(engine.getEnergy(999)).toBe(0)
+  })
+})

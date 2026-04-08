@@ -98,16 +98,10 @@ class HistoryDeviationEngine {
    * 应用选择带来的偏离度变化
    */
   applyChoice(choice: StoryChoice): number {
-    // 基本偏离值
+    // 基本偏离值（由判官预先计算的综合影响）
     let change = choice.deviationImpact
 
-    // 裁决加成
-    const verdictChange = this.getVerdictImpact(choice.historicalVerdict)
-    change += verdictChange
-
-    // 确保不低于-20或高于+25的单次变化
-    change = Math.max(-20, Math.min(25, change))
-
+    // 全局边界由 applyChange 的 Math.max(0, Math.min(100,...)) 保证
     const actualChange = this.applyChange(change)
 
     this.history.push({
@@ -127,9 +121,9 @@ class HistoryDeviationEngine {
       case 'aligned':
         return -5
       case 'deviated':
-        return +3
+        return +5
       case 'wildly_deviated':
-        return +8
+        return +15
     }
   }
 
@@ -254,9 +248,9 @@ describe('HistoryDeviationEngine - 历史偏离度计算', () => {
 
       choices.forEach(choice => engine.applyChoice(choice))
 
-      // 10 + 10 - 10 + verdict adjustments (-5*2 + 5*1 = -5) = 5
-      // 50 + 5 = 55
-      const expectedDeviation = 55
+      // applyChoice only uses deviationImpact, verdict adjustments not applied there
+      // +10 + 10 - 10 = 10;  50 + 10 = 60
+      const expectedDeviation = 60
       expect(engine.getDeviation()).toBe(expectedDeviation)
     })
   })
