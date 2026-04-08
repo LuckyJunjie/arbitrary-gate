@@ -434,7 +434,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="scroll-panel" ref="panelRef">
+  <div class="scroll-panel" ref="panelRef" data-testid="scroll-container">
     <!-- 自定义滚动条（墨迹风格） -->
     <div class="scrollbar-track">
       <div class="scrollbar-thumb" :style="thumbStyle">
@@ -443,7 +443,7 @@ defineExpose({
     </div>
 
     <!-- 滚动内容 -->
-    <div class="scroll-content" ref="contentRef">
+    <div class="scroll-content" ref="contentRef" data-testid="scroll-content">
       <slot />
     </div>
 

@@ -144,7 +144,7 @@ function reset() {
       <h2 data-testid="ink-pool-title">墨池</h2>
       <div class="free-draws">
         <span class="free-label">今日免费</span>
-        <span class="free-count" data-testid="free-draws-count">{{ remainingFreeDraws }} / {{ DAILY_FREE_LIMIT }}</span>
+        <span class="free-count" data-testid="free-draws-count">{{ remainingFreeDraws }}/{{ DAILY_FREE_LIMIT }}</span>
       </div>
     </header>
 

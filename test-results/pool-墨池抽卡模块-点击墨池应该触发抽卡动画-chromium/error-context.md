@@ -6,16 +6,17 @@
 
 # Test info
 
-- Name: pool.spec.ts >> 墨池抽卡模块 >> 墨池页面应该正确加载
-- Location: tests/e2e/pool.spec.ts:61:3
+- Name: pool.spec.ts >> 墨池抽卡模块 >> 点击墨池应该触发抽卡动画
+- Location: tests/e2e/pool.spec.ts:80:3
 
 # Error details
 
 ```
-Error: expect(received).toMatch(expected)
+TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.
+Call log:
+  - waiting for locator('[data-testid="ink-ripple-animation"]') to be visible
+    15 × locator resolved to hidden <div data-v-fc14a26f="" data-v-bbc97cbf="" data-testid="ink-ripple-animation">…</div>
 
-Expected pattern: /\d+\/\d+/
-Received string:  "3 / 3"
 ```
 
 # Page snapshot
@@ -30,9 +31,9 @@ Received string:  "3 / 3"
       - heading "墨池" [level=2] [ref=e9]
       - generic [ref=e10]:
         - generic [ref=e11]: 今日免费
-        - generic [ref=e12]: 3 / 3
+        - generic [ref=e12]: 3/3
     - generic [ref=e13]:
-      - button "轻触墨池 · 抽取关键词" [ref=e14] [cursor=pointer]:
+      - button "轻触墨池 · 抽取关键词" [active] [ref=e14] [cursor=pointer]:
         - generic: 轻触墨池 · 抽取关键词
       - button "轻触墨池抽取" [ref=e17] [cursor=pointer]
 ```
@@ -109,8 +110,7 @@ Received string:  "3 / 3"
   67  | 
   68  |     // 检查免费抽卡次数显示
   69  |     const freeDrawsText = await page.locator('[data-testid="free-draws-count"]').textContent()
-> 70  |     expect(freeDrawsText).toMatch(/\d+\/\d+/)
-      |                           ^ Error: expect(received).toMatch(expected)
+  70  |     expect(freeDrawsText).toMatch(/\d+\/\d+/)
   71  |   })
   72  | 
   73  |   test('每日免费抽卡次数应该正确显示', async ({ page }) => {
@@ -122,7 +122,8 @@ Received string:  "3 / 3"
   79  | 
   80  |   test('点击墨池应该触发抽卡动画', async ({ page }) => {
   81  |     // 监听抽卡开始的动画
-  82  |     const animationPromise = page.waitForSelector(
+> 82  |     const animationPromise = page.waitForSelector(
+      |                                   ^ TimeoutError: page.waitForSelector: Timeout 5000ms exceeded.
   83  |       '[data-testid="ink-ripple-animation"]',
   84  |       { state: 'visible', timeout: 5000 }
   85  |     )
@@ -211,4 +212,16 @@ Received string:  "3 / 3"
   168 |   })
   169 | })
   170 | 
+  171 | test.describe('墨池抽卡 - 保底机制详细测试', () => {
+  172 | 
+  173 |   test('连续9次未出奇品，第10次必出奇品', async ({ page }) => {
+  174 |     await page.goto(`${BASE_URL}/pool`)
+  175 |     await loginAsUser(page)
+  176 | 
+  177 |     // 注入保底计数器（模拟已抽9次凡品）
+  178 |     await page.evaluate(() => {
+  179 |       localStorage.setItem('qiPityCounter', '9')
+  180 |       localStorage.setItem('testForceNextRarity', '3')
+  181 |     })
+  182 | 
 ```
