@@ -1,0 +1,259 @@
+/**
+ * 墨池抽卡 E2E 测试
+ *
+ * 测试覆盖：
+ * - 墨池页面加载
+ * - 抽卡动画播放
+ * - 保底机制正确触发
+ * - 墨晶消耗正确
+ */
+
+import { test, expect } from '@playwright/test'
+
+// ==================== 测试配置 ====================
+
+test.describe.configure({ mode: 'serial' })
+
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173'
+
+// ==================== 辅助函数 ====================
+
+async function loginAsUser(page: any, userId: number = 1): Promise<void> {
+  // 模拟登录（实际项目中应该调用真实的登录API）
+  await page.evaluate((uid: number) => {
+    localStorage.setItem('userId', String(uid))
+    localStorage.setItem('inkStone', '500') // 初始500墨晶
+  }, userId)
+}
+
+async function getInkStone(page: any): Promise<number> {
+  return page.evaluate(() => {
+    return parseInt(localStorage.getItem('inkStone') || '0')
+  })
+}
+
+async function getTodayFreeDraws(page: any): Promise<number> {
+  return page.evaluate(() => {
+    const lastDraw = localStorage.getItem('lastDrawDate')
+    const today = new Date().toDateString()
+
+    if (lastDraw !== today) {
+      return 3 // 重置免费次数
+    }
+
+    return parseInt(localStorage.getItem('todayFreeDraws') || '3')
+  })
+}
+
+// ==================== E2E 测试用例 ====================
+
+test.describe('墨池抽卡模块', () => {
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`${BASE_URL}/pool`)
+    await loginAsUser(page)
+  })
+
+  test('墨池页面应该正确加载', async ({ page }) => {
+    // 等待墨池动画容器加载
+    await expect(page.locator('[data-testid="ink-pool-container"]')).toBeVisible({ timeout: 10000 })
+
+    // 检查墨池标题
+    await expect(page.locator('[data-testid="ink-pool-title"]')).toContainText('墨池')
+
+    // 检查免费抽卡次数显示
+    const freeDrawsText = await page.locator('[data-testid="free-draws-count"]').textContent()
+    expect(freeDrawsText).toMatch(/\d+\/\d+/)
+  })
+
+  test('每日免费抽卡次数应该正确显示', async ({ page }) => {
+    const freeDraws = await getTodayFreeDraws(page)
+
+    // 应该显示3/3（每日免费3次）
+    await expect(page.locator('[data-testid="free-draws-count"]')).toContainText('3/3')
+  })
+
+  test('点击墨池应该触发抽卡动画', async ({ page }) => {
+    // 监听抽卡开始的动画
+    const animationPromise = page.waitForSelector(
+      '[data-testid="ink-ripple-animation"]',
+      { state: 'visible', timeout: 5000 }
+    )
+
+    // 点击墨池
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+
+    // 等待涟漪动画出现
+    await animationPromise
+
+    // 验证动画元素可见
+    await expect(page.locator('[data-testid="ink-ripple-animation"]')).toBeVisible()
+  })
+
+  test('抽卡完成后卡片应该正确展示', async ({ page }) => {
+    // 点击墨池触发抽卡
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+
+    // 等待卡片展示（动画结束后）
+    await page.waitForSelector('[data-testid="card-reveal-container"]', { state: 'visible', timeout: 15000 })
+
+    // 验证卡片信息展示
+    await expect(page.locator('[data-testid="card-name"]')).toBeVisible()
+    await expect(page.locator('[data-testid="card-rarity"]')).toBeVisible()
+
+    // 验证稀有度标签正确显示
+    const rarityBadge = page.locator('[data-testid="card-rarity-badge"]')
+    await expect(rarityBadge).toBeVisible()
+    const rarityText = await rarityBadge.textContent()
+    expect(['凡', '珍', '奇', '绝']).toContain(rarityText)
+  })
+
+  test('墨晶消耗应该在免费次数用完后正确计算', async ({ page }) => {
+    // 消耗免费次数
+    for (let i = 0; i < 3; i++) {
+      await page.locator('[data-testid="ink-pool-surface"]').click()
+      await page.waitForTimeout(2000) // 等待动画完成
+
+      // 关闭结果弹窗（如果有）
+      const closeBtn = page.locator('[data-testid="card-modal-close"]')
+      if (await closeBtn.isVisible()) {
+        await closeBtn.click()
+        await page.waitForTimeout(500)
+      }
+    }
+
+    const inkStone = await getInkStone(page)
+
+    // 免费次数用完后，墨晶应该未消耗
+    expect(inkStone).toBe(500)
+
+    // 第四次抽卡应该消耗墨晶
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+    await page.waitForTimeout(2000)
+
+    const inkStoneAfter = await getInkStone(page)
+    expect(inkStoneAfter).toBe(490) // 消耗10墨晶
+  })
+
+  test('保底机制应该正确触发（模拟连续9次凡品）', async ({ page }) => {
+    // 注入测试数据：模拟保底计数
+    await page.evaluate(() => {
+      localStorage.setItem('testMode', 'true')
+      localStorage.setItem('qiPityCounter', '9')
+      localStorage.setItem('forceRarity', '3') // 强制第10次出奇品
+    })
+
+    // 重新加载页面使设置生效
+    await page.reload()
+    await loginAsUser(page)
+
+    // 注入保底数据
+    await page.evaluate(() => {
+      localStorage.setItem('testMode', 'true')
+      localStorage.setItem('qiPityCounter', '9')
+    })
+
+    // 点击抽卡
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+    await page.waitForTimeout(3000)
+
+    // 验证保底提示出现
+    const pityToast = page.locator('[data-testid="pity-triggered-toast"]')
+    await expect(pityToast).toBeVisible({ timeout: 5000 })
+    await expect(pityToast).toContainText('共鸣触发')
+  })
+})
+
+test.describe('墨池抽卡 - 保底机制详细测试', () => {
+
+  test('连续9次未出奇品，第10次必出奇品', async ({ page }) => {
+    await page.goto(`${BASE_URL}/pool`)
+    await loginAsUser(page)
+
+    // 注入保底计数器（模拟已抽9次凡品）
+    await page.evaluate(() => {
+      localStorage.setItem('qiPityCounter', '9')
+      localStorage.setItem('testForceNextRarity', '3')
+    })
+
+    // 执行第10次抽卡
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+    await page.waitForTimeout(3000)
+
+    // 验证结果是奇品
+    const cardRarity = await page.locator('[data-testid="card-rarity-badge"]').textContent()
+    expect(cardRarity).toContain('奇')
+  })
+
+  test('连续30次未出绝品，第31次必出绝品', async ({ page }) => {
+    await page.goto(`${BASE_URL}/pool`)
+    await loginAsUser(page)
+
+    // 注入保底计数器（模拟已抽30次非绝品）
+    await page.evaluate(() => {
+      localStorage.setItem('juePityCounter', '30')
+      localStorage.setItem('testForceNextRarity', '4')
+    })
+
+    // 执行第31次抽卡
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+    await page.waitForTimeout(3000)
+
+    // 验证结果是绝品
+    const cardRarity = await page.locator('[data-testid="card-rarity-badge"]').textContent()
+    expect(cardRarity).toContain('绝')
+  })
+})
+
+test.describe('墨池抽卡 - 墨晶管理', () => {
+
+  test('墨晶不足时应该提示充值', async ({ page }) => {
+    await page.goto(`${BASE_URL}/pool`)
+    await loginAsUser(page)
+
+    // 设置墨晶为0
+    await page.evaluate(() => {
+      localStorage.setItem('inkStone', '0')
+    })
+
+    await page.reload()
+    await page.waitForSelector('[data-testid="ink-pool-container"]')
+
+    // 点击抽卡
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+
+    // 验证充值提示出现
+    await expect(page.locator('[data-testid="insufficient-ink-modal"]')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('[data-testid="insufficient-ink-modal"]')).toContainText('墨晶不足')
+  })
+
+  test('墨晶充足时正常抽卡', async ({ page }) => {
+    await page.goto(`${BASE_URL}/pool`)
+    await loginAsUser(page)
+
+    // 确保墨晶充足
+    await page.evaluate(() => {
+      localStorage.setItem('inkStone', '100')
+    })
+
+    await page.reload()
+    await page.waitForSelector('[data-testid="ink-pool-container"]')
+
+    const inkStoneBefore = await getInkStone(page)
+
+    // 消耗免费次数后的第4次抽卡
+    for (let i = 0; i < 3; i++) {
+      await page.locator('[data-testid="ink-pool-surface"]').click()
+      await page.waitForTimeout(2000)
+      const closeBtn = page.locator('[data-testid="card-modal-close"]')
+      if (await closeBtn.isVisible()) await closeBtn.click()
+    }
+
+    // 第4次抽卡
+    await page.locator('[data-testid="ink-pool-surface"]').click()
+    await page.waitForTimeout(3000)
+
+    const inkStoneAfter = await getInkStone(page)
+    expect(inkStoneAfter).toBe(inkStoneBefore - 10) // 消耗10墨晶
+  })
+})
