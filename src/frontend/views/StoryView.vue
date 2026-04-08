@@ -11,6 +11,115 @@ const storyStore = useStoryStore()
 
 const storyId = route.params.id as string
 
+// ── 手势选择状态 ──
+type GestureType = 'swipe-left' | 'swipe-right' | 'circle' | null
+const gestureMode = ref<'button' | 'gesture'>('button')
+const activeGesture = ref<GestureType>(null)
+const gestureFeedback = ref<string | null>(null)
+
+// 手势检测状态
+const touchStart = ref<{ x: number; y: number; angle: number } | null>(null)
+const touchHistory = ref<Array<{ x: number; y: number }>>([])
+const circleAccumAngle = ref(0)
+const lastAngle = ref<number | null>(null)
+const MIN_SWIPE_DIST = 50
+const CIRCLE_ANGLE_THRESHOLD = 280 // degrees to count as a circle
+
+function getAngle(x: number, y: number): number {
+  return Math.atan2(y - (touchStart.value?.y ?? 0), x - (touchStart.value?.x ?? 0)) * 180 / Math.PI
+}
+
+function handleTouchStart(e: TouchEvent) {
+  if (gestureMode.value !== 'gesture' || !currentChapter.value?.options?.length) return
+  const t = e.touches[0]
+  touchStart.value = { x: t.clientX, y: t.clientY, angle: 0 }
+  touchHistory.value = [{ x: t.clientX, y: t.clientY }]
+  circleAccumAngle.value = 0
+  lastAngle.value = null
+}
+
+function handleTouchMove(e: TouchEvent) {
+  if (!touchStart.value || gestureMode.value !== 'gesture') return
+  const t = e.touches[0]
+  const dx = t.clientX - touchStart.value.x
+  const dy = t.clientY - touchStart.value.y
+
+  // 圆形手势：累积旋转角度
+  const currentAngle = getAngle(t.clientX, t.clientY)
+  if (lastAngle.value !== null) {
+    let delta = currentAngle - lastAngle.value
+    // 处理跨越 -180/180 边界
+    if (delta > 180) delta -= 360
+    if (delta < -180) delta += 360
+    circleAccumAngle.value += Math.abs(delta)
+  }
+  lastAngle.value = currentAngle
+  touchHistory.value.push({ x: t.clientX, y: t.clientY })
+
+  // 滑动方向实时反馈
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 20) {
+    activeGesture.value = dx < 0 ? 'swipe-left' : 'swipe-right'
+  } else if (Math.abs(dy) > 20) {
+    activeGesture.value = null
+  }
+
+  // 圆形手势达到阈值时反馈
+  if (circleAccumAngle.value >= CIRCLE_ANGLE_THRESHOLD) {
+    activeGesture.value = 'circle'
+  }
+}
+
+function handleTouchEnd(e: TouchEvent) {
+  if (!touchStart.value || gestureMode.value !== 'gesture') return
+  const t = e.changedTouches[0]
+  const dx = t.clientX - touchStart.value.x
+  const dy = t.clientY - touchStart.value.y
+
+  if (circleAccumAngle.value >= CIRCLE_ANGLE_THRESHOLD) {
+    triggerGesture('circle')
+  } else if (Math.abs(dx) > MIN_SWIPE_DIST) {
+    // 向左滑 = 后退逃避选项(选项0)，向右滑 = 前进冒险选项(选项1)
+    const optIndex = dx < 0 ? 0 : 1
+    triggerGesture('swipe-left', optIndex)
+  }
+
+  // 重置
+  touchStart.value = null
+  touchHistory.value = []
+  circleAccumAngle.value = 0
+  lastAngle.value = null
+  activeGesture.value = null
+}
+
+function triggerGesture(gesture: GestureType, fallbackIndex?: number) {
+  if (!currentChapter.value?.options?.length) return
+  const opts = currentChapter.value.options
+
+  let optionIndex: number
+  if (gesture === 'swipe-left') optionIndex = 0      // 向后滑 → 逃避/后退
+  else if (gesture === 'swipe-right') optionIndex = 1 // 向前推 → 冒险/前进
+  else if (gesture === 'circle') optionIndex = 2     // 画圈 → 绕道/迂回
+  else return
+
+  // 限制在有效选项范围内
+  optionIndex = fallbackIndex ?? optionIndex
+  if (optionIndex >= opts.length) optionIndex = opts.length - 1
+
+  const label = gesture === 'swipe-left' ? '退' : gesture === 'swipe-right' ? '进' : '绕'
+  gestureFeedback.value = label
+  setTimeout(() => { gestureFeedback.value = null }, 800)
+
+  selectOption(opts[optionIndex].id, undefined, undefined)
+}
+
+function enableGestureMode() {
+  gestureMode.value = 'gesture'
+}
+
+function enableButtonMode() {
+  gestureMode.value = 'button'
+}
+
 // ── 流式渲染状态 ──
 const displayedText = ref('') // 已渲染的纯文本
 const currentChapter = ref<Chapter | null>(null)
@@ -219,6 +328,9 @@ async function selectOption(optionId: number, valueOrientation?: string, event?:
   // 触发涟漪动画
   if (event) {
     triggerChoiceRipple(event.clientX, event.clientY)
+  } else {
+    // 手势触发：涟漪在屏幕中央
+    triggerChoiceRipple(window.innerWidth / 2, window.innerHeight / 2)
   }
 
   try {
@@ -251,7 +363,7 @@ async function goNextChapter() {
 async function finishStory() {
   try {
     await storyStore.generateManuscript(storyId)
-    router.push(`/share/${storyId}`)
+    router.push(`/manuscript/${storyId}`)
   } catch (err) {
     console.error('[StoryView] finishStory failed:', err)
   }
@@ -407,16 +519,62 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 
       <!-- 价值取向选项按钮 -->
       <div v-if="currentChapter?.options && currentChapter.options.length > 0" class="options-grid" data-testid="chapter-options">
-        <button
-          v-for="opt in currentChapter.options"
-          :key="opt.id"
-          class="option-btn"
-          data-testid="option-item"
-          @click="selectOption(opt.id, undefined, $event)"
+        <!-- 手势模式切换提示 -->
+        <div class="gesture-mode-bar">
+          <button
+            class="mode-toggle-btn"
+            :class="{ active: gestureMode === 'gesture' }"
+            @click="gestureMode === 'button' ? enableGestureMode() : enableButtonMode()"
+            data-testid="gesture-mode-toggle"
+          >
+            <span class="mode-icon">{{ gestureMode === 'gesture' ? '✋' : '👆' }}</span>
+            <span class="mode-label">{{ gestureMode === 'gesture' ? '手势模式' : '切换手势' }}</span>
+          </button>
+        </div>
+
+        <!-- 手势引导图标（手势模式） -->
+        <div
+          v-if="gestureMode === 'gesture'"
+          class="gesture-panel"
+          data-testid="gesture-panel"
+          @touchstart="handleTouchStart"
+          @touchmove="handleTouchMove"
+          @touchend="handleTouchEnd"
         >
-          <span class="opt-value-tag">{{ opt.valueTag ?? '' }}</span>
-          <span class="opt-text">{{ opt.text }}</span>
-        </button>
+          <div class="gesture-hint" data-testid="gesture-hint">
+            <span class="gesture-label" data-testid="gesture-swipe-left">
+              <span class="gesture-icon">←</span>
+              <span class="gesture-desc">后退</span>
+            </span>
+            <span class="gesture-label" data-testid="gesture-swipe-right">
+              <span class="gesture-icon">→</span>
+              <span class="gesture-desc">前进</span>
+            </span>
+            <span class="gesture-label" data-testid="gesture-circle">
+              <span class="gesture-icon">↻</span>
+              <span class="gesture-desc">绕道</span>
+            </span>
+          </div>
+          <div class="gesture-active-indicator" :class="{ visible: activeGesture !== null }">
+            <span v-if="activeGesture === 'swipe-left'">← 后退</span>
+            <span v-else-if="activeGesture === 'swipe-right'">→ 前进</span>
+            <span v-else-if="activeGesture === 'circle'">↻ 绕道</span>
+          </div>
+        </div>
+
+        <!-- 按钮模式（默认） -->
+        <div v-else class="options-buttons">
+          <button
+            v-for="opt in currentChapter.options"
+            :key="opt.id"
+            class="option-btn"
+            data-testid="option-item"
+            @click="selectOption(opt.id, undefined, $event)"
+          >
+            <span class="opt-value-tag">{{ opt.valueTag ?? '' }}</span>
+            <span class="opt-text">{{ opt.text }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- 打字动画进行中 -->
@@ -957,5 +1115,100 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 @keyframes ripple-expand {
   0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(8); opacity: 0; }
+}
+
+/* ── 手势模式 ── */
+.gesture-mode-bar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.mode-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid rgba(139, 115, 85, 0.4);
+  border-radius: 20px;
+  background: rgba(139, 115, 85, 0.08);
+  color: #8b7355;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.mode-toggle-btn.active {
+  border-color: #c4a882;
+  background: rgba(196, 168, 130, 0.15);
+  color: #c4a882;
+}
+
+.mode-icon {
+  font-size: 1rem;
+}
+
+.mode-label {
+  letter-spacing: 0.05em;
+}
+
+.gesture-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(139, 115, 85, 0.08);
+  border: 1px solid rgba(139, 115, 85, 0.2);
+  border-radius: 6px;
+  user-select: none;
+  touch-action: none;
+}
+
+.gesture-hint {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.gesture-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.gesture-icon {
+  font-size: 1.8rem;
+  color: #c4a882;
+  line-height: 1;
+}
+
+.gesture-desc {
+  font-size: 0.7rem;
+  color: #8b7355;
+  letter-spacing: 0.05em;
+}
+
+.gesture-active-indicator {
+  font-size: 0.85rem;
+  color: #c4a882;
+  letter-spacing: 0.1em;
+  height: 1.2em;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.gesture-active-indicator.visible {
+  opacity: 1;
+}
+
+.options-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 </style>

@@ -108,8 +108,10 @@ export interface Story {
 export interface Manuscript {
   fullText: string
   wordCount: number
-  annotations?: Array<{ x: number; y: number; text: string }>
+  annotations?: Array<{ chapterNo?: number; x: number; y: number; text: string; color?: string }>
+  choiceMarks?: Array<{ chapterNo?: number; optionId?: number; text?: string }>
   epilogue?: string
+  baiguanComment?: string
 }
 
 // ===== API 方法 =====

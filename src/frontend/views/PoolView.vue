@@ -3,11 +3,14 @@ import { ref, computed, onMounted } from 'vue'
 import InkPool from '@/components/InkPool.vue'
 import Card from '@/components/Card.vue'
 import RippleEffect from '@/components/RippleEffect.vue'
+import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import { useCardStore } from '@/stores/cardStore'
+import { useInkValueStore } from '@/stores/inkValueStore'
 import { drawKeywordCard, fetchKeywordCard } from '@/services/api'
 import type { KeywordCard } from '@/services/api'
 
 const cardStore = useCardStore()
+const inkValueStore = useInkValueStore()
 
 const hasDrawn = ref(false)
 const drawnCard = ref<KeywordCard | null>(null)
@@ -22,6 +25,7 @@ const dailyFreeLeft = computed(() => remainingFreeDraws.value)
 
 // 从 localStorage 读取已有卡牌
 onMounted(() => {
+  inkValueStore.loadFromStorage()
   loadDailyFreeDraws()
   loadSavedCards()
 })
@@ -119,6 +123,8 @@ async function handleDraw() {
       if (!exists) {
         cardStore.keywordCards.push(drawnCard.value)
         saveCardsToStorage()
+        // 记录墨香值
+        inkValueStore.awardInkForDraw(cardData!.rarity)
       }
     }
 
@@ -142,9 +148,12 @@ function reset() {
   <div class="pool-view" data-testid="ink-pool-container">
     <header class="pool-header">
       <h2 data-testid="ink-pool-title">墨池</h2>
-      <div class="free-draws">
-        <span class="free-label">今日免费</span>
-        <span class="free-count" data-testid="free-draws-count">{{ remainingFreeDraws }}/{{ DAILY_FREE_LIMIT }}</span>
+      <div class="header-right">
+        <InkLevelBadge />
+        <div class="free-draws">
+          <span class="free-label">今日免费</span>
+          <span class="free-count" data-testid="free-draws-count">{{ remainingFreeDraws }}/{{ DAILY_FREE_LIMIT }}</span>
+        </div>
       </div>
     </header>
 
@@ -211,6 +220,12 @@ function reset() {
 .pool-header h2 {
   font-size: 1.5rem;
   letter-spacing: 0.2em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .free-draws {

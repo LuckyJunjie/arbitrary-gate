@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test'
 
 // ==================== 测试配置 ====================
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5173'
+const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5175'
 
 // ==================== 辅助函数 ====================
 

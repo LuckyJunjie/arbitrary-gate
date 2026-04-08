@@ -2,11 +2,14 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCardStore } from '@/stores/cardStore'
+import { useInkValueStore } from '@/stores/inkValueStore'
 import Card from '@/components/Card.vue'
+import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import type { KeywordCard } from '@/services/api'
 
 const router = useRouter()
 const cardStore = useCardStore()
+const inkValueStore = useInkValueStore()
 const activeTab = ref<'keyword' | 'event'>('keyword')
 const activeRarity = ref<number | null>(null)
 
@@ -89,8 +92,13 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
 <template>
   <div class="cards-view">
     <header class="cards-header">
-      <h2>卡匣</h2>
-      <p class="card-count">共 {{ cardStore.totalCount }} 张</p>
+      <div class="header-left">
+        <h2>卡匣</h2>
+        <p class="card-count">共 {{ cardStore.totalCount }} 张</p>
+      </div>
+      <div class="header-right">
+        <InkLevelBadge />
+      </div>
     </header>
 
     <nav class="filter-tabs">
@@ -170,8 +178,16 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
 
 .cards-header {
   padding: 1.5rem;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid rgba(44, 31, 20, 0.1);
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .cards-header h2 {
@@ -182,7 +198,10 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
 .card-count {
   font-size: 0.8rem;
   color: #8b7355;
-  margin-top: 0.25rem;
+}
+
+.header-right {
+  flex-shrink: 0;
 }
 
 .filter-tabs {

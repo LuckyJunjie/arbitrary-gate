@@ -1,0 +1,487 @@
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useStoryStore } from '@/stores/storyStore'
+import RippleEffect from '@/components/RippleEffect.vue'
+
+const route = useRoute()
+const router = useRouter()
+const storyStore = useStoryStore()
+
+const storyId = route.params.id as string
+const isLoading = ref(true)
+const loadError = ref<string | null>(null)
+const showRipple = ref(false)
+
+// ── 加载手稿数据 ──
+onMounted(async () => {
+  // 触发入场涟漪动画
+  showRipple.value = true
+  setTimeout(() => { showRipple.value = false }, 2000)
+
+  if (storyStore.manuscript && storyStore.currentStory?.id === storyId) {
+    // 已有缓存
+    isLoading.value = false
+  } else {
+    try {
+      await storyStore.fetchManuscript(storyId)
+    } catch (err) {
+      loadError.value = '手稿加载失败'
+      console.error('[ManuscriptView] fetchManuscript failed:', err)
+    } finally {
+      isLoading.value = false
+    }
+  }
+})
+
+const manuscript = computed(() => storyStore.manuscript)
+const storyTitle = computed(() => storyStore.currentStory?.title ?? '时光笺')
+
+// 分割正文为段落（按换行或句号分割）
+const paragraphs = computed(() => {
+  if (!manuscript.value?.fullText) return []
+  return manuscript.value.fullText
+    .split(/\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0)
+})
+
+// 获取后日谈
+const epilogue = computed(() => manuscript.value?.epilogue)
+
+// 朱批注释（按段落索引分组）
+const annotationsByPara = computed(() => {
+  if (!manuscript.value?.annotations?.length) return {}
+  const grouped: Record<number, string[]> = {}
+  manuscript.value.annotations.forEach(ann => {
+    const idx = ann.chapterNo ?? 0
+    if (!grouped[idx]) grouped[idx] = []
+    grouped[idx].push(ann.text)
+  })
+  return grouped
+})
+
+// 获取选择标记
+const choiceMarksByPara = computed(() => {
+  if (!manuscript.value?.choiceMarks?.length) return {}
+  const marks: Record<number, string> = {}
+  manuscript.value.choiceMarks.forEach(m => {
+    marks[m.chapterNo ?? 0] = m.text ?? '·'
+  })
+  return marks
+})
+
+// 字数统计
+const wordCount = computed(() => manuscript.value?.wordCount ?? 0)
+
+// 朱砂色（#8B3E3C 或 #8B5E3C）
+const sealColor = computed(() => {
+  // 根据历史偏离度决定印鉴颜色
+  const dev = storyStore.historyDeviation
+  return dev > 60 ? '#8B5E3C' : '#8B3E3C'
+})
+
+// 返回书架
+function goBack() {
+  router.push('/bookshelf')
+}
+</script>
+
+<template>
+  <div class="manuscript-view">
+    <!-- 背景涟漪动画 -->
+    <RippleEffect v-if="showRipple" />
+
+    <!-- 顶部导航 -->
+    <header class="manuscript-header">
+      <button class="header-back" @click="goBack" data-testid="manuscript-back">
+        ← 书架
+      </button>
+      <h1 class="manuscript-title" data-testid="manuscript-title">{{ storyTitle }}</h1>
+      <div class="header-meta">
+        <span class="word-count" data-testid="manuscript-word-count">{{ wordCount }} 字</span>
+      </div>
+    </header>
+
+    <!-- 加载状态 -->
+    <div v-if="isLoading" class="manuscript-loading">
+      <p class="loading-text">说书人正在誊写...</p>
+    </div>
+
+    <!-- 错误状态 -->
+    <div v-else-if="loadError" class="manuscript-error">
+      <p>{{ loadError }}</p>
+      <button class="retry-btn" @click="() => { loadError = null; isLoading = true; storyStore.fetchManuscript(storyId).finally(() => { isLoading = false }) }">
+        重试
+      </button>
+    </div>
+
+    <!-- 手稿正文 -->
+    <div v-else-if="manuscript" class="manuscript-scroll" data-testid="manuscript-scroll">
+      <div class="manuscript-content">
+        <!-- 卷轴顶边 -->
+        <div class="scroll-top-bar">
+          <span class="scroll-label">卷</span>
+        </div>
+
+        <!-- 正文区域 -->
+        <div class="manuscript-body" data-testid="manuscript-body">
+          <div
+            v-for="(para, idx) in paragraphs"
+            :key="idx"
+            class="manuscript-paragraph"
+            :data-testid="`manuscript-para-${idx}`"
+          >
+            <!-- 选择标记 -->
+            <span
+              v-if="choiceMarksByPara[idx]"
+              class="choice-mark"
+              :title="`第${idx + 1}章选择：${choiceMarksByPara[idx]}`"
+            >·</span>
+
+            <!-- 正文 -->
+            <span class="para-text">{{ para }}</span>
+
+            <!-- 朱批 -->
+            <div
+              v-if="annotationsByPara[idx]?.length"
+              class="zhub-annotation"
+              data-testid="zhub-annotation"
+            >
+              <div class="zhub-marks">〰️</div>
+              <div class="zhub-content">
+                <span class="zhub-label">批</span>
+                <p
+                  v-for="(ann, ai) in annotationsByPara[idx]"
+                  :key="ai"
+                  class="zhub-text"
+                >{{ ann }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 后日谈 -->
+        <div v-if="epilogue" class="epilogue-section" data-testid="manuscript-epilogue">
+          <div class="epilogue-divider">✦ ✦ ✦</div>
+          <p class="epilogue-text">{{ epilogue }}</p>
+        </div>
+
+        <!-- 稗官评语 -->
+        <div
+          v-if="manuscript.baiguanComment"
+          class="baiguan-comment"
+          data-testid="baiguan-comment"
+        >
+          <p class="baiguan-text">{{ manuscript.baiguanComment }}</p>
+        </div>
+
+        <!-- 卷轴底边 + 印鉴 -->
+        <div class="scroll-bottom-bar">
+          <div class="manuscript-seal" :style="{ color: sealColor }" data-testid="manuscript-seal">
+            <span class="seal-char">笺</span>
+          </div>
+          <span class="scroll-label">完</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div v-else class="manuscript-empty">
+      <p>暂无手稿内容</p>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.manuscript-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f5f0e6;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  color: #2c2c2a;
+  position: relative;
+}
+
+/* ── 顶部导航 ── */
+.manuscript-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(139, 94, 60, 0.2);
+  background: rgba(245, 240, 230, 0.95);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-back {
+  background: none;
+  border: 1px solid rgba(139, 94, 60, 0.3);
+  border-radius: 3px;
+  padding: 0.3rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #8b5e3c;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-back:hover {
+  background: rgba(139, 94, 60, 0.1);
+}
+
+.manuscript-title {
+  font-family: 'Source Han Serif CN', 'Noto Serif SC', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2c2c2a;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.header-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.word-count {
+  font-size: 0.75rem;
+  color: #8b7355;
+  letter-spacing: 0.05em;
+}
+
+/* ── 加载/错误/空状态 ── */
+.manuscript-loading,
+.manuscript-error,
+.manuscript-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.loading-text {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1rem;
+  color: #8b7355;
+  letter-spacing: 0.15em;
+  animation: text-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes text-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.retry-btn {
+  padding: 0.5rem 1.2rem;
+  border: 1px solid #8b5e3c;
+  border-radius: 3px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #8b5e3c;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retry-btn:hover {
+  background: rgba(139, 94, 60, 0.1);
+}
+
+/* ── 手稿卷轴 ── */
+.manuscript-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.manuscript-content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2rem 3rem 4rem;
+}
+
+/* ── 卷轴天杆/地杆 ── */
+.scroll-top-bar,
+.scroll-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-top: 2px solid rgba(139, 94, 60, 0.3);
+  border-bottom: 2px solid rgba(139, 94, 60, 0.3);
+  background: rgba(139, 94, 60, 0.06);
+  margin-bottom: 1.5rem;
+}
+
+.scroll-bottom-bar {
+  margin-bottom: 0;
+  margin-top: 2rem;
+  border-top: 2px solid rgba(139, 94, 60, 0.3);
+  border-bottom: 2px solid rgba(139, 94, 60, 0.3);
+}
+
+.scroll-label {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 0.75rem;
+  color: rgba(139, 94, 60, 0.5);
+  letter-spacing: 0.3em;
+}
+
+/* ── 正文主体 ── */
+.manuscript-body {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  direction: ltr;
+  height: 60vh;
+  overflow-y: hidden;
+  padding: 0 1rem;
+  position: relative;
+}
+
+/* ── 段落 ── */
+.manuscript-paragraph {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-right: 2.5rem;
+  padding: 0.5rem 0;
+  min-height: 200px;
+}
+
+.choice-mark {
+  position: absolute;
+  top: 0;
+  right: -0.5rem;
+  color: #8b3e3c;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.para-text {
+  font-family: 'Noto Serif SC', 'Source Han Serif CN', serif;
+  font-size: 1.05rem;
+  line-height: 2.2;
+  color: #2c2c2a;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* ── 朱批 ── */
+.zhub-annotation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-left: 2px solid #8b3e3c;
+  background: rgba(139, 62, 60, 0.05);
+  max-width: 140px;
+}
+
+.zhub-marks {
+  font-size: 0.7rem;
+  color: #8b3e3c;
+  flex-shrink: 0;
+  opacity: 0.7;
+  line-height: 2;
+}
+
+.zhub-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.zhub-label {
+  display: inline-block;
+  font-size: 0.6rem;
+  color: #8b3e3c;
+  border: 1px solid #8b3e3c;
+  border-radius: 2px;
+  padding: 0 0.2rem;
+  line-height: 1.4;
+  margin-bottom: 0.2rem;
+}
+
+.zhub-text {
+  font-family: 'Noto Serif SC', 'FangZhengQingKeBenYueSong', serif;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #8b3e3c;
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+/* ── 后日谈 ── */
+.epilogue-section {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  text-align: center;
+}
+
+.epilogue-divider {
+  font-size: 0.8rem;
+  color: rgba(139, 94, 60, 0.4);
+  letter-spacing: 0.5em;
+  margin-bottom: 1rem;
+}
+
+.epilogue-text {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 0.95rem;
+  line-height: 2;
+  color: #6b5e50;
+  letter-spacing: 0.05em;
+  font-style: italic;
+  margin: 0;
+}
+
+/* ── 稗官评语 ── */
+.baiguan-comment {
+  margin-top: 1.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px dashed rgba(139, 94, 60, 0.3);
+  border-bottom: 1px dashed rgba(139, 94, 60, 0.3);
+}
+
+.baiguan-text {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: #8b7355;
+  margin: 0;
+  text-align: right;
+  letter-spacing: 0.05em;
+}
+
+/* ── 印鉴 ── */
+.manuscript-seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  opacity: 0.7;
+}
+
+.seal-char {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  padding: 0.2rem 0.3rem;
+}
+</style>

@@ -98,16 +98,22 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div data-testid="ink-ripple-animation">
+  <div data-testid="ink-ripple-animation" class="ripple-container">
     <canvas ref="canvasRef" class="ripple-canvas" />
   </div>
 </template>
 
 <style scoped>
-.ripple-canvas {
+.ripple-container {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
+}
+.ripple-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 </style>
