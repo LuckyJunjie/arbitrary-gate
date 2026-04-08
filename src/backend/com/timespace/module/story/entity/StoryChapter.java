@@ -32,6 +32,8 @@ public class StoryChapter {
 
     private String aiFullText;       // AI生成的完整叙述
 
+    private String chapterComment;   // 章节判官判词（用于前端展示）
+
     private LocalDateTime createdAt;
 
     @Data

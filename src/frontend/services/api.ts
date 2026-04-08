@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-// TODO: 配置实际 API Base URL（环境变量注入）
+// 配置实际 API Base URL（环境变量注入）
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 export const api = axios.create({
@@ -27,7 +27,6 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       if (status === 401) {
-        // TODO: 跳转登录
         console.warn('[API] Unauthorized, redirect to login')
       }
       console.error(`[API] Error ${status}:`, data)
@@ -37,5 +36,120 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// ===== 类型定义 =====
+
+export interface KeywordCard {
+  id: number
+  name: string
+  rarity: number // 1=凡 2=珍 3=奇 4=绝
+  category: number // 1=器物 2=职人 3=风物 4=情绪 5=称谓
+  imageUrl?: string
+  inkFragrance?: number // 0-7
+  resonanceCount?: number
+  drawnAt?: string
+}
+
+export interface EventCard {
+  id: number
+  name: string
+  rarity: number
+  category: number
+  description?: string
+  drawnAt?: string
+}
+
+export interface DrawResponse {
+  card: KeywordCard
+  remainingFreeDraws: number
+  isFree: boolean
+}
+
+export interface HistoryEvent {
+  id: number
+  year: number
+  season: string
+  title: string
+  description: string
+  keywordIds: number[]
+}
+
+export interface Option {
+  id: number
+  text: string
+}
+
+export interface Chapter {
+  chapterNo: number
+  sceneText: string
+  options: Option[]
+  keywordResonance?: Record<number, number>
+  ripples?: Array<{ target: string; status: string }>
+}
+
+export interface Story {
+  id: string
+  storyNo: string
+  title: string
+  status: number // 1=进行中 2=已完成
+  currentChapter: number
+  historyDeviation: number
+  createdAt: string
+  finishedAt?: string
+}
+
+export interface Manuscript {
+  fullText: string
+  wordCount: number
+  annotations?: Array<{ x: number; y: number; text: string }>
+  epilogue?: string
+}
+
+// ===== API 方法 =====
+
+// 抽关键词卡（GET，查询免费次数等）
+export async function fetchKeywordCard(): Promise<{ card: KeywordCard; remainingFreeDraws: number; isFree: boolean }> {
+  return api.get('/api/card/keyword')
+}
+
+// 抽关键词卡（POST，实际执行抽卡）
+export async function drawKeywordCard(): Promise<DrawResponse> {
+  return api.post('/api/card/draw/keyword')
+}
+
+// 获取历史事件列表
+export async function fetchHistoryEvents(): Promise<HistoryEvent[]> {
+  return api.get('/api/events')
+}
+
+// 开始新故事
+export async function startNewStory(payload: { title?: string; keywords?: number[] }): Promise<Story> {
+  return api.post('/api/story/start', payload)
+}
+
+// 提交章节选择
+export async function submitChapterChoice(storyId: string, chapterNo: number, optionId: number): Promise<{ chapter: Chapter; deviation: number }> {
+  return api.post(`/api/story/${storyId}/chapter/${chapterNo}/choose`, { optionId })
+}
+
+// 获取故事章节
+export async function fetchChapter(storyId: string, chapterNo: number): Promise<Chapter> {
+  return api.get(`/api/story/${storyId}/chapter/${chapterNo}`)
+}
+
+// 获取手稿
+export async function fetchManuscript(storyId: string): Promise<Manuscript> {
+  return api.get(`/api/story/${storyId}/manuscript`)
+}
+
+// 获取故事列表
+export async function fetchStoryList(): Promise<Story[]> {
+  return api.get('/api/story/list')
+}
+
+// 完成故事（触发 AI 生成手稿）
+export async function finishStory(storyId: string): Promise<Manuscript> {
+  return api.post(`/api/story/${storyId}/finish`)
+}
 
 export default api

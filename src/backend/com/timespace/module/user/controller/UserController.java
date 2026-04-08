@@ -6,6 +6,7 @@ import com.timespace.common.exception.GlobalExceptionHandler.Result;
 import com.timespace.module.user.entity.User;
 import com.timespace.module.user.service.UserService;
 import jakarta.validation.Valid;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;

@@ -1,5 +1,6 @@
 package com.timespace.module.card.entity;
 
+import com.timespace.module.card.entity.KeywordCard;
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import lombok.experimental.Accessors;

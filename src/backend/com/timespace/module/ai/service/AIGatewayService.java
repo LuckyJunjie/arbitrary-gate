@@ -13,6 +13,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 /**
  * AI 网关服务
  * 统一管理所有 AI Agent 的调用
@@ -67,9 +73,12 @@ public class AIGatewayService {
      * @param onChunk 流式回调（WebSocket推送）
      * @return 下一章节
      */
-    public StoryChapter generateNextChapter(Story story, StoryChapter currentChapter,
+    public StoryChapter generateNextChapter(Story story,
+                                            StoryChapter currentChapter,
                                             StoryChapter.Option selectedOption,
-                                            java.util.function.Consumer<String> onChunk) {
+                                            List<KeywordCard> keywords,
+                                            List<StoryCharacter> characters,
+                                            Consumer<String> onChunk) {
         log.info("AI协作生成下一章: storyId={}, chapterNo={}",
                 story.getId(), currentChapter.getChapterNo() + 1);
 
@@ -82,7 +91,7 @@ public class AIGatewayService {
                 evaluation.getJudgment());
 
         // ====== 2. 更新故事上下文（配角命运、偏离度、关键词共鸣）======
-        updateStoryContext(story, evaluation);
+        updateStoryContext(story, evaluation, characters);
 
         // ====== 3. 说书人生成下一章（流式）======
         StoryChapter nextChapter = storytellerAgent.generateChapter(
@@ -94,26 +103,31 @@ public class AIGatewayService {
                 onChunk  // 流式推送
         );
 
+        // 将判官判词存入章节（供前端展示）
+        nextChapter.setChapterComment(evaluation.getJudgment());
+
         // ====== 4. 判官生成选项（已在生成章节时一并生成）======
         // 选项已包含在 nextChapter.options 中
 
         // ====== 5. 更新关键词卡共鸣 ======
-        updateKeywordResonance(keywords, evaluation);
+        updateKeywordResonance(story, keywords, evaluation);
 
         return nextChapter;
     }
 
     /**
      * 生成第一章节（无前置选择）
+     *
+     * @param story 故事元信息
+     * @param keywords 关键词卡列表
+     * @param characters 配角列表
+     * @param onChunk 流式回调
      */
     public StoryChapter generateFirstChapter(Story story,
-                                              java.util.function.Consumer<String> onChunk) {
+                                              List<KeywordCard> keywords,
+                                              List<StoryCharacter> characters,
+                                              Consumer<String> onChunk) {
         log.info("AI生成第一章节: storyId={}", story.getId());
-
-        // 获取关键词卡信息
-        java.util.List<KeywordCard> keywords = getKeywordCards(story);
-        // 初始化配角
-        java.util.List<StoryCharacter> characters = initializeCharacters(story);
 
         // 说书人生成第一章节
         return storytellerAgent.generateChapter(
@@ -127,45 +141,86 @@ public class AIGatewayService {
     }
 
     /**
+     * 判官评估选择（仅评估，不生成章节）
+     * 用于 submitChoiceAndStream 流程中，先推送判官结果
+     */
+    public JudgeAgent.EvaluationResult evaluateChoice(Story story,
+                                                       StoryChapter currentChapter,
+                                                       StoryChapter.Option selectedOption,
+                                                       List<KeywordCard> keywords,
+                                                       List<StoryCharacter> characters) {
+        return judgeAgent.evaluate(story, currentChapter, selectedOption, keywords, characters);
+    }
+
+    /**
      * 生成手稿
      */
-    public String generateManuscript(Story story, java.util.List<StoryChapter> chapters,
-                                      java.util.List<KeywordCard> keywords,
-                                      java.util.List<StoryCharacter> characters) {
+    public String generateManuscript(Story story,
+                                      List<StoryChapter> chapters,
+                                      List<KeywordCard> keywords,
+                                      List<StoryCharacter> characters) {
         log.info("AI生成手稿: storyId={}, chapters={}", story.getId(), chapters.size());
         return storytellerAgent.generateManuscript(story, chapters, keywords, characters);
     }
 
-    private void updateStoryContext(Story story, JudgeAgent.EvaluationResult evaluation) {
+    private void updateStoryContext(Story story,
+                                     JudgeAgent.EvaluationResult evaluation,
+                                     List<StoryCharacter> characters) {
         // 更新偏离度
         story.setHistoryDeviation(evaluation.getNewDeviation());
+
         // 更新配角命运
-        // 实际项目中持久化到数据库
+        for (Map.Entry<String, JudgeAgent.CharacterFateChange> entry :
+                evaluation.getCharacterFateChanges().entrySet()) {
+            String charName = entry.getKey();
+            JudgeAgent.CharacterFateChange change = entry.getValue();
+            // 找出对应配角并更新命运值
+            characters.stream()
+                    .filter(c -> c.getName().equals(charName))
+                    .findFirst()
+                    .ifPresent(c -> c.setFateValue(change.getNewValue()));
+        }
+
         log.info("故事上下文更新: newDeviation={}, characterChanges={}",
                 evaluation.getNewDeviation(),
                 evaluation.getCharacterFateChanges().size());
     }
 
-    private void updateKeywordResonance(java.util.List<KeywordCard> keywords,
+    private void updateKeywordResonance(Story story,
+                                        List<KeywordCard> keywords,
                                         JudgeAgent.EvaluationResult evaluation) {
-        for (java.util.Map.Entry<Long, Integer> entry : evaluation.getKeywordResonance().entrySet()) {
+        for (Map.Entry<Long, Integer> entry : evaluation.getKeywordResonance().entrySet()) {
             Long cardId = entry.getKey();
             Integer resonance = entry.getValue();
             if (resonance > 0) {
                 // 增加共鸣次数
-                cardService.increaseResonance(null, cardId); // userId从story中获取
+                try {
+                    cardService.increaseResonance(story.getUserId(), cardId);
+                } catch (Exception e) {
+                    log.warn("关键词卡共鸣更新失败: cardId={}, error={}", cardId, e.getMessage());
+                }
                 log.info("关键词卡共鸣更新: cardId={}, resonance={}", cardId, resonance);
             }
         }
     }
 
-    private java.util.List<KeywordCard> getKeywordCards(Story story) {
-        // 实际项目中从数据库查询
-        return new java.util.ArrayList<>();
+    private List<KeywordCard> getKeywordCards(Story story) {
+        // 实际项目中根据 story.keywordCardIds 查询数据库
+        // 这里返回空列表作为 fallback
+        if (story.getKeywordCardIds() == null || story.getKeywordCardIds().isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            // TODO: 通过 CardService 查询
+            return new ArrayList<>();
+        } catch (Exception e) {
+            log.warn("获取关键词卡失败: storyId={}, error={}", story.getId(), e.getMessage());
+            return new ArrayList<>();
+        }
     }
 
-    private java.util.List<StoryCharacter> initializeCharacters(Story story) {
+    private List<StoryCharacter> initializeCharacters(Story story) {
         // 实际项目中根据事件卡初始化配角
-        return new java.util.ArrayList<>();
+        return new ArrayList<>();
     }
 }

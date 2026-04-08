@@ -12,6 +12,7 @@ import com.timespace.module.user.controller.UserController.UserVO;
 import com.timespace.module.user.controller.UserController.WxLoginVO;
 import com.timespace.module.user.entity.User;
 import com.timespace.module.user.mapper.UserMapper;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -83,6 +84,24 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         User user = getById(userId);
         if (user.getInkStone() < amount) throw BusinessException.INK_STONE_NOT_ENOUGH;
         user.setInkStone(user.getInkStone() - amount);
+        updateById(user);
+    }
+
+    public boolean hasDailyFreeDraw(Long userId) {
+        User user = getById(userId);
+        if (user == null) return false;
+        resetDailyFreeDrawsIfNeeded(user);
+        return user.getDailyFreeDraws() != null && user.getDailyFreeDraws() > 0;
+    }
+
+    public void useDailyFreeDraw(Long userId) {
+        User user = getById(userId);
+        if (user == null) throw new BusinessException(404, "用户不存在");
+        resetDailyFreeDrawsIfNeeded(user);
+        if (user.getDailyFreeDraws() == null || user.getDailyFreeDraws() <= 0) {
+            throw BusinessException.DAILY_FREE_EXHAUSTED;
+        }
+        user.setDailyFreeDraws(user.getDailyFreeDraws() - 1);
         updateById(user);
     }
 

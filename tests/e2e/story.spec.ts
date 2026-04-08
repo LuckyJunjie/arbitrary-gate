@@ -191,7 +191,7 @@ test.describe('关键词共鸣可视化', () => {
       return (el as HTMLElement).style.width || '0%'
     })
 
-    expect(fillWidth).toMatch(/\d+%)
+    expect(fillWidth).toMatch(/^\d+%$/)
   })
 
   test('共鸣满时应该触发显灵效果', async ({ page }) => {

@@ -1,13 +1,17 @@
 package com.timespace.module.card.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.timespace.module.card.entity.KeywordCard;
+import com.timespace.common.utils.IdGenerator;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,6 +43,8 @@ public class DrawAlgorithm {
 
     private final StringRedisTemplate redisTemplate;
     private final RedissonClient redissonClient;
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     // ====== 可配置概率参数 ======
     @Value("${timespace.card.guaranteed-rare-chapter:10}")
@@ -89,8 +95,7 @@ public class DrawAlgorithm {
             return new GuaranteeState();
         }
         try {
-            return com.fasterxml.jackson.databind.ObjectMapperSingleton.getObjectMapper()
-                    .readValue(json, GuaranteeState.class);
+            return MAPPER.readValue(json, GuaranteeState.class);
         } catch (Exception e) {
             log.error("解析保底状态失败: userId={}", userId, e);
             return new GuaranteeState();
@@ -119,8 +124,7 @@ public class DrawAlgorithm {
         // 写回Redis
         String key = String.format(GUARANTEE_STATE_KEY, userId);
         try {
-            String json = com.fasterxml.jackson.databind.ObjectMapperSingleton.getObjectMapper()
-                    .writeValueAsString(state);
+            String json = MAPPER.writeValueAsString(state);
             redisTemplate.opsForValue().set(key, json, GUARANTEE_STATE_TTL, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("保存保底状态失败: userId={}", userId, e);

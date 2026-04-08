@@ -8,9 +8,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.common.exception.BusinessException;
 import com.timespace.common.utils.IdGenerator;
 import com.timespace.module.ai.agent.BaiguanAgent;
+import com.timespace.module.ai.agent.JudgeAgent;
 import com.timespace.module.ai.service.AIGatewayService;
 import com.timespace.module.card.entity.KeywordCard;
-import com.timespace.module.card.entity.UserKeywordCard;
 import com.timespace.module.card.service.CardService;
 import com.timespace.module.story.controller.StoryController.*;
 import com.timespace.module.story.entity.*;
@@ -24,14 +24,20 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+
+import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -46,7 +52,7 @@ import java.util.stream.Collectors;
  *    - 调用说书人生成第一章
  *    - WebSocket 推送流式内容
  *
- * 2. 提交选择 (submitChoice)
+ * 2. 提交选择 (submitChoice / submitChoiceAndStream)
  *    - 验证章节归属
  *    - 保存用户选择
  *    - 触发 AI 协作流程
@@ -86,8 +92,14 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     @Value("${timespace.story.max-words:8000}")
     private int maxWords;
 
-    // WebSocket会话管理（userId -> WebSocket Session ID）
+    // SSE 发射器存储（storyId -> SSE emitter）
+    private final Map<Long, SseEmitter> storySseEmitters = new ConcurrentHashMap<>();
+
+    // WebSocket 会话管理（userId -> WebSocket Session ID）
     private final Map<Long, String> userSessionMap = new ConcurrentHashMap<>();
+
+    // AI 流式任务线程池
+    private final ExecutorService aiStreamExecutor = Executors.newFixedThreadPool(4);
 
     /**
      * 注册用户 WebSocket Session
@@ -106,12 +118,258 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     /**
+     * ========== SSE 流式 API ==========
+     */
+
+    /**
+     * GET /api/story/{id}/stream
+     * SSE 流式推送故事内容
+     *
+     * 返回 Flux<ServerSentEvent>，前端通过 EventSource 消费
+     * 事件类型：
+     *   - chapter_start  : 章节开始
+     *   - chapter_chunk  : 章节内容片段
+     *   - chapter_end    : 章节完成
+     *   - judgment       : 判官判词
+     *   - character_change: 配角命运变化
+     *   - story_end      : 故事完成
+     *   - error          : 错误信息
+     */
+    public SseEmitter storyStream(Long storyId) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("SSE流式请求: userId={}, storyId={}", userId, storyId);
+
+        Story story = storyMapper.selectById(storyId);
+        if (story == null || !story.getUserId().equals(userId)) {
+            throw BusinessException.STORY_NOT_FOUND;
+        }
+
+        SseEmitter emitter = new SseEmitter(0L);
+        storySseEmitters.put(storyId, emitter);
+
+        emitter.onCompletion(() -> { storySseEmitters.remove(storyId); });
+        emitter.onTimeout(() -> { storySseEmitters.remove(storyId); });
+        emitter.onError(e -> { storySseEmitters.remove(storyId); });
+
+        try {
+            emitter.send(SseEmitter.event().name("connected")
+                    .data("{\"storyId\":" + storyId + ",\"chapter\":" + story.getCurrentChapter() + "}"));
+        } catch (Exception e) { log.warn("SSE send failed: {}", e.getMessage()); }
+
+        return emitter;
+
+    }
+
+    /**
+     * SSE 流式生成章节
+     * 用于 /api/story/{id}/stream 路由，通过 StoryController 返回 Flux<ServerSentEvent>
+     *
+     * @param storyId 故事ID
+     * @param chapterNo 章节号
+     */
+    public void generateChapterStream(Long storyId, Integer chapterNo) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("SSE章节流式生成: userId={}, storyId={}, chapterNo={}", userId, storyId, chapterNo);
+
+        Story story = storyMapper.selectById(storyId);
+        if (story == null || !story.getUserId().equals(userId)) {
+            pushSseError(storyId, "STORY_NOT_FOUND");
+            return;
+        }
+
+        List<KeywordCard> keywords = getKeywordCardsDetail(userId, story.getKeywordCardIds());
+        List<StoryCharacter> characters = characterMapper.selectList(
+                new LambdaQueryWrapper<StoryCharacter>()
+                        .eq(StoryCharacter::getStoryId, storyId));
+
+        // 获取上一章节（如果有）
+        StoryChapter lastChapter = null;
+        if (chapterNo > 1) {
+            lastChapter = chapterMapper.selectOne(
+                    new LambdaQueryWrapper<StoryChapter>()
+                            .eq(StoryChapter::getStoryId, storyId)
+                            .eq(StoryChapter::getChapterNo, chapterNo - 1));
+        }
+
+        // 获取当前章节（如果是续传）
+        StoryChapter currentChapter = chapterMapper.selectOne(
+                new LambdaQueryWrapper<StoryChapter>()
+                        .eq(StoryChapter::getStoryId, storyId)
+                        .eq(StoryChapter::getChapterNo, chapterNo));
+
+        // 流式生成
+        try {
+            String fullText = aiGatewayService.generateNextChapter(
+                    story,
+                    lastChapter,
+                    lastChapter != null && currentChapter != null ?
+                            findSelectedOption(currentChapter) : null,
+                    keywords,
+                    characters,
+                    chunk -> {
+                        // WebSocket 推送
+                        pushToUser(userId, "chapter_stream", ChapterStreamVO.builder()
+                                .storyId(storyId)
+                                .chapterNo(chapterNo)
+                                .chunk(chunk)
+                                .build());
+                        // SSE 推送
+                        pushSseChunk(storyId, chunk);
+                    }
+            ).getSceneText();
+
+            // 章节完成
+            storySseEmitters.get(storyId).send(
+                    SseEmitter.event()
+                            .name("chapter_end")
+                            .data("{\"storyId\\\":" + storyId + ",\"chapterNo\":" + chapterNo + "}")
+                            .build());
+
+            // 同步保存章节
+            if (currentChapter == null) {
+                currentChapter = new StoryChapter();
+                currentChapter.setStoryId(storyId);
+                currentChapter.setChapterNo(chapterNo);
+                currentChapter.setSceneText(fullText);
+                // options 已在 AI 调用中设置
+                chapterMapper.insert(currentChapter);
+            }
+
+            // 推送选项
+            if (currentChapter.getOptions() != null) {
+                storySseEmitters.get(storyId).send(
+                        SseEmitter.event()
+                                .name("options")
+                                .data(toJson(currentChapter.getOptions()))
+                                .build());
+            }
+
+        } catch (Exception e) {
+            log.error("SSE章节生成失败: storyId={}, error={}", storyId, e.getMessage(), e);
+            pushSseError(storyId, "AI生成失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 判官评估后流式生成下一章
+     * 用于 submitChoice 后的完整 AI 协作流程
+     *
+     * @param storyId 故事ID
+     * @param chapterNo 当前章节号
+     * @param optionId 选择的选项ID
+     */
+    public void submitChoiceAndStream(Long storyId, Integer chapterNo, Integer optionId) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("提交选择并流式生成: userId={}, storyId={}, chapterNo={}, optionId={}",
+                userId, storyId, chapterNo, optionId);
+
+        try {
+            // 1. 验证故事归属
+            Story story = storyMapper.selectById(storyId);
+            if (story == null || !story.getUserId().equals(userId)) {
+                pushSseError(storyId, "STORY_NOT_FOUND");
+                return;
+            }
+            if (story.getStatus() != 1) {
+                pushSseError(storyId, "STORY_ENDED");
+                return;
+            }
+
+            // 2. 获取当前章节并验证选项
+            StoryChapter currentChapter = chapterMapper.selectOne(
+                    new LambdaQueryWrapper<StoryChapter>()
+                            .eq(StoryChapter::getStoryId, storyId)
+                            .eq(StoryChapter::getChapterNo, chapterNo));
+            if (currentChapter == null) {
+                pushSseError(storyId, "CHAPTER_NOT_FOUND");
+                return;
+            }
+
+            StoryChapter.Option selectedOption = currentChapter.getOptions().stream()
+                    .filter(o -> o.getId().equals(optionId))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException(400, "无效的选项"));
+
+            // 保存用户选择
+            currentChapter.setSelectedOption(optionId);
+            chapterMapper.updateById(currentChapter);
+
+            // 获取关键词和配角
+            List<KeywordCard> keywords = getKeywordCardsDetail(userId, story.getKeywordCardIds());
+            List<StoryCharacter> characters = characterMapper.selectList(
+                    new LambdaQueryWrapper<StoryCharacter>()
+                            .eq(StoryCharacter::getStoryId, storyId));
+
+            // 3. 流式生成下一章（AI 协作：判官评估 → 说书人生成）
+            int nextChapterNo = chapterNo + 1;
+            pushSseEvent(storyId, "chapter_start",
+                    "{\"storyId\\\":" + storyId + ",\"chapterNo\":" + nextChapterNo + "}");
+
+            // 流式回调
+            java.util.function.Consumer<String> onChunk = chunk -> {
+                pushToUser(userId, "chapter_stream", ChapterStreamVO.builder()
+                        .storyId(storyId)
+                        .chapterNo(nextChapterNo)
+                        .chunk(chunk)
+                        .build());
+                pushSseChunk(storyId, chunk);
+            };
+
+            StoryChapter nextChapter = aiGatewayService.generateNextChapter(
+                    story, currentChapter, selectedOption, keywords, characters, onChunk);
+
+            // 4. 保存下一章节
+            nextChapter.setStoryId(storyId);
+            nextChapter.setSelectedOption(null);
+            chapterMapper.insert(nextChapter);
+
+            // 5. 更新故事状态
+            story.setCurrentChapter(nextChapterNo);
+            story.setHistoryDeviation(Math.max(0, Math.min(100, story.getHistoryDeviation())));
+            boolean isLastChapter = nextChapterNo >= maxChapters;
+            if (isLastChapter) {
+                story.setStatus(2);
+            }
+            storyMapper.updateById(story);
+
+            // 6. 推送章节结束 + 选项
+            pushSseEvent(storyId, "chapter_end",
+                    "{\"storyId\\\":" + storyId + ",\"chapterNo\":" + nextChapterNo +
+                            ",\"isLastChapter\":" + isLastChapter + "}");
+
+            if (nextChapter.getOptions() != null) {
+                pushSseEvent(storyId, "options", toJson(nextChapter.getOptions()));
+            }
+
+            // 7. 推送判官判词
+            pushToUser(userId, "judgment", JudgmentVO.builder()
+                    .storyId(storyId)
+                    .chapterNo(nextChapterNo)
+                    .judgment(nextChapter.getChapterComment())
+                    .deviationChange(0)  // 已由 AI Gateway 更新
+                    .build());
+
+            if (isLastChapter) {
+                pushSseEvent(storyId, "story_end", "{\"storyId\\\":" + storyId + ",\"status\":\"finished\"}");
+                pushToUser(userId, "story_end", StoryEndVO.builder().storyId(storyId).status("finished").build());
+            }
+
+            log.info("选择提交并流式生成完成: storyId={}, nextChapterNo={}", storyId, nextChapterNo);
+
+        } catch (Exception e) {
+            log.error("submitChoiceAndStream 失败: storyId={}, error={}", storyId, e.getMessage(), e);
+            pushSseError(storyId, "处理失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * ========== REST API 实现 ==========
+     */
+
+    /**
      * 开始新故事
      *
      * POST /api/story/start
-     *
-     * @param request 开始故事请求
-     * @return 故事元信息 + 第一章内容
      */
     @Transactional
     public StartStoryVO startStory(StartStoryRequest request) {
@@ -137,7 +395,6 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         story.setContextJson("{}");
         story.setCreatedAt(LocalDateTime.now());
 
-        // 保存入局三问答案
         try {
             story.setEntryAnswers(objectMapper.writeValueAsString(request.getEntryAnswers()));
         } catch (Exception e) {
@@ -152,32 +409,31 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             characterMapper.insert(character);
         }
 
-        // 4. 生成第一章（流式推送）
+        // 4. 获取关键词卡
         List<KeywordCard> keywords = getKeywordCardsDetail(userId, request.getKeywordCardIds());
         StringBuilder fullText = new StringBuilder();
 
-        StoryChapter firstChapter = aiGatewayService.generateFirstChapter(story, chunk -> {
-            // 流式推送 WebSocket
-            pushToUser(userId, "chapter_stream", ChapterStreamVO.builder()
-                    .storyId(story.getId())
-                    .chapterNo(1)
-                    .chunk(chunk)
-                    .build());
-            fullText.append(chunk);
-        });
+        // 5. 生成第一章（流式推送）
+        StoryChapter firstChapter = aiGatewayService.generateFirstChapter(
+                story, keywords, characters,
+                chunk -> {
+                    // WebSocket 推送
+                    pushToUser(userId, "chapter_stream", ChapterStreamVO.builder()
+                            .storyId(story.getId())
+                            .chapterNo(1)
+                            .chunk(chunk)
+                            .build());
+                    // SSE 推送
+                    pushSseChunk(story.getId(), chunk);
+                    fullText.append(chunk);
+                }
+        );
 
-        // 5. 保存第一章
+        // 6. 保存第一章
         firstChapter.setStoryId(story.getId());
-        firstChapter.setSelectedOption(null); // 第一章无选择
-        try {
-            firstChapter.setOptions(firstChapter.getOptions());
-        } catch (Exception e) {
-            // ignore
-        }
+        firstChapter.setSelectedOption(null);
         chapterMapper.insert(firstChapter);
         story.setCurrentChapter(1);
-
-        // 6. 更新故事状态
         storyMapper.updateById(story);
 
         // 7. 更新用户统计
@@ -198,15 +454,9 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     /**
-     * 提交选择
+     * 提交选择（轮询模式）
      *
      * POST /api/story/:id/chapter/:no/choose
-     * 支持 WebSocket 流式推送
-     *
-     * @param storyId 故事ID
-     * @param chapterNo 章节号
-     * @param optionId 选择的选项ID
-     * @return 下一章节内容
      */
     @Transactional
     public ChooseResultVO submitChoice(Long storyId, Integer chapterNo, Integer optionId) {
@@ -250,7 +500,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 new LambdaQueryWrapper<StoryCharacter>()
                         .eq(StoryCharacter::getStoryId, storyId));
 
-        // 5. 触发 AI 协作流程
+        // 5. AI 协作生成下一章（判官评估 → 说书人生成）
         StringBuilder fullText = new StringBuilder();
         StoryChapter nextChapter = aiGatewayService.generateNextChapter(
                 story,
@@ -259,7 +509,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 keywords,
                 characters,
                 chunk -> {
-                    // 流式推送
+                    // WebSocket 流式推送
                     pushToUser(userId, "chapter_stream", ChapterStreamVO.builder()
                             .storyId(storyId)
                             .chapterNo(chapterNo + 1)
@@ -271,19 +521,23 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
 
         // 6. 保存下一章节
         nextChapter.setStoryId(storyId);
-        nextChapter.setSelectedOption(null); // 等待用户选择
+        nextChapter.setSelectedOption(null);
         chapterMapper.insert(nextChapter);
 
         // 7. 更新故事状态
         int newChapterNo = chapterNo + 1;
         story.setCurrentChapter(newChapterNo);
-        story.setHistoryDeviation(
-                Math.max(0, Math.min(100, story.getHistoryDeviation())));
-
-        // 检查是否达到最大章节数
+        story.setHistoryDeviation(Math.max(0, Math.min(100, story.getHistoryDeviation())));
         boolean isLastChapter = newChapterNo >= maxChapters;
-
         storyMapper.updateById(story);
+
+        // 8. 推送判官判词（WebSocket）
+        pushToUser(userId, "choice_result", ChoiceResultVO.builder()
+                .storyId(storyId)
+                .deviationChange(0)
+                .judgment(nextChapter.getChapterComment())
+                .isLastChapter(isLastChapter)
+                .build());
 
         log.info("选择提交成功: storyId={}, nextChapterNo={}, isLastChapter={}",
                 storyId, newChapterNo, isLastChapter);
@@ -292,7 +546,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .storyId(storyId)
                 .currentChapter(newChapterNo)
                 .chapter(nextChapter)
-                .judgment("（判官判词将在下一章节显示）")
+                .judgment(nextChapter.getChapterComment() != null ?
+                        nextChapter.getChapterComment() : "（判官判词将在下一章节显示）")
                 .isLastChapter(isLastChapter)
                 .build();
     }
@@ -452,13 +707,12 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     private List<StoryCharacter> initializeCharacters(Story story) {
-        // 根据事件卡初始化配角（简化实现）
         List<StoryCharacter> characters = new ArrayList<>();
 
         StoryCharacter c1 = new StoryCharacter();
         c1.setStoryId(story.getId());
         c1.setName("张翁");
-        c1.setCharacterType(1); // 命运羁绊
+        c1.setCharacterType(1);
         c1.setFateValue(50);
         c1.setRelationToUser("故交");
         c1.setCreatedAt(LocalDateTime.now());
@@ -467,7 +721,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         StoryCharacter c2 = new StoryCharacter();
         c2.setStoryId(story.getId());
         c2.setName("少年");
-        c2.setCharacterType(3); // 市井过客
+        c2.setCharacterType(3);
         c2.setFateValue(50);
         c2.setRelationToUser("偶然相识");
         c2.setCreatedAt(LocalDateTime.now());
@@ -477,7 +731,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     private List<KeywordCard> getKeywordCardsDetail(Long userId, List<Long> keywordCardIds) {
-        // 实际从数据库查询
+        // TODO: 实际从 CardService 查询
+        // 暂时返回空列表，AI 调用时会使用默认行为
         return new ArrayList<>();
     }
 
@@ -496,8 +751,63 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         }
     }
 
+    private StoryChapter.Option findSelectedOption(StoryChapter chapter) {
+        if (chapter.getSelectedOption() == null) return null;
+        return chapter.getOptions().stream()
+                .filter(o -> o.getId().equals(chapter.getSelectedOption()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    // ========== SSE 推送工具 ==========
+
+    private void pushSseChunk(Long storyId, String chunk) {
+        SseEmitter emitter = storySseEmitters.get(storyId);
+        if (emitter == null) return;
+        try {
+        emitter.send(SseEmitter.event()
+                    .name("chapter_chunk")
+                    .data(chunk)
+                    .build());
+        } catch (IOException e) {
+            log.warn("SSE推送失败: storyId={}, error={}", storyId, e.getMessage());
+            storySseEmitters.remove(storyId);
+        }
+    }
+
+    private void pushSseEvent(Long storyId, String eventName, String data) {
+        SseEmitter emitter = storySseEmitters.get(storyId);
+        if (emitter == null) return;
+        try {
+        emitter.send(SseEmitter.event()
+                    .name(eventName)
+                    .data(data)
+                    .build());
+        } catch (IOException e) {
+            log.warn("SSE事件推送失败: storyId={}, event={}", storyId, eventName);
+            storySseEmitters.remove(storyId);
+        }
+    }
+
+    private void pushSseError(Long storyId, String errorMsg) {
+        SseEmitter emitter = storySseEmitters.get(storyId);
+        if (emitter == null) return;
+        try {
+        emitter.send(SseEmitter.event()
+                    .name("error")
+                    .data("{\"error\":\"" + errorMsg + "\"}")
+                    .build());
+        } catch (IOException e) {
+            log.warn("SSE错误推送失败: storyId={}", storyId);
+        } finally {
+            storySseEmitters.remove(storyId);
+        }
+    }
+
+    // ========== WebSocket 推送工具 ==========
+
     /**
-     * WebSocket 推送
+     * WebSocket 推送（STOMP /user/queue/xxx）
      */
     private void pushToUser(Long userId, String event, Object payload) {
         String sessionId = userSessionMap.get(userId);
@@ -505,8 +815,17 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             try {
                 messagingTemplate.convertAndSendToUser(sessionId, "/queue/" + event, payload);
             } catch (Exception e) {
-                log.warn("WebSocket推送失败: userId={}, event={}", userId, event);
+                log.warn("WebSocket推送失败: userId={}, event={}, error={}",
+                        userId, event, e.getMessage());
             }
+        }
+    }
+
+    private String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            return "{}";
         }
     }
 
@@ -566,5 +885,28 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private Long storyId;
         private Integer chapterNo;
         private String chunk;
+    }
+
+    @Data @lombok.Builder
+    public static class JudgmentVO {
+        private Long storyId;
+        private Integer chapterNo;
+        private String judgment;
+        private Integer deviationChange;
+        private Map<String, Integer> characterChanges;
+    }
+
+    @Data @lombok.Builder
+    public static class ChoiceResultVO {
+        private Long storyId;
+        private int deviationChange;
+        private String judgment;
+        private boolean isLastChapter;
+    }
+
+    @Data @lombok.Builder
+    public static class StoryEndVO {
+        private Long storyId;
+        private String status;
     }
 }

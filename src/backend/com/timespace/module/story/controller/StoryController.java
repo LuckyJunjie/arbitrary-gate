@@ -5,12 +5,17 @@ import com.timespace.common.exception.BusinessException;
 import com.timespace.common.exception.GlobalExceptionHandler.Result;
 import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.service.StoryOrchestrationService;
-import com.timespace.module.story.service.StoryOrchestrationService.*;
+import com.timespace.module.story.service.StoryOrchestrationService.StartStoryVO;
+import com.timespace.module.story.service.StoryOrchestrationService.ChooseResultVO;
+import com.timespace.module.story.service.StoryOrchestrationService.FinishStoryVO;
+import com.timespace.module.story.service.StoryOrchestrationService.StoryDetailVO;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -23,45 +28,60 @@ public class StoryController {
 
     private final StoryOrchestrationService storyService;
 
+    // ========== SSE 流式端点 ==========
+
     /**
-     * POST /api/story/start
-     * 开始新故事
+     * GET /api/story/{id}/stream
+     * SSE 流式推送故事内容
+     *
+     * 前端连接方式（EventSource）：
+     *   const es = new EventSource('/api/story/123/stream');
+     *   es.addEventListener('chapter_start', e => { ... });
+     *   es.addEventListener('chapter_chunk', e => { appendText(e.data); });
+     *   es.addEventListener('chapter_end', e => { ... });
+     *   es.addEventListener('options', e => { showOptions(JSON.parse(e.data)); });
+     *   es.addEventListener('error', e => { handleError(JSON.parse(e.data)); });
+     *
+     * 认证：通过 Cookie 或 header 携带 Sa-Token token
+     */
+    @GetMapping(value = "/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter storyStream(@PathVariable("id") Long storyId) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("SSE流式请求: userId={}, storyId={}", userId, storyId);
+        return storyService.storyStream(storyId);
+    }
+
+    /**
+     * POST /api/story/{id}/stream/generate
+     * 触发 SSE 章节流式生成（通常由前端调用，或由前端轮询检测到未完成章节后触发）
      *
      * 请求：
      * {
-     *   "eventCardId": 1,              // 事件卡ID
-     *   "keywordCardIds": [101, 205],  // 关键词卡ID列表（2-5张）
-     *   "identityType": 1,            // 1高位 2低位 3旁观者
-     *   "style": 1,                   // 1白描 2江湖 3笔记 4话本
-     *   "entryAnswers": {              // 入局三问
-     *     "q1": "A",
-     *     "q2": "B",
-     *     "q3": "C"
-     *   }
+     *   "chapterNo": 2    // 可选，默认当前章节+1
      * }
-     *
-     * 响应：
-     * {
-     *   "code": 200,
-     *   "data": {
-     *     "storyId": 1,
-     *     "storyNo": "TS20240101123456",
-     *     "title": "时光旅人手记 · 第1234号",
-     *     "style": 1,
-     *     "currentChapter": 1,
-     *     "chapter": {
-     *       "chapterNo": 1,
-     *       "sceneText": "场景描写...",
-     *       "options": [
-     *         {"id": 1, "text": "退回马厩", "hint": "..."},
-     *         {"id": 2, "text": "直面守卫", "hint": "..."},
-     *         {"id": 3, "text": "翻墙逃走", "hint": "..."}
-     *       ]
-     *     },
-     *     "characters": [...],
-     *     "keywords": [...]
-     *   }
-     * }
+     */
+    @PostMapping("/{id}/stream/generate")
+    public Result<Void> triggerStreamGenerate(
+            @PathVariable("id") Long storyId,
+            @RequestBody(required = false) StreamGenerateRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("触发SSE流式生成: userId={}, storyId={}, chapterNo={}",
+                userId, storyId, request != null ? request.getChapterNo() : "default");
+
+        // 异步执行（不阻塞 HTTP 响应）
+        int chapterNo = request != null && request.getChapterNo() != null
+                ? request.getChapterNo()
+                : 1; // 由 service 层判断下一章
+
+        storyService.generateChapterStream(storyId, chapterNo);
+        return Result.ok(null);
+    }
+
+    // ========== REST 端点 ==========
+
+    /**
+     * POST /api/story/start
+     * 开始新故事
      */
     @PostMapping("/start")
     public Result<StartStoryVO> startStory(@Valid @RequestBody StartStoryRequest request) {
@@ -72,8 +92,8 @@ public class StoryController {
     }
 
     /**
-     * POST /api/story/:id/chapter/:no/choose
-     * 提交选择（支持 WebSocket 流式）
+     * POST /api/story/{id}/chapter/{no}/choose
+     * 提交选择（支持 WebSocket 流式 + SSE 流式）
      *
      * 请求：
      * {
@@ -86,42 +106,21 @@ public class StoryController {
      *   "data": {
      *     "storyId": 1,
      *     "currentChapter": 2,
-     *     "chapter": {
-     *       "chapterNo": 2,
-     *       "sceneText": "下一章场景...",
-     *       "options": [...]
-     *     },
+     *     "chapter": { ... },
      *     "judgment": "此选择虽保全了XX，却牺牲了XX...",
      *     "isLastChapter": false
      *   }
      * }
      *
      * 【WebSocket 流式推送说明】
-     *
      * 连接: /ws/story/{storyId}
      * 认证: 通过 STOMP 帧携带 token
      *
      * 推送事件:
-     * - user/queue/chapter_stream: 章节内容流式片段
-     *   {
-     *     "storyId": 1,
-     *     "chapterNo": 2,
-     *     "chunk": "这是本段的文本..."
-     *   }
-     *
-     * - user/queue/choice_result: 选择评估结果
-     *   {
-     *     "storyId": 1,
-     *     "deviationChange": 5,
-     *     "judgment": "判官判词...",
-     *     "characterChanges": {...}
-     *   }
-     *
-     * - user/queue/story_end: 故事完成
-     *   {
-     *     "storyId": 1,
-     *     "status": "finished"
-     *   }
+     * - /user/queue/chapter_stream : 章节内容流式片段
+     * - /user/queue/choice_result  : 选择评估结果
+     * - /user/queue/judgment       : 判官判词
+     * - /user/queue/story_end       : 故事完成
      */
     @PostMapping("/{id}/chapter/{no}/choose")
     public Result<ChooseResultVO> submitChoice(
@@ -136,28 +135,30 @@ public class StoryController {
     }
 
     /**
-     * POST /api/story/:id/finish
+     * POST /api/story/{id}/chapter/{no}/choose-and-stream
+     * 提交选择并触发 SSE 流式生成下一章
+     *
+     * 与 submitChoice 的区别：
+     * - submitChoice：同步返回下一章（轮询模式）
+     * - submitChoiceAndStream：异步 SSE 流式推送，HTTP 立即返回
+     */
+    @PostMapping("/{id}/chapter/{no}/choose-and-stream")
+    public Result<Void> submitChoiceAndStream(
+            @PathVariable("id") Long storyId,
+            @PathVariable("no") Integer chapterNo,
+            @Valid @RequestBody ChooseRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("提交选择并流式生成: userId={}, storyId={}, chapterNo={}, optionId={}",
+                userId, storyId, chapterNo, request.getOptionId());
+
+        // 异步执行，通过 SSE 推送结果
+        storyService.submitChoiceAndStream(storyId, chapterNo, request.getOptionId());
+        return Result.ok(null);
+    }
+
+    /**
+     * POST /api/story/{id}/finish
      * 结束故事，生成手稿
-     *
-     * 请求：空
-     *
-     * 响应：
-     * {
-     *   "code": 200,
-     *   "data": {
-     *     "storyId": 1,
-     *     "manuscript": "完整小说正文...",
-     *     "wordCount": 5234,
-     *     "annotations": [
-     *       {"chapterNo": 1, "text": "好一个'...'！", "color": "#C0392B"}
-     *     ],
-     *     "choiceMarks": [
-     *       {"chapterNo": 1, "optionId": 2, "text": "直面守卫"}
-     *     ],
-     *     "epilogue": "稗官曰...",
-     *     "historyDeviation": 65
-     *   }
-     * }
      */
     @PostMapping("/{id}/finish")
     public Result<FinishStoryVO> finishStory(@PathVariable("id") Long storyId) {
@@ -168,7 +169,7 @@ public class StoryController {
     }
 
     /**
-     * GET /api/story/:id
+     * GET /api/story/{id}
      * 获取故事详情
      */
     @GetMapping("/{id}")
@@ -204,6 +205,11 @@ public class StoryController {
     @Data
     public static class ChooseRequest {
         private Integer optionId;
+    }
+
+    @Data
+    public static class StreamGenerateRequest {
+        private Integer chapterNo;
     }
 
     @Data

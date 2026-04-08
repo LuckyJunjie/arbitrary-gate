@@ -9,6 +9,7 @@ import com.timespace.module.card.entity.UserKeywordCard;
 import com.timespace.module.card.mapper.KeywordCardMapper;
 import com.timespace.module.card.mapper.UserKeywordCardMapper;
 import com.timespace.module.user.service.UserService;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -124,9 +125,10 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
                 .eq(UserKeywordCard::getUserId, userId)
                 .orderByDesc(UserKeywordCard::getAcquiredAt);
 
-        List<UserKeywordCard> userCards = userKeywordCardMapper.selectPage(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserKeywordCard>()
-                        .eq(UserKeywordCard::getUserId, userId), null).getRecords();
+        List<UserKeywordCard> userCards = userKeywordCardMapper.selectList(
+                new LambdaQueryWrapper<UserKeywordCard>()
+                        .eq(UserKeywordCard::getUserId, userId)
+                        .orderByDesc(UserKeywordCard::getAcquiredAt));
 
         if (userCards == null || userCards.isEmpty()) {
             return Collections.emptyList();

@@ -5,6 +5,7 @@ import com.timespace.common.exception.GlobalExceptionHandler.Result;
 import com.timespace.module.card.service.CardService;
 import com.timespace.module.card.service.CardService.DrawResult;
 import com.timespace.module.card.service.CardService.UserCardVO;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
