@@ -79,6 +79,13 @@ export interface Option {
   text: string
 }
 
+export interface EntryQuestion {
+  id: number
+  category: string
+  question: string
+  hint: string
+}
+
 export interface Chapter {
   chapterNo: number
   sceneText: string
@@ -150,6 +157,47 @@ export async function fetchStoryList(): Promise<Story[]> {
 // 完成故事（触发 AI 生成手稿）
 export async function finishStory(storyId: string): Promise<Manuscript> {
   return api.post(`/story/${storyId}/finish`)
+}
+
+// ========== 入局三问 API ==========
+
+export interface GenerateQuestionsRequest {
+  keywordIds: number[]
+  eventId?: number
+}
+
+export interface GenerateQuestionsResponse {
+  questions: EntryQuestion[]
+}
+
+export interface SubmitAnswersRequest {
+  keywordIds: number[]
+  eventId?: number
+  entryAnswers: Array<{
+    questionId: number
+    question: string
+    answer: string
+  }>
+}
+
+/**
+ * POST /api/story/questions
+ * 生成入局三问（基于关键词组合）
+ */
+export async function generateEntryQuestions(
+  payload: GenerateQuestionsRequest
+): Promise<GenerateQuestionsResponse> {
+  return api.post('/story/questions', payload)
+}
+
+/**
+ * POST /api/story/answers
+ * 提交入局答案并开始故事
+ */
+export async function submitEntryAnswers(
+  payload: SubmitAnswersRequest
+): Promise<Story> {
+  return api.post('/story/answers', payload)
 }
 
 export default api

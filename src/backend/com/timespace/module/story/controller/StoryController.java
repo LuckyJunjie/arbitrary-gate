@@ -77,6 +77,58 @@ public class StoryController {
         return Result.ok(null);
     }
 
+    // ========== 入局三问端点 ==========
+
+    /**
+     * POST /api/story/questions
+     * 生成入局三问（基于关键词组合）
+     *
+     * 请求：
+     * {
+     *   "keywordIds": [1, 2, 3],
+     *   "eventId": 101
+     * }
+     *
+     * 响应：
+     * {
+     *   "questions": [
+     *     { "id": 1, "category": "角色背景", "question": "...", "hint": "..." },
+     *     { "id": 2, "category": "当下处境", "question": "...", "hint": "..." },
+     *     { "id": 3, "category": "内心渴望", "question": "...", "hint": "..." }
+     *   ]
+     * }
+     */
+    @PostMapping("/questions")
+    public Result<QuestionsVO> generateQuestions(@RequestBody QuestionsRequest request) {
+        log.info("生成入局三问: keywordIds={}, eventId={}", request.getKeywordIds(), request.getEventId());
+        QuestionsVO vo = storyService.generateEntryQuestions(request);
+        return Result.ok(vo);
+    }
+
+    /**
+     * POST /api/story/answers
+     * 提交入局答案并开始故事
+     *
+     * 请求：
+     * {
+     *   "keywordIds": [1, 2, 3],
+     *   "eventId": 101,
+     *   "entryAnswers": [
+     *     { "questionId": 1, "question": "...", "answer": "..." },
+     *     { "questionId": 2, "question": "...", "answer": "..." },
+     *     { "questionId": 3, "question": "...", "answer": "..." }
+     *   ]
+     * }
+     */
+    @PostMapping("/answers")
+    public Result<StartStoryVO> submitAnswers(@RequestBody AnswersRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("提交入局答案: userId={}, keywordIds={}, answerCount={}",
+                userId, request.getKeywordIds(), request.getEntryAnswers().size());
+        StartStoryVO vo = storyService.submitEntryAnswers(request);
+        return Result.ok(vo);
+    }
+
     // ========== REST 端点 ==========
 
     /**
@@ -225,5 +277,41 @@ public class StoryController {
         private Integer historyDeviation;
         private String createdAt;
         private String finishedAt;
+    }
+
+    // ========== 入局三问 DTO ==========
+
+    @Data
+    public static class QuestionsRequest {
+        private List<Long> keywordIds;
+        private Long eventId;
+    }
+
+    @Data
+    public static class QuestionsVO {
+        private List<QuestionItem> questions;
+    }
+
+    @Data
+    @lombok.Builder
+    public static class QuestionItem {
+        private Long id;
+        private String category;
+        private String question;
+        private String hint;
+    }
+
+    @Data
+    public static class AnswersRequest {
+        private List<Long> keywordIds;
+        private Long eventId;
+        private List<EntryAnswerItem> entryAnswers;
+    }
+
+    @Data
+    public static class EntryAnswerItem {
+        private Long questionId;
+        private String question;
+        private String answer;
     }
 }

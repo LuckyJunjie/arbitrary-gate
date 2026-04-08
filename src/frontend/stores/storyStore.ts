@@ -33,6 +33,16 @@ export const useStoryStore = defineStore('story', () => {
     deviationDelta: number
   }>>([])
 
+  // 入局三问答案
+  const entryAnswers = ref<Array<{
+    questionId: number
+    question: string
+    answer: string
+  }>>([])
+
+  // 关键词共鸣值追踪
+  const keywordResonance = ref<Record<number, number>>({})
+
   // ===== Actions =====
 
   async function fetchChapterAction(storyId: string, chapterNo: number) {
@@ -72,6 +82,11 @@ export const useStoryStore = defineStore('story', () => {
 
       // 更新当前章节
       currentChapter.value = res.chapter
+
+      // 更新关键词共鸣值
+      if (res.chapter.keywordResonance) {
+        updateKeywordResonance(res.chapter.keywordResonance)
+      }
 
       return res
     } catch (err) {
@@ -161,6 +176,8 @@ export const useStoryStore = defineStore('story', () => {
     currentStory.value = story
     chapters.value = []
     manuscript.value = null
+    entryAnswers.value = []
+    keywordResonance.value = {}
   }
 
   function clearCurrentStory() {
@@ -168,7 +185,20 @@ export const useStoryStore = defineStore('story', () => {
     currentChapter.value = null
     manuscript.value = null
     chapters.value = []
+    entryAnswers.value = []
+    keywordResonance.value = {}
     error.value = null
+  }
+
+  /**
+   * 更新关键词共鸣值（每次选择后调用）
+   */
+  function updateKeywordResonance(resonanceData: Record<number, number>) {
+    // 合并新的共鸣值
+    Object.entries(resonanceData).forEach(([kid, val]) => {
+      const key = Number(kid)
+      keywordResonance.value[key] = (keywordResonance.value[key] ?? 0) + val
+    })
   }
 
   return {
@@ -178,6 +208,8 @@ export const useStoryStore = defineStore('story', () => {
     manuscript,
     storyList,
     chapters,
+    entryAnswers,
+    keywordResonance,
     historyDeviation,
     isLoading,
     isLoadingChapter,
@@ -192,5 +224,6 @@ export const useStoryStore = defineStore('story', () => {
     startStory,
     setCurrentStory,
     clearCurrentStory,
+    updateKeywordResonance,
   }
 })

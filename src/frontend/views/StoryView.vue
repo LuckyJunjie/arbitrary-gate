@@ -366,15 +366,23 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
         v-for="(val, kid) in currentChapter.keywordResonance"
         :key="kid"
         class="resonance-chip"
+        :class="{ 'resonance-full': val >= 7 }"
         data-testid="keyword-resonance-bar"
         :style="{ opacity: Math.max(0.3, val / 7) }"
       >
+        <span class="resonance-kw-name" data-testid="keyword-resonance-value">{{ kid }}</span>
         <div
           class="resonance-fill"
           data-testid="keyword-resonance-fill"
           :style="{ width: `${Math.round(Math.min(100, (val / 7) * 100))}%` }"
         />
-        {{ kid }}
+      </div>
+      <!-- 共鸣达成特效 -->
+      <div
+        v-if="currentChapter && Object.values(currentChapter.keywordResonance).some(v => v >= 7)"
+        class="resonance-achieved"
+      >
+        ✨ 共鸣达成 ✨
       </div>
     </div>
 
@@ -750,6 +758,40 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   background: linear-gradient(90deg, #c4a882, #e8dcc8);
   border-radius: 2px;
   transition: width 0.5s ease;
+}
+
+.resonance-kw-name {
+  font-size: 0.65rem;
+  color: #c4a882;
+  letter-spacing: 0.05em;
+}
+
+.resonance-chip.resonance-full {
+  border-color: #c9a84c;
+  background: rgba(201, 168, 76, 0.2);
+  animation: resonance-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes resonance-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(201, 168, 76, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(201, 168, 76, 0.6); }
+}
+
+.resonance-achieved {
+  display: flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.7rem;
+  color: #c9a84c;
+  letter-spacing: 0.15em;
+  animation: achieved-flash 0.8s ease-out;
+  flex-shrink: 0;
+}
+
+@keyframes achieved-flash {
+  0% { opacity: 0; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 /* ── 选项区 ── */

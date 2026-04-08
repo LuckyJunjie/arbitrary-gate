@@ -6,6 +6,7 @@ import com.timespace.module.ai.agent.StorytellerAgent;
 import com.timespace.module.ai.client.AIClient;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.service.CardService;
+import com.timespace.module.story.controller.StoryController.QuestionItem;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.entity.StoryCharacter;
@@ -222,5 +223,100 @@ public class AIGatewayService {
     private List<StoryCharacter> initializeCharacters(Story story) {
         // 实际项目中根据事件卡初始化配角
         return new ArrayList<>();
+    }
+
+    /**
+     * 生成入局三问
+     * 基于关键词和事件，使用说书人 Agent 生成3个个性化问题
+     */
+    public List<QuestionItem> generateEntryQuestions(List<KeywordCard> keywords, String eventName) {
+        log.info("AI 生成入局三问: eventName={}, keywordCount={}", eventName, keywords.size());
+
+        // 构建关键词描述
+        String keywordDesc = keywords.stream()
+                .map(k -> k.getName())
+                .collect(Collectors.joining("、"));
+
+        // 构造 prompt
+        String prompt = String.format("""
+            你是一个古代说书人，正在为即将开始的历史故事做铺垫。
+
+            历史事件：%s
+            关键词：%s
+
+            请生成3个关于"此刻"的问题，从以下三个角度各生成1个：
+            1. 角色背景：关于角色身上携带的物件或身份特征
+            2. 当下处境：关于角色此刻面临的处境或最怕的事物
+            3. 内心渴望：关于角色内心最深处的愿望
+
+            请以JSON数组格式返回，每个问题包含：
+            - id: 1/2/3
+            - category: "角色背景"/"当下处境"/"内心渴望"
+            - question: 问题内容（用第二人称"你"提问）
+            - hint: 一句简短的提示语（用括号包裹，10字以内）
+
+            示例格式：
+            [
+              {"id": 1, "category": "角色背景", "question": "你今日当值，袖中揣着什么？", "hint": "(初始装备)"},
+              {"id": 2, "category": "当下处境", "question": "你最怕见到什么人？", "hint": "(影响走向)"},
+              {"id": 3, "category": "内心渴望", "question": "你最大的心愿是什么？", "hint": "(故事暗线)"}
+            ]
+            """, eventName, keywordDesc.isEmpty() ? "无" : keywordDesc);
+
+        try {
+            String response = aiClient.callSync("", prompt);
+            return parseQuestionsFromResponse(response);
+        } catch (Exception e) {
+            log.warn("AI 生成入局三问失败，使用默认问题: error={}", e.getMessage());
+            return getDefaultQuestions();
+        }
+    }
+
+    private List<QuestionItem> parseQuestionsFromResponse(String response) {
+        try {
+            // 尝试从 markdown 代码块中提取 JSON
+            String jsonStr = response;
+            if (response.contains("```")) {
+                int start = response.indexOf("```");
+                int end = response.lastIndexOf("```");
+                if (start < end) {
+                    jsonStr = response.substring(start + 3, end);
+                    // 去掉可能的 "json" 前缀
+                    jsonStr = jsonStr.replaceFirst("^json\\s*\n?", "").trim();
+                }
+            }
+
+            com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+            List<QuestionItem> questions = mapper.readValue(jsonStr,
+                mapper.getTypeFactory().constructCollectionType(List.class, QuestionItem.class));
+            return questions;
+        } catch (Exception e) {
+            log.warn("解析入局三问JSON失败: error={}, response={}", e.getMessage(), response);
+            return getDefaultQuestions();
+        }
+    }
+
+    private List<QuestionItem> getDefaultQuestions() {
+        return List.of(
+            QuestionItem.builder()
+                    .id(1L)
+                    .category("角色背景")
+                    .question("你今日当值，袖中揣着什么？")
+                    .hint("初始装备")
+                    .build(),
+            QuestionItem.builder()
+                    .id(2L)
+                    .category("当下处境")
+                    .question("你最怕见到什么人？")
+                    .hint("影响走向")
+                    .build(),
+            QuestionItem.builder()
+                    .id(3L)
+                    .category("内心渴望")
+                    .question("你最大的心愿是什么？")
+                    .hint("故事暗线")
+                    .build()
+        );
     }
 }

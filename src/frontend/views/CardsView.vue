@@ -1,12 +1,67 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCardStore } from '@/stores/cardStore'
 import Card from '@/components/Card.vue'
 import type { KeywordCard } from '@/services/api'
 
+const router = useRouter()
 const cardStore = useCardStore()
 const activeTab = ref<'keyword' | 'event'>('keyword')
 const activeRarity = ref<number | null>(null)
+
+// ── 卡牌选择状态 ──
+const selectedKeywordCards = ref<Array<{ id: number; name: string; rarity: number; category: number }>>([])
+const selectedEventCard = ref<{ id: number; name: string; rarity: number; category: number } | null>(null)
+const MAX_KEYWORD_SELECT = 3
+
+const canStartStory = computed(() =>
+  selectedKeywordCards.value.length === MAX_KEYWORD_SELECT && selectedEventCard.value !== null
+)
+
+function toggleKeywordCard(card: KeywordCard | Record<string, unknown>) {
+  const id = card.id
+  const idx = selectedKeywordCards.value.findIndex(c => c.id === id)
+  if (idx >= 0) {
+    selectedKeywordCards.value.splice(idx, 1)
+  } else if (selectedKeywordCards.value.length < MAX_KEYWORD_SELECT) {
+    selectedKeywordCards.value.push({
+      id: card.id as number,
+      name: (card as any).name || String(id),
+      rarity: (card as any).rarity || 1,
+      category: (card as any).category || 1,
+    })
+  }
+}
+
+function toggleEventCard(card: KeywordCard | Record<string, unknown>) {
+  const id = card.id
+  if (selectedEventCard.value?.id === id) {
+    selectedEventCard.value = null
+  } else {
+    selectedEventCard.value = {
+      id: card.id as number,
+      name: (card as any).name || String(id),
+      rarity: (card as any).rarity || 1,
+      category: (card as any).category || 1,
+    }
+  }
+}
+
+function isKeywordSelected(id: number) {
+  return selectedKeywordCards.value.some(c => c.id === id)
+}
+
+function isEventSelected(id: number) {
+  return selectedEventCard.value?.id === id
+}
+
+function goToEntryQuestions() {
+  // 保存已选卡牌到 localStorage，供 EntryQuestionsView 使用
+  localStorage.setItem('selectedKeywordCards', JSON.stringify(selectedKeywordCards.value))
+  localStorage.setItem('selectedEventCard', JSON.stringify(selectedEventCard.value))
+  router.push('/entry-questions')
+}
 
 const filteredCards = computed(() => {
   const cards = activeTab.value === 'keyword'
@@ -66,8 +121,17 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
         v-for="card in filteredCards"
         :key="card.id"
         class="card-slot"
+        :class="{
+          'keyword-selected': activeTab === 'keyword' && isKeywordSelected(card.id),
+          'event-selected': activeTab === 'event' && isEventSelected(card.id),
+        }"
+        @click="activeTab === 'keyword' ? toggleKeywordCard(card) : toggleEventCard(card)"
       >
         <Card :card="card" @flip="handleCardFlip(card)" />
+        <div
+          v-if="(activeTab === 'keyword' && isKeywordSelected(card.id)) || (activeTab === 'event' && isEventSelected(card.id))"
+          class="selected-check"
+        >✓</div>
       </div>
     </div>
 
@@ -75,6 +139,24 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
     <div v-else class="empty-state">
       <div class="empty-icon">笺</div>
       <p class="empty-message">{{ cardStore.totalCount === 0 ? '卡匣空空如也，去抽一张命运之卡吧' : '此类中暂无卡牌' }}</p>
+    </div>
+
+    <!-- 开始故事入口 -->
+    <div class="start-story-bar" v-if="canStartStory || selectedKeywordCards.length > 0 || selectedEventCard">
+      <div class="selection-summary">
+        <span class="summary-label">已选关键词</span>
+        <span class="summary-count">{{ selectedKeywordCards.length }}/{{ MAX_KEYWORD_SELECT }}</span>
+        <span class="summary-sep">|</span>
+        <span class="summary-label">事件</span>
+        <span class="summary-event">{{ selectedEventCard?.name || '未选' }}</span>
+      </div>
+      <button
+        class="start-btn"
+        :disabled="!canStartStory"
+        @click="goToEntryQuestions"
+      >
+        {{ canStartStory ? '入局三问' : `还需选${MAX_KEYWORD_SELECT - selectedKeywordCards.length}个` }}
+      </button>
     </div>
   </div>
 </template>
@@ -196,5 +278,116 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
   text-align: center;
   max-width: 260px;
   line-height: 1.6;
+}
+
+/* 选中状态 */
+.card-slot {
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s;
+}
+
+.card-slot.keyword-selected,
+.card-slot.event-selected {
+  transform: scale(0.97);
+}
+
+.card-slot.keyword-selected::after,
+.card-slot.event-selected::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid #c9a84c;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.selected-check {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: #c9a84c;
+  color: #1a1510;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* 开始故事入口 */
+.start-story-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.75rem 1rem;
+  background: rgba(26, 21, 16, 0.95);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(139, 115, 85, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  z-index: 10;
+}
+
+.selection-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: rgba(232, 220, 200, 0.7);
+}
+
+.summary-label {
+  color: rgba(139, 115, 85, 0.8);
+}
+
+.summary-count {
+  color: #c9a84c;
+  font-weight: 600;
+}
+
+.summary-sep {
+  color: rgba(139, 115, 85, 0.4);
+  margin: 0 0.2rem;
+}
+
+.summary-event {
+  color: #c4a882;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.start-btn {
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, #4a3520, #2c1f14);
+  border: 1px solid #c9a84c;
+  border-radius: 3px;
+  color: #c9a84c;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.2s;
+}
+
+.start-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6b4c30, #4a3520);
+  color: #e8dcc8;
+  border-color: #e8dcc8;
+}
+
+.start-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>

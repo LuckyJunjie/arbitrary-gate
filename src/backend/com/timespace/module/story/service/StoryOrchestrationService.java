@@ -736,6 +736,20 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         return new ArrayList<>();
     }
 
+    private String getEventCardName(Long eventCardId) {
+        // TODO: 实际从 EventCardService 查询
+        // 暂时返回默认名称
+        Map<Long, String> eventNames = Map.of(
+            1L, "巨鹿城·破釜沉舟",
+            2L, "赤壁崖·东风骤起",
+            3L, "马嵬驿·贵妃缢死",
+            4L, "陈桥驿·黄袍加身",
+            5L, "崖山海·十万投海",
+            6L, "玄武门·李世民射兄"
+        );
+        return eventNames.getOrDefault(eventCardId, "未知历史事件");
+    }
+
     private String generateStoryTitle(StartStoryRequest request) {
         return "时光旅人手记 · 第" + System.currentTimeMillis() % 10000 + "号";
     }
@@ -829,6 +843,63 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         }
     }
 
+    // ========== 入局三问方法 ==========
+
+    /**
+     * 生成入局三问（基于关键词组合）
+     * POST /api/story/questions
+     */
+    public QuestionsVO generateEntryQuestions(StoryController.QuestionsRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("生成入局三问: userId={}, keywordIds={}, eventId={}",
+                userId, request.getKeywordIds(), request.getEventId());
+
+        // 获取关键词卡详情（用于生成相关问题）
+        List<KeywordCard> keywords = getKeywordCardsDetail(userId, request.getKeywordIds());
+
+        // 获取事件卡详情
+        String eventName = "未知历史事件";
+        if (request.getEventId() != null) {
+            eventName = getEventCardName(request.getEventId());
+        }
+
+        // 使用 AI 说书人生成3个问题
+        List<StoryController.QuestionItem> questions = aiGatewayService.generateEntryQuestions(
+                keywords, eventName);
+
+        return QuestionsVO.builder()
+                .questions(questions)
+                .build();
+    }
+
+    /**
+     * 提交入局答案并开始故事
+     * POST /api/story/answers
+     */
+    @Transactional
+    public StartStoryVO submitEntryAnswers(StoryController.AnswersRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("提交入局答案并开始故事: userId={}, keywordIds={}, answerCount={}",
+                userId, request.getKeywordIds(), request.getEntryAnswers().size());
+
+        // 构建 StartStoryRequest（复用现有逻辑）
+        StoryController.StartStoryRequest startRequest = new StoryController.StartStoryRequest();
+        startRequest.setEventCardId(request.getEventId());
+        startRequest.setKeywordCardIds(request.getKeywordIds());
+        startRequest.setIdentityType(1); // 默认高位视角
+
+        // 将入局答案转为 Map 格式
+        Map<String, String> entryAnswersMap = new java.util.HashMap<>();
+        for (StoryController.EntryAnswerItem item : request.getEntryAnswers()) {
+            entryAnswersMap.put("Q" + item.getQuestionId() + ":" + item.getQuestion(),
+                    item.getAnswer());
+        }
+        startRequest.setEntryAnswers(entryAnswersMap);
+
+        // 调用现有的 startStory 逻辑
+        return startStory(startRequest);
+    }
+
     // ========== VO 类 ==========
 
     @Data @lombok.Builder
@@ -908,5 +979,10 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     public static class StoryEndVO {
         private Long storyId;
         private String status;
+    }
+
+    @Data @lombok.Builder
+    public static class QuestionsVO {
+        private List<StoryController.QuestionItem> questions;
     }
 }

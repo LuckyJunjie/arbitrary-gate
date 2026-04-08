@@ -375,3 +375,80 @@ describe('useStoryStore — setCurrentStory / clearCurrentStory', () => {
     // storyList 不受 clearCurrentStory 影响（由 fetchStoryListAction 管理）
   })
 })
+
+describe('useStoryStore — updateKeywordResonance', () => {
+  it('updateKeywordResonance 累加共鸣值', () => {
+    const store = useStoryStore()
+
+    store.updateKeywordResonance({ 1: 2, 2: 1 })
+    expect(store.keywordResonance).toEqual({ 1: 2, 2: 1 })
+
+    store.updateKeywordResonance({ 1: 1, 3: 3 })
+    expect(store.keywordResonance).toEqual({ 1: 3, 2: 1, 3: 3 })
+  })
+
+  it('keywordResonance 初始为空对象', () => {
+    const store = useStoryStore()
+    expect(store.keywordResonance).toEqual({})
+  })
+
+  it('submitChoice 更新 keywordResonance', async () => {
+    mockSubmitChapterChoice.mockResolvedValue({
+      chapter: { ...mockChapter, keywordResonance: { 1: 2 } },
+      deviation: 5,
+    })
+    const store = useStoryStore()
+    store.currentStory = { ...mockStory }
+
+    await store.submitChoice('story-1', 1, 1)
+
+    expect(store.keywordResonance).toEqual({ 1: 2 })
+  })
+
+  it('连续选择累加 keywordResonance', async () => {
+    mockSubmitChapterChoice.mockResolvedValueOnce({
+      chapter: { ...mockChapter, chapterNo: 1, keywordResonance: { 1: 2, 2: 1 } },
+      deviation: 5,
+    })
+    mockSubmitChapterChoice.mockResolvedValueOnce({
+      chapter: { ...mockChapter, chapterNo: 2, keywordResonance: { 1: 1, 3: 2 } },
+      deviation: 3,
+    })
+    const store = useStoryStore()
+    store.currentStory = { ...mockStory }
+
+    await store.submitChoice('story-1', 1, 1)
+    await store.submitChoice('story-1', 2, 2)
+
+    expect(store.keywordResonance).toEqual({ 1: 3, 2: 1, 3: 2 })
+  })
+})
+
+describe('useStoryStore — entryAnswers', () => {
+  it('entryAnswers 初始为空数组', () => {
+    const store = useStoryStore()
+    expect(store.entryAnswers).toEqual([])
+  })
+
+  it('setCurrentStory 重置 entryAnswers', () => {
+    const store = useStoryStore()
+    store.entryAnswers = [
+      { questionId: 1, question: '问题1', answer: '答案1' },
+    ]
+
+    store.setCurrentStory(mockStory)
+
+    expect(store.entryAnswers).toEqual([])
+  })
+
+  it('clearCurrentStory 重置 entryAnswers', () => {
+    const store = useStoryStore()
+    store.entryAnswers = [
+      { questionId: 1, question: '问题1', answer: '答案1' },
+    ]
+
+    store.clearCurrentStory()
+
+    expect(store.entryAnswers).toEqual([])
+  })
+})

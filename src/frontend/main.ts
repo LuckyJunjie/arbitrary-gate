@@ -11,11 +11,13 @@ import CardsView from './views/CardsView.vue'
 import StoryView from './views/StoryView.vue'
 import BookshelfView from './views/BookshelfView.vue'
 import ShareView from './views/ShareView.vue'
+import EntryQuestionsView from './views/EntryQuestionsView.vue'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/pool', name: 'pool', component: PoolView },
   { path: '/cards', name: 'cards', component: CardsView },
+  { path: '/entry-questions', name: 'entry-questions', component: EntryQuestionsView },
   { path: '/story/:id', name: 'story', component: StoryView },
   { path: '/bookshelf', name: 'bookshelf', component: BookshelfView },
   { path: '/share/:code', name: 'share', component: ShareView },
