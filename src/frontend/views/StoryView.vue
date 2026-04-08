@@ -20,9 +20,8 @@ loadChapter(storyId, 1)
     <!-- TODO: 章节进度条 -->
     <!-- TODO: 关键词共鸣度显示 -->
     <ScrollPanel class="scroll-panel">
-      <div class="story-content" v-html="currentChapter?.sceneText ?? ''">
-        <!-- TODO: AI 流式渲染场景文字 -->
-      </div>
+      <!-- AI 流式渲染场景文字 -->
+      <div class="story-content" v-html="currentChapter?.sceneText ?? ''" />
     </ScrollPanel>
 
     <!-- 选项区 -->
