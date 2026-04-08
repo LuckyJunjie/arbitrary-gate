@@ -1,0 +1,123 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: arbitrary-gate-backend
+
+  # 数据库配置
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/arbitrary_gate?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:password}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  # Redis 配置
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+
+  # Jackson 配置
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.timespace.module.*.entity
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# Spring AI 配置（阿里云通义千问）
+spring.ai:
+  # 通义千问（阿里云百炼）
+  dashscope:
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    api-key: ${DASHSCOPE_API_KEY:your-api-key}
+    chat:
+      options:
+        model: qwen-turbo
+        temperature: 0.8
+        top-p: 0.9
+  # 图片生成（通义万相）
+  images:
+    options:
+      model: wanx-v1
+
+# Sa-Token 配置
+sa-token:
+  token-name: timespace_token
+  timeout: 86400          # 24小时
+  active-timeout: 1800    # 30分钟无操作过期
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: true
+  # Redis 存储 Token（集群部署时必须）
+  redisson:
+    enable: true
+
+# Redisson 配置（分布式锁）
+redisson:
+  address: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+  database: 0
+
+# WebSocket 配置
+spring.websocket:
+  path: /ws
+  allowed-origins: "*"
+
+# 业务配置
+timespace:
+  # 抽卡配置
+  card:
+    daily-free-count: 1           # 每日免费抽卡次数
+    ink-stone-cost: 10            # 单次抽卡消耗墨晶
+    guaranteed-rare-chapter: 10    # 保底奇品章节数
+    guaranteed-legendary-chapter: 30 # 保底绝品章节数
+    guaranteed-rare-rate: 100     # 保底奇品概率(每抽)
+    guaranteed-legendary-rate: 100 # 保底绝品概率(每抽)
+  # 故事配置
+  story:
+    max-chapters: 5               # 最大章节数
+    min-words: 3000                # 手稿最少字数
+    max-words: 8000                # 手稿最多字数
+    deviation-penalty: 5          # 每次偏离惩罚
+  # 分享配置
+  share:
+    code-length: 8                # 分享码长度
+
+# 日志配置
+logging:
+  level:
+    com.timespace: DEBUG
+    org.springframework.ai: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
