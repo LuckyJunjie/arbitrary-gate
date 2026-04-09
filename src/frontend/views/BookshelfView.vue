@@ -10,6 +10,34 @@ const router = useRouter()
 
 const viewMode = ref<ViewMode>('grid')
 
+// 书脊最小/最大高度（px），书脊高度按 total_words/1000 缩放
+const SPINE_MIN_H = 80
+const SPINE_MAX_H = 220
+const BOOKS_PER_SHELF = 6  // 每行书架最大书本数
+
+// 计算书脊高度
+function spineHeight(wordCount: number = 0): number {
+  const raw = wordCount / 1000
+  return Math.min(SPINE_MAX_H, Math.max(SPINE_MIN_H, raw))
+}
+
+// 计算行高（书架高度 = 最长书脊高度 + 题签高度 + 印鉴区）
+function shelfHeight(bookWordCounts: number[]): number {
+  if (bookWordCounts.length === 0) return SPINE_MIN_H
+  const maxWords = Math.max(...bookWordCounts)
+  return spineHeight(maxWords) + 52 // 36px题签 + 16px印鉴区
+}
+
+// 分组成书架行
+const bookshelfRows = computed(() => {
+  const list = sortedStories.value
+  const rows: StoredStory[][] = []
+  for (let i = 0; i < list.length; i += BOOKS_PER_SHELF) {
+    rows.push(list.slice(i, i + BOOKS_PER_SHELF))
+  }
+  return rows
+})
+
 interface Keyword {
   id: number
   name: string
@@ -353,51 +381,50 @@ onMounted(() => {
       >清除筛选</button>
     </div>
 
-    <!-- 格子视图 -->
-    <div v-if="viewMode === 'grid'" class="story-grid">
-      <template v-if="sortedStories.length > 0">
+    <!-- 格子视图 - 老式书架 -->
+    <div v-if="viewMode === 'grid'" class="bookshelf-container">
+      <template v-if="bookshelfRows.length > 0">
         <div
-          v-for="story in sortedStories"
-          :key="story.id"
-          class="story-card"
-          data-testid="story-card"
-          :data-status="story.status === 2 ? 'completed' : 'in_progress'"
-          @click="openDetail(story)"
+          v-for="(row, rowIdx) in bookshelfRows"
+          :key="rowIdx"
+          class="bookshelf-row"
+          :style="{ height: shelfHeight(row.map(s => s.wordCount ?? 0)) + 'px' }"
         >
-          <div class="story-card-inner">
-            <div class="card-header-row">
-              <h3 class="story-title" data-testid="story-title">{{ story.title }}</h3>
-              <button
-                class="card-menu-btn"
-                data-testid="card-menu-button"
-                @click.stop="openCardMenu(story)"
-                title="删除"
-              >⋮</button>
+          <!-- 书架底板木纹 -->
+          <div class="shelf-plank"></div>
+          <!-- 书籍容器 -->
+          <div class="books-row" :style="{ height: shelfHeight(row.map(s => s.wordCount ?? 0)) - 18 + 'px' }">
+            <div
+              v-for="story in row"
+              :key="story.id"
+              class="book-spine"
+              :class="{ completed: story.status === 2 }"
+              :style="{ height: spineHeight(story.wordCount) + 'px' }"
+              data-testid="story-card"
+              :data-status="story.status === 2 ? 'completed' : 'in_progress'"
+              @click="openDetail(story)"
+            >
+              <!-- 书脊顶部色带 -->
+              <div class="spine-top-band"></div>
+              <!-- 题签（竖排书名） -->
+              <div class="spine-title-slip">
+                <span class="spine-title-text" data-testid="story-title">{{ story.title }}</span>
+              </div>
+              <!-- 题签装饰线 -->
+              <div class="spine-slip-line"></div>
+              <!-- 书脊底部区 -->
+              <div class="spine-bottom">
+                <div class="spine-event" data-testid="story-event">{{ story.eventName }}</div>
+                <!-- 朱红印鉴：仅已完成书籍显示 -->
+                <div v-if="story.status === 2" class="seal-icon" title="已完成">
+                  <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="26" height="26" rx="2" stroke="#B22222" stroke-width="1.5"/>
+                    <rect x="3.5" y="3.5" width="21" height="21" rx="1" stroke="#B22222" stroke-width="0.75" stroke-dasharray="2 2"/>
+                    <text x="14" y="17" text-anchor="middle" font-size="8" fill="#B22222" font-family="serif">完</text>
+                  </svg>
+                </div>
+              </div>
             </div>
-            <div class="story-event" data-testid="story-event">{{ story.eventName }}</div>
-            <div class="story-meta">
-              <span
-                class="story-status"
-                :class="statusClass[story.status]"
-                data-testid="story-status"
-              >
-                {{ statusLabel[story.status] }}
-              </span>
-              <span class="story-chapters" data-testid="story-chapters">第 {{ story.currentChapter }} 章</span>
-            </div>
-            <div class="story-badges" v-if="sortMode === 'deviation' || sortMode === 'words'">
-              <span
-                v-if="sortMode === 'deviation'"
-                class="badge deviation-badge"
-                data-testid="deviation-badge"
-              >{{ formatDeviation(story.historyDeviation) }}</span>
-              <span
-                v-if="sortMode === 'words'"
-                class="badge word-count-badge"
-                data-testid="word-count-badge"
-              >{{ story.wordCount ?? 0 }}字</span>
-            </div>
-            <div class="story-time" data-testid="story-date">{{ formatDate(story.createdAt) }}</div>
           </div>
         </div>
       </template>
@@ -590,6 +617,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Google Fonts - 马善政楷体（题签手写感） */
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap');
+
 .bookshelf-view {
   min-height: 100vh;
   background: #f5efe0;
@@ -762,7 +792,234 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* Grid view */
+/* =============================================
+   老式书架视图（grid 模式）
+   ============================================= */
+
+/* 木纹背景（书架整体背景） */
+.bookshelf-container {
+  padding: 1.5rem 1rem 2.5rem;
+  /* 多层 linear-gradient 叠加模拟木纹 */
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(139, 90, 43, 0.04) 3px,
+      rgba(139, 90, 43, 0.04) 4px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 18px,
+      rgba(101, 67, 33, 0.06) 18px,
+      rgba(101, 67, 33, 0.06) 20px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 60px,
+      rgba(165, 110, 60, 0.03) 60px,
+      rgba(165, 110, 60, 0.03) 62px
+    ),
+    linear-gradient(
+      180deg,
+      #e8d5b0 0%,
+      #d4b98a 15%,
+      #c8a876 30%,
+      #d4b98a 50%,
+      #cfaa78 65%,
+      #d4b98a 80%,
+      #e0cba0 100%
+    );
+  min-height: calc(100vh - 120px);
+}
+
+/* 每行书架 */
+.bookshelf-row {
+  position: relative;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* 书架底板（木板视觉） */
+.shelf-plank {
+  height: 16px;
+  background:
+    linear-gradient(
+      180deg,
+      #8b5a2b 0%,
+      #6b4226 20%,
+      #7a4f2e 40%,
+      #6b4226 60%,
+      #5c3a20 80%,
+      #7a4f2e 100%
+    );
+  border-top: 2px solid #a07040;
+  border-bottom: 2px solid #4a2e14;
+  box-shadow:
+    0 4px 8px rgba(74, 46, 20, 0.4),
+    inset 0 1px 0 rgba(255, 220, 160, 0.2);
+  border-radius: 0 0 2px 2px;
+}
+
+/* 书籍行容器 */
+.books-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 0 4px;
+  overflow: visible;
+}
+
+/* 书脊 */
+.book-spine {
+  position: relative;
+  width: 42px;
+  min-width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 2px 2px 0 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+  /* 木纹+暖棕色调 */
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.03) 3px,
+      rgba(0, 0, 0, 0.03) 4px
+    ),
+    linear-gradient(
+      180deg,
+      #9b7355 0%,
+      #8b6348 12%,
+      #9b7a5a 28%,
+      #8b6348 45%,
+      #7a5a40 62%,
+      #8b6348 78%,
+      #9b7a5a 100%
+    );
+  box-shadow:
+    inset -2px 0 4px rgba(0, 0, 0, 0.15),
+    inset 2px 0 3px rgba(255, 220, 160, 0.08),
+    1px 0 2px rgba(74, 46, 20, 0.3);
+}
+
+.book-spine:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    inset -2px 0 4px rgba(0, 0, 0, 0.15),
+    inset 2px 0 3px rgba(255, 220, 160, 0.08),
+    0 8px 16px rgba(74, 46, 20, 0.4);
+}
+
+/* 书脊顶部装饰色带 */
+.spine-top-band {
+  width: 100%;
+  height: 5px;
+  background: linear-gradient(180deg, #5c3a20, #8b5a2b);
+  border-radius: 2px 2px 0 0;
+  flex-shrink: 0;
+}
+
+/* 题签区 */
+.spine-title-slip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 4px 3px;
+  overflow: hidden;
+}
+
+.spine-title-text {
+  /* 竖排文字：每个字分一行 */
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 11px;
+  color: #2c1f14;
+  /* 手写楷体感 */
+  font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', '楷体', '楷体_GB2312', serif;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-height: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: 1;
+  /* 略微倾斜增加古感 */
+  transform: rotate(0deg);
+}
+
+/* 题签装饰线 */
+.spine-slip-line {
+  width: 70%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(139, 90, 43, 0.4),
+    transparent
+  );
+  margin: 2px 0;
+  flex-shrink: 0;
+}
+
+/* 书脊底部区域 */
+.spine-bottom {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 3px 5px;
+  flex-shrink: 0;
+}
+
+.spine-event {
+  font-size: 8px;
+  color: rgba(44, 31, 20, 0.55);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  font-family: 'STKaiti', 'KaiTi', '楷体', '楷体_GB2312', serif;
+  max-height: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: 1;
+}
+
+/* 朱红印鉴 */
+.seal-icon {
+  width: 22px;
+  height: 22px;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
+
+.seal-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* =============================================
+   以下保留旧样式（timeline / map 视图 / 详情面板）
+   ============================================= */
+
+/* Grid view - 旧样式（山河图等继续使用） */
 .story-grid {
   padding: 1rem;
   display: grid;
