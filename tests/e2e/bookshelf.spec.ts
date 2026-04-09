@@ -189,7 +189,7 @@ test.describe('书架筛选功能', () => {
     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
   })
 
-  test.skip('应该支持按状态筛选', async ({ page }) => {
+  test('应该支持按状态筛选', async ({ page }) => {
     // 点击"已完成"筛选
     await page.locator('[data-testid="filter-status-completed"]').click()
     await page.waitForTimeout(500)
@@ -204,7 +204,7 @@ test.describe('书架筛选功能', () => {
     }
   })
 
-  test.skip('应该支持按关键词筛选', async ({ page }) => {
+  test('应该支持按关键词筛选', async ({ page }) => {
     // 点击关键词筛选
     await page.locator('[data-testid="filter-keyword"]').click()
     await page.waitForTimeout(500)
@@ -220,7 +220,7 @@ test.describe('书架筛选功能', () => {
     expect(count).toBeGreaterThan(0)
   })
 
-  test.skip('应该支持清除筛选', async ({ page }) => {
+  test('应该支持清除筛选', async ({ page }) => {
     // 先应用筛选
     await page.locator('[data-testid="filter-status-completed"]').click()
     await page.waitForTimeout(500)
@@ -246,7 +246,7 @@ test.describe('书架排序功能', () => {
     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
   })
 
-  test.skip('应该支持按时间排序', async ({ page }) => {
+  test('应该支持按时间排序', async ({ page }) => {
     await page.locator('[data-testid="sort-select"]').click()
     await page.locator('[data-testid="sort-option-date"]').click()
     await page.waitForTimeout(500)
@@ -258,7 +258,7 @@ test.describe('书架排序功能', () => {
     expect(firstDate).toBeTruthy()
   })
 
-  test.skip('应该支持按偏离度排序', async ({ page }) => {
+  test('应该支持按偏离度排序', async ({ page }) => {
     await page.locator('[data-testid="sort-select"]').click()
     await page.locator('[data-testid="sort-option-deviation"]').click()
     await page.waitForTimeout(500)
@@ -267,7 +267,7 @@ test.describe('书架排序功能', () => {
     await expect(page.locator('[data-testid="deviation-badge"]').first()).toBeVisible()
   })
 
-  test.skip('应该支持按字数排序', async ({ page }) => {
+  test('应该支持按字数排序', async ({ page }) => {
     await page.locator('[data-testid="sort-select"]').click()
     await page.locator('[data-testid="sort-option-words"]').click()
     await page.waitForTimeout(500)
@@ -286,7 +286,7 @@ test.describe('故事卡操作', () => {
     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
   })
 
-  test.skip('点击故事卡应该打开详情', async ({ page }) => {
+  test('点击故事卡应该打开详情', async ({ page }) => {
     // 点击第一张卡片
     await page.locator('[data-testid="story-card"]').first().click()
     await page.waitForTimeout(1000)
@@ -295,7 +295,7 @@ test.describe('故事卡操作', () => {
     await expect(page.locator('[data-testid="story-detail-panel"]')).toBeVisible({ timeout: 5000 })
   })
 
-  test.skip('已完成故事应该可以分享', async ({ page }) => {
+  test('已完成故事应该可以分享', async ({ page }) => {
     // 点击已完成的故事卡片
     await page.locator('[data-testid="story-card"][data-status="completed"]').first().click()
     await page.waitForTimeout(1000)
@@ -304,7 +304,7 @@ test.describe('故事卡操作', () => {
     await expect(page.locator('[data-testid="share-button"]')).toBeVisible()
   })
 
-  test.skip('进行中故事应该可以继续阅读', async ({ page }) => {
+  test('进行中故事应该可以继续阅读', async ({ page }) => {
     // 点击进行中的故事卡片
     await page.locator('[data-testid="story-card"][data-status="in_progress"]').first().click()
     await page.waitForTimeout(1000)
@@ -313,7 +313,7 @@ test.describe('故事卡操作', () => {
     await expect(page.locator('[data-testid="continue-reading-button"]')).toBeVisible()
   })
 
-  test.skip('应该可以删除故事', async ({ page }) => {
+  test('应该可以删除故事', async ({ page }) => {
     // 点击第一张卡片的菜单
     await page.locator('[data-testid="story-card"]').first().locator('[data-testid="card-menu-button"]').click()
     await page.waitForTimeout(500)
@@ -334,7 +334,7 @@ test.describe('故事卡操作', () => {
 
 test.describe('书架空状态', () => {
 
-  test.skip('空书架应该显示引导提示', async ({ page }) => {
+  test('空书架应该显示引导提示', async ({ page }) => {
     // 清空数据
     await page.evaluate(() => {
       localStorage.setItem('bookshelf_stories', JSON.stringify([]))
@@ -349,7 +349,7 @@ test.describe('书架空状态', () => {
     await expect(page.locator('[data-testid="empty-bookshelf-message"]')).toContainText('暂无故事')
   })
 
-  test.skip('空书架应该显示开始按钮', async ({ page }) => {
+  test('空书架应该显示开始按钮', async ({ page }) => {
     await page.evaluate(() => {
       localStorage.setItem('bookshelf_stories', JSON.stringify([]))
     })
