@@ -158,37 +158,6 @@ function startTypewriterQueue(paragraphs: string[]) {
   processTypewriter()
 }
 
-function processTypewriter() {
-  if (typewriterQueue.value.length === 0) {
-    isStreaming.value = false
-    streamingDone = true
-    return
-  }
-  const paragraph = typewriterQueue.value.shift()!
-  charIndex = 0
-  animateParagraph(paragraph)
-}
-
-function animateParagraph(text: string) {
-  // 每次渲染一小段（几个字符）实现平滑打字机效果
-  // 初始段落快速渲染（E2E测试快速读取内容）
-  const chunkSize = text.length
-  function addChunk() {
-    if (charIndex >= text.length) {
-      displayedText.value += '\n'
-      processTypewriter()
-      return
-    }
-    const end = Math.min(charIndex + chunkSize, text.length)
-    displayedText.value += text.slice(charIndex, end)
-    charIndex = end
-    // 首段快速渲染，后续段正常速度
-    const delay = charIndex >= text.length ? 0 : 40
-    setTimeout(addChunk, delay)
-  }
-  addChunk()
-}
-
 // ── 逐字渲染引擎 (UI-10) ──
 /**
  * 逐字渲染 WebSocket/SSE 流式文本片段。
@@ -277,13 +246,49 @@ const isEndChapter = computed(() => {
 // ── 价值取向选项标签 ──
 const valueLabels = ['义', '利', '情']
 
+// S-16: 使用 storyStore 的断线重连 WebSocket 流式接口
+function connectStoryStream() {
+  storyStore.connectStream({
+    storyId,
+    chapterNo: currentChapterNo.value,
+    onChunk: (text: string) => {
+      // 逐字追加渲染
+      appendPendingText(text)
+    },
+    onOptions: (opts: Option[]) => {
+      if (currentChapter.value) {
+        currentChapter.value.options = opts
+      }
+      isStreaming.value = false
+      streamingDone = true
+    },
+    onReconnect: (localDraft: string) => {
+      // S-16: 断线重连后恢复本地草稿
+      displayedText.value = localDraft
+      // 重新加载章节以获取最新选项
+      fetchChapter(storyId, currentChapterNo.value).then(ch => {
+        if (ch) {
+          currentChapter.value = ch
+          storyStore.currentChapter = ch
+        }
+      }).catch(() => { /* 获取章节失败，继续使用现有数据 */ })
+    },
+    onError: () => {
+      streamError.value = '流式加载失败，将显示静态内容'
+    },
+  })
+}
+
 onMounted(async () => {
   await loadChapter(1)
   checkFirstVisit()
+  // S-16: 连接流式接口，断线自动重连
+  connectStoryStream()
 })
 
 onUnmounted(() => {
   closeStream()
+  storyStore.disconnectStream()
 })
 
 function checkFirstVisit() {
@@ -320,8 +325,9 @@ async function loadChapter(chapterNo: number) {
       }
     }
 
-    if (ch.sceneText) {
-      // 非流式模式：直接渲染，带打字机效果
+    // S-16: 草稿已在 connectStoryStream/onReconnect 中恢复
+    // 仅在新章节首次加载（无草稿）时启动打字机
+    if (!storyStore.getDraft(storyId, chapterNo) && ch.sceneText) {
       startTypewriterQueue([ch.sceneText])
     }
   } catch (err) {
@@ -330,44 +336,6 @@ async function loadChapter(chapterNo: number) {
   } finally {
     isLoading.value = false
   }
-}
-
-function startTypewriterQueue(paragraphs: string[]) {
-  typewriterQueue.value = paragraphs
-  streamingDone = false
-  isStreaming.value = true
-  processTypewriter()
-}
-
-function processTypewriter() {
-  if (typewriterQueue.value.length === 0) {
-    isStreaming.value = false
-    streamingDone = true
-    return
-  }
-  const paragraph = typewriterQueue.value.shift()!
-  charIndex = 0
-  animateParagraph(paragraph)
-}
-
-function animateParagraph(text: string) {
-  // 每次渲染一小段（几个字符）实现平滑打字机效果
-  // 初始段落快速渲染（E2E测试快速读取内容）
-  const chunkSize = text.length
-  function addChunk() {
-    if (charIndex >= text.length) {
-      displayedText.value += '\n'
-      processTypewriter()
-      return
-    }
-    const end = Math.min(charIndex + chunkSize, text.length)
-    displayedText.value += text.slice(charIndex, end)
-    charIndex = end
-    // 首段快速渲染，后续段正常速度
-    const delay = charIndex >= text.length ? 0 : 40
-    setTimeout(addChunk, delay)
-  }
-  addChunk()
 }
 
 // ── SSE 流式连接 ──
@@ -475,7 +443,9 @@ async function selectOption(optionId: number, valueOrientation?: string, event?:
   }
 
   try {
-    const res = await storyStore.submitChoice(storyId, currentChapterNo.value, optionId, intensity)
+    // S-16: 提交选择前断开流式连接
+    storyStore.disconnectStream()
+    const res = await storyStore.submitChoice(storyId, currentChapterNo.value, optionId)
     if (res?.chapter) {
       currentChapter.value = res.chapter
       currentChapterNo.value++
@@ -483,6 +453,8 @@ async function selectOption(optionId: number, valueOrientation?: string, event?:
       if (res.chapter.sceneText) {
         startTypewriterQueue([res.chapter.sceneText])
       }
+      // S-16: 连接新章节的流式接口
+      connectStoryStream()
     }
   } catch (err) {
     console.error('[StoryView] selectOption failed:', err)
