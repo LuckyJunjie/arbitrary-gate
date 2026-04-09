@@ -22,6 +22,17 @@ const totalCardCount = computed(() => cardStore.totalCount)
 // ── 背景墨迹动画状态 ──
 const inkPulse = ref(false)
 
+// ── 窗格光影效果 ──
+// 6-11点：黛青冷调  |  12-16点：无光影  |  17-19点：赭石暖调  |  20-5点：烛光 flicker
+const lightPhase = ref<'cold' | 'none' | 'warm' | 'candle' | null>(null)
+
+function getLightPhase(hour: number): 'cold' | 'none' | 'warm' | 'candle' | null {
+  if (hour >= 6 && hour <= 11) return 'cold'
+  if (hour >= 12 && hour <= 16) return 'none'
+  if (hour >= 17 && hour <= 19) return 'warm'
+  return 'candle'
+}
+
 onMounted(() => {
   // 墨香值时间衰减检查
   inkValueStore.checkAndDecayOnAppStart()
@@ -32,6 +43,9 @@ onMounted(() => {
   setInterval(() => {
     inkPulse.value = !inkPulse.value
   }, 8000)
+
+  // 初始化光影
+  lightPhase.value = getLightPhase(new Date().getHours())
 })
 
 function loadRecentStories() {
@@ -83,6 +97,23 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
 
 <template>
   <div class="home-view">
+    <!-- 窗格光影覆盖层 -->
+    <div
+      v-if="lightPhase === 'cold'"
+      class="light-overlay light-overlay--cold"
+      aria-hidden="true"
+    />
+    <div
+      v-if="lightPhase === 'warm'"
+      class="light-overlay light-overlay--warm"
+      aria-hidden="true"
+    />
+    <div
+      v-if="lightPhase === 'candle'"
+      class="light-overlay light-overlay--candle"
+      aria-hidden="true"
+    />
+
     <!-- 背景墨迹装饰层 -->
     <div class="bg-ink-layer" aria-hidden="true">
       <div class="bg-ink bg-ink--1" :class="{ pulse: inkPulse }" />
@@ -660,5 +691,59 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
   height: 100px;
   background: radial-gradient(ellipse at center, rgba(44, 31, 20, 0.08) 0%, transparent 70%);
   border-radius: 50%;
+}
+
+/* ── 窗格光影覆盖层 ── */
+.light-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  animation: light-enter 1.5s ease forwards;
+}
+
+@keyframes light-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 黛青冷调（6-11点） */
+.light-overlay--cold {
+  background: linear-gradient(
+    135deg,
+    rgba(74, 107, 107, 0.12) 0%,
+    rgba(74, 107, 107, 0.05) 40%,
+    transparent 70%
+  );
+}
+
+/* 赭石暖调（17-19点） */
+.light-overlay--warm {
+  background: linear-gradient(
+    135deg,
+    rgba(139, 94, 60, 0.18) 0%,
+    rgba(139, 94, 60, 0.07) 40%,
+    transparent 70%
+  );
+}
+
+/* 烛光效果 flicker（20-5点） */
+.light-overlay--candle {
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    rgba(196, 140, 60, 0.22) 0%,
+    rgba(139, 94, 60, 0.12) 40%,
+    rgba(44, 31, 20, 0.06) 70%,
+    transparent 100%
+  );
+  animation: candle-flicker 3s ease-in-out infinite;
+}
+
+@keyframes candle-flicker {
+  0%,  100% { opacity: 0.85; transform: scale(1); }
+  20%       { opacity: 1;    transform: scale(1.02); }
+  40%       { opacity: 0.75; transform: scale(0.98); }
+  60%       { opacity: 0.95; transform: scale(1.01); }
+  80%       { opacity: 0.8;  transform: scale(0.99); }
 }
 </style>
