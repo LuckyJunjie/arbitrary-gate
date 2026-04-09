@@ -85,6 +85,30 @@ CREATE TABLE `user_special_card` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户特殊卡牌持有表';
 
 -- ---------------------------------------------------
+-- 墨晶充值订单表
+-- ---------------------------------------------------
+DROP TABLE IF EXISTS `pay_order`;
+CREATE TABLE `pay_order` (
+  `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `order_no`         VARCHAR(32)     NOT NULL COMMENT '订单号（唯一）',
+  `user_id`          BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+  `amount`           DECIMAL(10,2)   NOT NULL DEFAULT 0.00 COMMENT '订单金额（元）',
+  `ink_stone_count`  INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '墨晶数量',
+  `package_id`       VARCHAR(50)     DEFAULT NULL COMMENT '套餐ID',
+  `status`           TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '状态: 0=待支付 1=已支付 2=已取消 3=已退款',
+  `wx_trade_no`      VARCHAR(64)      DEFAULT NULL COMMENT '微信支付交易单号',
+  `paid_at`          DATETIME         DEFAULT NULL COMMENT '支付完成时间',
+  `created_at`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '订单创建时间',
+  `updated_at`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted`          TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '软删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_order_no` (`order_no`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='墨晶充值订单表';
+
+-- ---------------------------------------------------
 -- 插入默认合券纪念卡模板（会被具体故事分享时克隆）
 -- ---------------------------------------------------
 INSERT INTO `special_card` (`id`, `card_no`, `name`, `description`, `rarity`) VALUES
