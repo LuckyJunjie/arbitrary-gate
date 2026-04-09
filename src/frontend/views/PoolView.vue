@@ -183,8 +183,15 @@ async function handleDraw() {
       if (res.isFree === false) {
         cardStore.deductInkStone(10)
       }
-    } catch {
-      // API 不可用时使用本地模拟（带 drawId 检查）
+    } catch (err: any) {
+      // 如果后端返回了业务错误码（如卡匣已满），展示错误信息，不走 mock
+      const serverMsg = err?.response?.data?.message
+      if (serverMsg) {
+        drawError.value = serverMsg
+        isDrawing.value = false
+        return
+      }
+      // 无响应（网络错误）时使用本地模拟（带 drawId 检查）
       console.warn('[PoolView] API unavailable, using mock data')
       await applyMockDraw(currentDrawId)
       return
@@ -206,8 +213,10 @@ async function handleDraw() {
     }
 
     saveDailyFreeDraws()
-  } catch (err) {
-    drawError.value = '抽卡失败，请稍后再试'
+  } catch (err: any) {
+    // 优先使用后端返回的错误信息
+    const msg = err?.response?.data?.message
+    drawError.value = msg || '抽卡失败，请稍后再试'
     console.error('[PoolView] draw failed:', err)
   } finally {
     isDrawing.value = false
@@ -229,9 +238,10 @@ async function handleEventDraw() {
     drawnEventCard.value = res
     hasDrawnEvent.value = true
     eventCardRevealed.value = false
-  } catch {
-    console.warn('[PoolView] Event card API unavailable, using mock')
-    await applyMockEventDraw(currentId)
+  } catch (err: any) {
+    const msg = err?.response?.data?.message
+    eventDrawError.value = msg || '抽卡失败，请稍后再试'
+    console.error('[PoolView] event draw failed:', err)
   } finally {
     isDrawingEvent.value = false
   }

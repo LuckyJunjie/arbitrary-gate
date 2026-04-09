@@ -6,9 +6,11 @@ import com.timespace.common.exception.BusinessException;
 import com.timespace.common.utils.IdGenerator;
 import com.timespace.module.card.entity.EventCard;
 import com.timespace.module.card.entity.KeywordCard;
+import com.timespace.module.card.entity.UserEventCard;
 import com.timespace.module.card.entity.UserKeywordCard;
 import com.timespace.module.card.mapper.EventCardMapper;
 import com.timespace.module.card.mapper.KeywordCardMapper;
+import com.timespace.module.card.mapper.UserEventCardMapper;
 import com.timespace.module.card.mapper.UserKeywordCardMapper;
 import com.timespace.module.user.service.UserService;
 import lombok.Data;
@@ -44,6 +46,7 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     private final KeywordCardMapper keywordCardMapper;
     private final EventCardMapper eventCardMapper;
     private final UserKeywordCardMapper userKeywordCardMapper;
+    private final UserEventCardMapper userEventCardMapper;
     private final UserService userService;
     private final RedissonClient redissonClient;
     private final DrawAlgorithm drawAlgorithm;
@@ -55,6 +58,7 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     private int dailyFreeCount;
 
     private static final String DRAW_LOCK_PREFIX = "draw:lock:user:";
+    private static final int KEYWORD_CARD_LIMIT = 9;
 
     /**
      * 抽关键词卡
@@ -74,6 +78,12 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
             locked = lock.tryLock(3, 10, TimeUnit.SECONDS);
             if (!locked) {
                 throw new BusinessException(400, "抽卡过于频繁，请稍后");
+            }
+
+            // 手牌上限检查：关键词卡最多9张
+            int keywordCardCount = userKeywordCardMapper.countByUserId(userId);
+            if (keywordCardCount >= KEYWORD_CARD_LIMIT) {
+                throw BusinessException.CARD_LIMIT_REACHED;
             }
 
             // 检查免费次数或墨晶
@@ -146,6 +156,16 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
                 throw new BusinessException(400, "抽卡过于频繁，请稍后");
             }
 
+            // 手牌上限检查：事件卡最多3张
+            int eventCardCount = userEventCardMapper.selectCount(
+                    new LambdaQueryWrapper<UserEventCard>()
+                            .eq(UserEventCard::getUserId, userId)
+                            .eq(UserEventCard::getCardType, "event")
+            );
+            if (eventCardCount >= EVENT_CARD_LIMIT) {
+                throw BusinessException.CARD_LIMIT_REACHED;
+            }
+
             // 获取事件卡保底状态（独立 key）
             EventGuaranteeState state = getEventGuaranteeState(userId);
 
@@ -181,6 +201,7 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
 
     private static final String EVENT_GUARANTEE_KEY = "event:card:guarantee:user:%d";
     private static final long EVENT_GUARANTEE_TTL = 7 * 24 * 3600L;
+    private static final int EVENT_CARD_LIMIT = 3;
 
     /**
      * 事件卡保底状态
