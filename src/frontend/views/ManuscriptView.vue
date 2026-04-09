@@ -2,11 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
+import { useInkValueStore } from '@/stores/inkValueStore'
 import RippleEffect from '@/components/RippleEffect.vue'
 
 const route = useRoute()
 const router = useRouter()
 const storyStore = useStoryStore()
+const inkValueStore = useInkValueStore()
 
 const storyId = route.params.id as string
 const isLoading = ref(true)
@@ -15,6 +17,9 @@ const showRipple = ref(false)
 
 // ── 加载手稿数据 ──
 onMounted(async () => {
+  // 墨香值时间衰减检查
+  inkValueStore.checkAndDecayOnAppStart()
+
   // 触发入场涟漪动画
   showRipple.value = true
   setTimeout(() => { showRipple.value = false }, 2000)
@@ -36,6 +41,9 @@ onMounted(async () => {
 
 const manuscript = computed(() => storyStore.manuscript)
 const storyTitle = computed(() => storyStore.currentStory?.title ?? '时光笺')
+
+// 题记
+const inscription = computed(() => manuscript.value?.inscription)
 
 // 分割正文为段落（按换行或句号分割）
 const paragraphs = computed(() => {
@@ -119,6 +127,11 @@ function goBack() {
     <!-- 手稿正文 -->
     <div v-else-if="manuscript" class="manuscript-scroll" data-testid="manuscript-scroll">
       <div class="manuscript-content">
+        <!-- 题记 -->
+        <div v-if="inscription" class="manuscript-inscription" data-testid="manuscript-inscription">
+          <span class="inscription-text">{{ inscription }}</span>
+        </div>
+
         <!-- 卷轴顶边 -->
         <div class="scroll-top-bar">
           <span class="scroll-label">卷</span>
@@ -335,6 +348,26 @@ function goBack() {
   font-size: 0.75rem;
   color: rgba(139, 94, 60, 0.5);
   letter-spacing: 0.3em;
+}
+
+/* ── 题记 ── */
+.manuscript-inscription {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  direction: ltr;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(139, 94, 60, 0.15);
+  margin-bottom: 0.5rem;
+}
+
+.inscription-text {
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 1rem;
+  color: #5a4a3a;
+  font-style: italic;
+  letter-spacing: 0.15em;
+  line-height: 1.8;
 }
 
 /* ── 正文主体 ── */

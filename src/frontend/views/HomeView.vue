@@ -4,12 +4,14 @@ import { useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { useCardStore } from '@/stores/cardStore'
 import { useAchievementStore } from '@/stores/achievementStore'
+import { useInkValueStore } from '@/stores/inkValueStore'
 import AchievementBadge from '@/components/AchievementBadge.vue'
 
 const router = useRouter()
 const storyStore = useStoryStore()
 const cardStore = useCardStore()
 const achievementStore = useAchievementStore()
+const inkValueStore = useInkValueStore()
 
 // ── 最近故事 ──
 const recentStories = ref<Array<{ id: string; title: string; status: number; currentChapter: number }>>([])
@@ -21,6 +23,9 @@ const totalCardCount = computed(() => cardStore.totalCount)
 const inkPulse = ref(false)
 
 onMounted(() => {
+  // 墨香值时间衰减检查
+  inkValueStore.checkAndDecayOnAppStart()
+
   loadRecentStories()
   loadCardCount()
   // 启动墨迹脉冲
