@@ -208,11 +208,11 @@ function reset() {
   hasDrawn.value = false
   drawnCard.value = null
   drawError.value = null
-  revealPhase.value = 'partial'
+  cardRevealed.value = false
 }
 
-function revealInk() {
-  revealPhase.value = 'full'
+function onCardRevealed() {
+  cardRevealed.value = true
 }
 </script>
 
@@ -509,74 +509,13 @@ function revealInk() {
 }
 
 /* 残片拼接墨迹遮罩 */
-.ink-overlay {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center, rgba(15, 12, 8, 0.85) 0%, rgba(5, 3, 2, 0.95) 100%);
-  border-radius: 8px;
+/* (removed: now handled by ScratchCard.vue) */
+
+/* Post-reveal layout after scratch interaction */
+.post-reveal {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  z-index: 10;
-  animation: inkOverlayIn 0.3s ease-out;
-  transition: opacity 0.5s ease;
-}
-
-.ink-overlay.fading {
-  opacity: 0;
-}
-
-/* 中心透明圆孔 */
-.ink-hollow {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: radial-gradient(circle, transparent 0%, transparent 60%, rgba(30, 20, 10, 0.8) 100%);
-  box-shadow: 0 0 0 9999px rgba(10, 8, 5, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hint-char {
-  font-size: 2.5rem;
-  color: rgba(232, 220, 200, 0.2);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  user-select: none;
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes inkOverlayIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* 拂去墨迹按钮 */
-.brush-ink-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 1.5rem;
-  background: rgba(201, 168, 76, 0.1);
-  border: 1px solid rgba(201, 168, 76, 0.4);
-  border-radius: 2px;
-  color: rgba(201, 168, 76, 0.8);
-  font-family: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-  letter-spacing: 0.1em;
-  transition: all 0.3s ease;
-}
-
-.brush-ink-btn:hover {
-  background: rgba(201, 168, 76, 0.2);
-  border-color: rgba(201, 168, 76, 0.7);
-  color: #c9a84c;
-}
-
-.brush-icon {
-  font-size: 1rem;
+  gap: 1rem;
 }
 </style>
