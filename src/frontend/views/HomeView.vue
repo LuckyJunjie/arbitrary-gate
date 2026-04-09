@@ -3,10 +3,13 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { useCardStore } from '@/stores/cardStore'
+import { useAchievementStore } from '@/stores/achievementStore'
+import AchievementBadge from '@/components/AchievementBadge.vue'
 
 const router = useRouter()
 const storyStore = useStoryStore()
 const cardStore = useCardStore()
+const achievementStore = useAchievementStore()
 
 // ── 最近故事 ──
 const recentStories = ref<Array<{ id: string; title: string; status: number; currentChapter: number }>>([])
@@ -155,6 +158,19 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
     <section v-else class="empty-state">
       <p class="empty-hint">尚无故事记录</p>
       <p class="empty-sub">前往墨池抽取关键词，开启你的第一个故事</p>
+    </section>
+
+    <!-- 成就展示 -->
+    <section class="achievement-section" data-testid="achievement-section">
+      <div v-if="achievementStore.unlockedAchievements.length > 0" class="achievement-scroll">
+        <AchievementBadge
+          v-for="achievement in achievementStore.unlockedAchievements"
+          :key="achievement.id"
+          :achievement="achievement"
+          size="sm"
+        />
+      </div>
+      <p v-else class="achievement-hint">收集更多卡牌与完成故事来解锁成就</p>
     </section>
 
     <!-- 开始新故事引导 -->
@@ -496,6 +512,40 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
 .empty-sub {
   color: #a09080;
   font-size: 0.78rem;
+}
+
+/* ── 成就展示 ── */
+.achievement-section {
+  width: 100%;
+  max-width: 340px;
+  margin-top: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.achievement-scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+  background: rgba(245, 239, 224, 0.5);
+  border: 1px solid rgba(139, 115, 85, 0.2);
+  border-radius: 8px;
+  scrollbar-width: none;
+}
+
+.achievement-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.achievement-hint {
+  color: #a09080;
+  font-size: 0.75rem;
+  text-align: center;
+  letter-spacing: 0.05em;
+  padding: 0.5rem;
+  font-style: italic;
 }
 
 /* ── 开始新故事 ── */

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
+import { aiPainter } from '@/services/aiPainter'
 import Card from '@/components/Card.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import type { KeywordCard } from '@/services/api'
@@ -87,6 +88,37 @@ const emptyMessage = computed(() => {
 function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
   // 翻转时不做额外处理，Card 组件自行管理
 }
+
+// ── AI 画师状态 ──
+const aiExpanded = ref(false)
+const aiStylePrompt = ref('')
+const isGenerating = ref(false)
+const aiResultImage = ref<string | null>(null)
+const aiResultCached = ref(false)
+
+async function generateAICardImage() {
+  if (!selectedKeywordCards.value.length) return
+  const card = selectedKeywordCards.value[0]
+  isGenerating.value = true
+  try {
+    const result = await aiPainter.generateKeywordCard({
+      cardName: card.name,
+      cardType: 'keyword',
+      rarity: (['凡', '珍', '奇', '绝'] as const)[card.rarity - 1] ?? '凡',
+      style: aiStylePrompt.value || undefined,
+    })
+    aiResultImage.value = result.imageUrl
+    aiResultCached.value = result.cached
+    // Save to cardStore if not already set
+    const existing = cardStore.keywordCards.find(c => c.id === card.id)
+    if (existing && !existing.imageUrl) {
+      existing.imageUrl = result.imageUrl
+      cardStore.syncToStorage()
+    }
+  } finally {
+    isGenerating.value = false
+  }
+}
 </script>
 
 <template>
@@ -147,6 +179,41 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
     <div v-else class="empty-state">
       <div class="empty-icon">笺</div>
       <p class="empty-message">{{ cardStore.totalCount === 0 ? '卡匣空空如也，去抽一张命运之卡吧' : '此类中暂无卡牌' }}</p>
+    </div>
+
+    <!-- AI 画师面板 -->
+    <div class="ai-painter-section" v-if="selectedKeywordCards.length > 0">
+      <div class="ai-painter-header" @click="aiExpanded = !aiExpanded">
+        <span class="ai-painter-title">🖌️ AI 画师</span>
+        <span class="ai-expand-icon">{{ aiExpanded ? '▼' : '▶' }}</span>
+      </div>
+      <div class="ai-painter-body" v-show="aiExpanded">
+        <div class="ai-selected-preview">
+          <span class="preview-label">当前卡牌：</span>
+          <span class="preview-name">{{ selectedKeywordCards[0]?.name }}</span>
+        </div>
+        <div class="ai-prompt-area">
+          <textarea
+            v-model="aiStylePrompt"
+            placeholder="可补充风格描述（如：雨天、夜晚、古巷…）"
+            class="ai-prompt-input"
+            rows="2"
+          ></textarea>
+        </div>
+        <div class="ai-actions">
+          <button
+            class="ai-generate-btn"
+            @click="generateAICardImage"
+            :disabled="isGenerating"
+          >
+            {{ isGenerating ? '生成中…' : '🖌️ 挥毫作画' }}
+          </button>
+        </div>
+        <div class="ai-result-area" v-if="aiResultImage">
+          <img :src="aiResultImage" class="ai-result-image" alt="AI生成卡图" />
+          <span class="ai-result-source">{{ aiResultCached ? '来源：缓存' : '来源：AI生成' }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- 开始故事入口 -->
@@ -408,5 +475,144 @@ function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
 .start-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ── AI 画师面板 ── */
+.ai-painter-section {
+  margin: 1rem;
+  border: 1px solid rgba(139, 115, 85, 0.35);
+  border-radius: 8px;
+  background: rgba(44, 31, 20, 0.06);
+  overflow: hidden;
+}
+
+.ai-painter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(44, 31, 20, 0.04);
+  border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+  transition: background 0.2s;
+}
+
+.ai-painter-header:hover {
+  background: rgba(44, 31, 20, 0.08);
+}
+
+.ai-painter-title {
+  font-size: 0.95rem;
+  color: #2c1f14;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.ai-expand-icon {
+  color: #8b7355;
+  font-size: 0.7rem;
+}
+
+.ai-painter-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ai-selected-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.preview-label {
+  color: #8b7355;
+}
+
+.preview-name {
+  color: #2c1f14;
+  font-weight: 600;
+}
+
+.ai-prompt-area {
+  width: 100%;
+}
+
+.ai-prompt-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(139, 115, 85, 0.3);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #2c1f14;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.ai-prompt-input::placeholder {
+  color: rgba(139, 115, 85, 0.5);
+}
+
+.ai-prompt-input:focus {
+  border-color: #8b7355;
+}
+
+.ai-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ai-generate-btn {
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, #4a3520, #2c1f14);
+  border: 1px solid #c9a84c;
+  border-radius: 3px;
+  color: #c9a84c;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+
+.ai-generate-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6b4c30, #4a3520);
+  color: #e8dcc8;
+  border-color: #e8dcc8;
+}
+
+.ai-generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-result-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.ai-result-image {
+  max-width: 180px;
+  max-height: 240px;
+  width: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  border: 1px solid rgba(139, 115, 85, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ai-result-source {
+  font-size: 0.75rem;
+  color: #8b7355;
 }
 </style>

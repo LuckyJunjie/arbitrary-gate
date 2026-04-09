@@ -69,7 +69,13 @@ import { computed } from 'vue'
 
       <!-- 卡面图案区 -->
       <div class="card-art" :style="{ borderColor: rarityConfig[rarity].borderColor }">
-        <div class="art-placeholder" :style="{ color: rarityConfig[rarity].borderColor }">
+        <img
+          v-if="(card as any)?.imageUrl"
+          :src="(card as any).imageUrl"
+          class="art-image"
+          alt=""
+        />
+        <div v-else class="art-placeholder" :style="{ color: rarityConfig[rarity].borderColor }">
           {{ (card?.name as string)?.charAt(0) ?? '?' }}
         </div>
         <!-- 稀有度光效 -->
@@ -103,8 +109,10 @@ import { computed } from 'vue'
             v-for="i in 7"
             :key="i"
             class="fragrance-dot"
-            :class="{ filled: i <= inkFragrance }"
-            :style="i <= inkFragrance ? { background: rarityConfig[rarity].borderColor } : {}"
+            :class="{ filled: i <= inkFragrance, 'ink-fade': i <= inkFragrance }"
+            :style="i <= inkFragrance
+              ? { background: rarityConfig[rarity].borderColor, animationDelay: ((i - 1) * 0.5) + 's' }
+              : {}"
           ></span>
         </div>
       </div>
@@ -236,6 +244,13 @@ import { computed } from 'vue'
   z-index: 1;
 }
 
+.art-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
 .rarity-glow {
   position: absolute;
   inset: 0;
@@ -322,6 +337,14 @@ import { computed } from 'vue'
 
 .fragrance-dot.filled {
   border-color: transparent;
+  animation: inkFade 4s ease-in-out infinite both;
+}
+
+/* 墨香星级渐淡动画 */
+@keyframes inkFade {
+  0%   { opacity: 0.8; }
+  50%  { opacity: 0.4; }
+  100% { opacity: 0.8; }
 }
 
 /* 翻转提示 */
