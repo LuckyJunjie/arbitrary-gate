@@ -17,6 +17,7 @@ const drawnCard = ref<KeywordCard | null>(null)
 const isDrawing = ref(false)
 const drawError = ref<string | null>(null)
 const remainingFreeDraws = ref(0)
+const drawId = ref(0) // 用于取消进行中的抽卡动画
 
 // 每日免费次数上限
 const DAILY_FREE_LIMIT = 3
@@ -99,9 +100,11 @@ async function onCardDrawn(card: Record<string, unknown> | null) {
   }
 }
 
-async function applyMockDraw() {
+async function applyMockDraw(currentDrawId = -1) {
   // 使用本地 mock 数据（模拟抽卡动画 1.5s）
   await new Promise(resolve => setTimeout(resolve, 1500))
+  // 如果 drawId 已变化（用户已重置），忽略本次结果
+  if (drawId.value !== currentDrawId) return
   const mockCards: KeywordCard[] = [
     { id: Date.now(), name: '铜锁芯', rarity: 1, category: 1, inkFragrance: 7 },
     { id: Date.now() + 1, name: '竹骨伞', rarity: 2, category: 2, inkFragrance: 5 },
@@ -133,36 +136,24 @@ async function handleDraw() {
 
   isDrawing.value = true
   drawError.value = null
+  // 递增 drawId，后续可检测是否已取消
+  const currentDrawId = ++drawId.value
 
   try {
     // 尝试调用真实 API
     let cardData: KeywordCard | null = null
-    let isFree = false
 
     try {
       const res = await drawKeywordCard()
+      // 如果 drawId 已变化（用户已重置），忽略本次结果
+      if (drawId.value !== currentDrawId) return
       cardData = res.card
       remainingFreeDraws.value = res.remainingFreeDraws ?? Math.max(0, remainingFreeDraws.value - 1)
-      isFree = res.isFree
     } catch {
-      // API 不可用时使用本地模拟
+      // API 不可用时使用本地模拟（带 drawId 检查）
       console.warn('[PoolView] API unavailable, using mock data')
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      const mockCards: KeywordCard[] = [
-        { id: Date.now(), name: '铜锁芯', rarity: 1, category: 1, inkFragrance: 7 },
-        { id: Date.now() + 1, name: '竹骨伞', rarity: 2, category: 2, inkFragrance: 5 },
-        { id: Date.now() + 2, name: '旧书页', rarity: 1, category: 3, inkFragrance: 3 },
-        { id: Date.now() + 3, name: '黄昏', rarity: 3, category: 4, inkFragrance: 6 },
-        { id: Date.now() + 4, name: '说书人', rarity: 4, category: 5, inkFragrance: 7 },
-        { id: Date.now() + 5, name: '青花瓷', rarity: 2, category: 1, inkFragrance: 4 },
-        { id: Date.now() + 6, name: '老邮差', rarity: 3, category: 2, inkFragrance: 5 },
-        { id: Date.now() + 7, name: '春雷', rarity: 4, category: 3, inkFragrance: 7 },
-        { id: Date.now() + 8, name: '乡愁', rarity: 3, category: 4, inkFragrance: 6 },
-        { id: Date.now() + 9, name: '旅人', rarity: 2, category: 5, inkFragrance: 5 },
-      ]
-      cardData = mockCards[Math.floor(Math.random() * mockCards.length)]
-      remainingFreeDraws.value = Math.max(0, remainingFreeDraws.value - 1)
-      isFree = true
+      await applyMockDraw(currentDrawId)
+      return
     }
 
     if (cardData) {
@@ -189,6 +180,8 @@ async function handleDraw() {
 }
 
 function reset() {
+  // 递增 drawId 以取消进行中的抽卡
+  ++drawId.value
   hasDrawn.value = false
   drawnCard.value = null
   drawError.value = null
