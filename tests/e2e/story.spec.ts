@@ -219,7 +219,27 @@ test.describe('关键词共鸣可视化', () => {
   })
 
   test.skip('共鸣满时应该触发显灵效果', async ({ page }) => {
-    // 此测试需要后端支持关键词共鸣数据，当前跳过
+    // 修改 mock 数据使共鸣满（>=7），验证显灵效果
+    const highResonanceChapter = {
+      chapterNo: 1,
+      sceneText: '共鸣测试场景...',
+      options: [{ id: 1, text: '测试选项' }],
+      keywordResonance: { 1: 7, 2: 7, 3: 7 }, // 共鸣满
+    }
+    page.removeAllRoutes?.() // 清除现有路由
+    page.route(new RegExp('/api/story/1/chapter/\\d+'), route => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(highResonanceChapter),
+      })
+    })
+    await page.reload()
+    await page.waitForSelector('[data-testid="keyword-resonance-bar"]', { timeout: 10000 })
+    const resonanceChip = page.locator('[data-testid="keyword-resonance-bar"]').first()
+    await expect(resonanceChip).toHaveClass(/resonance-full/)
+    const achieved = page.locator('.resonance-achieved')
+    await expect(achieved).toBeVisible({ timeout: 5000 })
   })
 })
 
@@ -232,12 +252,44 @@ test.describe('故事章节流转', () => {
     // Mock finishStory — 第三章完成后调用
     await page.route(
       new RegExp('/api/story/1/finish'),
+      () => {
+        // no-op
+      }
+    )
+    // Mock manuscript API
+    await page.route(
+      new RegExp('/api/story/1/manuscript'),
       () => {}
     )
   })
 
-  test.skip('完整故事流程：3章全部完成', async ({ page }) => {
-    // 需要后端完成故事生成流程的支持，暂时跳过
+  test('完整故事流程：3章全部完成', async ({ page }) => {
+    // 第一章
+    await page.waitForSelector('[data-testid="chapter-text"]', { timeout: 10000 })
+    await page.waitForTimeout(500) // 等待打字机开始
+    await page.waitForSelector('[data-testid="option-item"]', { timeout: 10000 })
+    await page.locator('[data-testid="option-item"]').first().click()
+    await page.waitForTimeout(1500)
+    expect(await page.locator('[data-testid="current-chapter"]').textContent()).toContain('2')
+
+    // 第二章
+    await page.waitForSelector('[data-testid="option-item"]', { timeout: 10000 })
+    await page.locator('[data-testid="option-item"]').first().click()
+    await page.waitForTimeout(1500)
+    expect(await page.locator('[data-testid="current-chapter"]').textContent()).toContain('3')
+
+    // 第三章 — 应该显示"完结此篇"按钮
+    await page.waitForSelector('[data-testid="option-item"]', { timeout: 10000 })
+    await page.waitForTimeout(500)
+    // 选项列表应该为空或只有一个终章按钮，验证完结按钮出现
+    const finishBtn = page.locator('.finish-btn')
+    await expect(finishBtn).toBeVisible({ timeout: 5000 })
+
+    // 点击完结
+    await finishBtn.click()
+    await page.waitForTimeout(2000)
+    // 应该跳转到手稿页
+    expect(page.url()).toContain('/manuscript/1')
   })
 
   test('章节进度指示器应该正确更新', async ({ page }) => {

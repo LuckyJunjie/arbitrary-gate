@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
-  fetchChapter,
-  submitChapterChoice,
+  fetchChapterWithMock,
+  submitChoiceWithMock,
   fetchManuscript,
   fetchStoryList,
-  finishStory,
+  finishStoryWithMock,
   startNewStory,
+  resetChapterHistory,
   type Story,
   type Chapter,
   type Manuscript,
@@ -49,7 +50,7 @@ export const useStoryStore = defineStore('story', () => {
     isLoadingChapter.value = true
     error.value = null
     try {
-      const data = await fetchChapter(storyId, chapterNo)
+      const data = await fetchChapterWithMock(storyId, chapterNo)
       currentChapter.value = data
       return data
     } catch (err) {
@@ -65,7 +66,7 @@ export const useStoryStore = defineStore('story', () => {
     isLoading.value = true
     error.value = null
     try {
-      const res = await submitChapterChoice(chapterId, chapterNo, optionId)
+      const res = await submitChoiceWithMock(chapterId, chapterNo, optionId)
 
       // 记录选择
       chapters.value.push({
@@ -103,7 +104,7 @@ export const useStoryStore = defineStore('story', () => {
     error.value = null
     try {
       // 先调用 finishStory 触发 AI 生成
-      const data = await finishStory(storyId)
+      const data = await finishStoryWithMock(storyId)
       manuscript.value = data
 
       // 更新故事状态
@@ -158,6 +159,7 @@ export const useStoryStore = defineStore('story', () => {
     isLoading.value = true
     error.value = null
     try {
+      resetChapterHistory()
       const data = await startNewStory(payload ?? {})
       currentStory.value = data
       chapters.value = []
