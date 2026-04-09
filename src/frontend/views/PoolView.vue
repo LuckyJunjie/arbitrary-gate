@@ -8,6 +8,7 @@ import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { drawKeywordCard, fetchKeywordCard, fetchFortune, drawEventCard, type EventDrawResult } from '@/services/api'
+import { playInkDrop } from '@/composables/useSound'
 import type { KeywordCard } from '@/services/api'
 
 const cardStore = useCardStore()
@@ -127,9 +128,9 @@ async function onCardDrawn(card: Record<string, unknown> | null) {
     saveCardsToStorage()
     inkValueStore.awardInkForDraw(cardData.rarity)
   }
-}
 
-async function applyMockDraw(currentDrawId = -1) {
+  playInkDrop()
+}(currentDrawId = -1) {
   // 使用本地 mock 数据（模拟抽卡动画 1.5s）
   await new Promise(resolve => setTimeout(resolve, 1500))
   // 如果 drawId 已变化（用户已重置），忽略本次结果
@@ -159,6 +160,7 @@ async function applyMockDraw(currentDrawId = -1) {
     inkValueStore.awardInkForDraw(cardData.rarity)
   }
   saveDailyFreeDraws()
+  playInkDrop()
 }
 
 async function handleDraw() {
@@ -210,6 +212,7 @@ async function handleDraw() {
         // 记录墨香值
         inkValueStore.awardInkForDraw(cardData!.rarity)
       }
+      playInkDrop()
     }
 
     saveDailyFreeDraws()

@@ -2,6 +2,7 @@
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchShareInfo, jointShare, fetchSpecialCards, type ShareInfoResponse, type SpecialCard } from '../services/api'
+import { playJadeClick } from '@/composables/useSound'
 
 const route = useRoute()
 const router = useRouter()
@@ -299,6 +300,7 @@ async function handleJoint() {
       storyTitle: result.storyTitle,
       specialCardName: result.specialCardName
     }
+    playJadeClick()
     // 播放合券动画
     await playMergeAnimation()
     // 显示纪念卡弹层

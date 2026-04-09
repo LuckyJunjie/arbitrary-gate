@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted, Ref } from 'vue'
+import { playBrushTap } from '@/composables/useSound'
 
 // 手势力度类型
 export type GestureIntensity = 'gentle' | 'urgent' | 'forceful'
@@ -103,6 +104,7 @@ export function useSwipe(
           duration,
           gestureIntensity: intensity,
         }
+        playBrushTap()
         onLongPress?.(swipeState.value)
       }
     }, longPressThresholdMs)
@@ -155,6 +157,7 @@ export function useSwipe(
         duration,
         gestureIntensity: intensity,
       }
+      playBrushTap()
       onSwipe?.(swipeState.value)
     }
 

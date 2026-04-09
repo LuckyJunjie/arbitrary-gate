@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import type { KeywordCard } from '@/services/api'
+import { playPaperRub, playWindChime } from '@/composables/useSound'
 
 const props = defineProps<{
   card: KeywordCard
@@ -25,6 +26,7 @@ let isPointerDown = false
 // track total pixels for progress calculation
 let totalPixels = 0
 let erasedPixels = 0
+let lastPaperRubTime = 0
 
 const ERASE_THRESHOLD = 80 // 擦除百分比阈值
 
@@ -147,6 +149,12 @@ function onPointerMove(e: MouseEvent | TouchEvent) {
   if (!isPointerDown || phase.value !== 'scratching') return
   e.preventDefault()
   erase(ctx, getPointerPos(e), 22)
+  // Throttle paperRub sound to every 200ms
+  const now = Date.now()
+  if (now - lastPaperRubTime > 200) {
+    lastPaperRubTime = now
+    playPaperRub()
+  }
 }
 
 function onPointerUp() {
@@ -204,6 +212,7 @@ async function triggerReveal() {
   // Wait for CSS animations
   await delay(600)
   phase.value = 'done'
+  playWindChime()
   emit('revealed')
 }
 

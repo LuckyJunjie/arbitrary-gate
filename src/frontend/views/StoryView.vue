@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { fetchChapter } from '@/services/api'
+import { playBell, playChime } from '@/composables/useSound'
 import type { Chapter, Option } from '@/services/api'
 
 const route = useRoute()
@@ -453,6 +454,11 @@ async function selectOption(optionId: number, valueOrientation?: string, event?:
       if (res.chapter.sceneText) {
         startTypewriterQueue([res.chapter.sceneText])
       }
+      // S-13: 关键词显灵 — 若本次返回的 resonance 有 ≥7 的值，播放磬音
+      if (res.chapter.keywordResonance) {
+        const hasEnlightenment = Object.values(res.chapter.keywordResonance).some(v => v >= 7)
+        if (hasEnlightenment) playChime()
+      }
       // S-16: 连接新章节的流式接口
       connectStoryStream()
     }
@@ -476,6 +482,7 @@ async function goNextChapter() {
 async function finishStory() {
   try {
     await storyStore.generateManuscript(storyId)
+    playBell()
     router.push(`/manuscript/${storyId}`)
   } catch (err) {
     console.error('[StoryView] finishStory failed:', err)
