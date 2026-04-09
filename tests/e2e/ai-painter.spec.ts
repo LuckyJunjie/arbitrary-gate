@@ -2,26 +2,25 @@ import { test, expect } from '@playwright/test'
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5175'
 
-async function seedCards(page: any): Promise<void> {
-  await page.evaluate(() => {
-    const keywordCards = [
-      { id: 1, name: '旧船票', rarity: 2, category: 1, imageUrl: undefined },
-      { id: 2, name: '说书匠', rarity: 3, category: 2, imageUrl: undefined },
-      { id: 3, name: '青石板', rarity: 1, category: 3, imageUrl: undefined },
-    ]
-    const eventCards = [
-      { id: 101, name: '赤壁·东风骤起', rarity: 3, category: 1 },
-    ]
-    localStorage.setItem('arbitrary_gate_keyword_cards', JSON.stringify(keywordCards))
-    localStorage.setItem('arbitrary_gate_event_cards', JSON.stringify(eventCards))
-    localStorage.setItem('arbitrary_gate_ink_stone', JSON.stringify(500))
-  })
+const SEED_DATA = {
+  keywordCards: [
+    { id: 1, name: '旧船票', rarity: 2, category: 1, imageUrl: undefined },
+    { id: 2, name: '说书匠', rarity: 3, category: 2, imageUrl: undefined },
+    { id: 3, name: '青石板', rarity: 1, category: 3, imageUrl: undefined },
+  ],
+  eventCards: [
+    { id: 101, name: '赤壁·东风骤起', rarity: 3, category: 1 },
+  ],
 }
 
 test.describe('AI Painter Integration', () => {
   test.beforeEach(async ({ page }) => {
-    // Seed localStorage BEFORE navigation so Vue app sees data on mount
-    await seedCards(page)
+    // Use addInitScript so localStorage is set BEFORE Vue app initializes
+    await page.addInitScript(({ keywordCards, eventCards }: typeof SEED_DATA) => {
+      localStorage.setItem('arbitrary_gate_keyword_cards', JSON.stringify(keywordCards))
+      localStorage.setItem('arbitrary_gate_event_cards', JSON.stringify(eventCards))
+      localStorage.setItem('arbitrary_gate_ink_stone', JSON.stringify(500))
+    }, SEED_DATA)
     await page.goto(`${BASE_URL}/cards`)
     // Wait for card grid to render
     await page.waitForSelector('.card-slot', { timeout: 15000 })
