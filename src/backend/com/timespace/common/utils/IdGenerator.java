@@ -52,4 +52,12 @@ public class IdGenerator {
     public static String cardNo(int category, long id) {
         return String.format("K%04d%04d", category, id % 10000);
     }
+
+    /**
+     * 生成支付订单号（格式：WX + 年月日时分秒 + 6位随机数）
+     */
+    public static String generateOrderNo() {
+        return "WX" + cn.hutool.core.date.DateUtil.format(cn.hutool.core.date.DateUtil.date(), "yyyyMMddHHmmss")
+                + cn.hutool.core.util.RandomUtil.randomNumbers(6);
+    }
 }
