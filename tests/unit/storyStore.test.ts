@@ -16,20 +16,22 @@ import { useStoryStore } from '@/stores/storyStore'
 
 // ─── Mock API functions ─────────────────────────────────────────────────────────
 
-const mockFetchChapter = vi.fn()
-const mockSubmitChapterChoice = vi.fn()
+const mockFetchChapterWithMock = vi.fn()
+const mockSubmitChoiceWithMock = vi.fn()
 const mockFetchManuscript = vi.fn()
 const mockFetchStoryList = vi.fn()
-const mockFinishStory = vi.fn()
+const mockFinishStoryWithMock = vi.fn()
 const mockStartNewStory = vi.fn()
+const mockResetChapterHistory = vi.fn()
 
 vi.mock('@/services/api', () => ({
-  fetchChapter: (...args: any[]) => mockFetchChapter(...args),
-  submitChapterChoice: (...args: any[]) => mockSubmitChapterChoice(...args),
+  fetchChapterWithMock: (...args: any[]) => mockFetchChapterWithMock(...args),
+  submitChoiceWithMock: (...args: any[]) => mockSubmitChoiceWithMock(...args),
   fetchManuscript: (...args: any[]) => mockFetchManuscript(...args),
   fetchStoryList: (...args: any[]) => mockFetchStoryList(...args),
-  finishStory: (...args: any[]) => mockFinishStory(...args),
+  finishStoryWithMock: (...args: any[]) => mockFinishStoryWithMock(...args),
   startNewStory: (...args: any[]) => mockStartNewStory(...args),
+  resetChapterHistory: (...args: any[]) => mockResetChapterHistory(...args),
 }))
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────────
@@ -128,7 +130,7 @@ describe('useStoryStore — startStory', () => {
 
 describe('useStoryStore — submitChoice 状态流转', () => {
   it('submitChoice 记录选择到 chapters', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({ chapter: mockChapter, deviation: 5 })
+    mockSubmitChoiceWithMock.mockResolvedValue({ chapter: mockChapter, deviation: 5 })
     const store = useStoryStore()
     store.currentStory = { ...mockStory }
 
@@ -143,7 +145,7 @@ describe('useStoryStore — submitChoice 状态流转', () => {
   })
 
   it('submitChoice 累积 historyDeviation', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({ chapter: mockChapter, deviation: 10 })
+    mockSubmitChoiceWithMock.mockResolvedValue({ chapter: mockChapter, deviation: 10 })
     const store = useStoryStore()
     store.currentStory = { ...mockStory, historyDeviation: 50 }
 
@@ -153,7 +155,7 @@ describe('useStoryStore — submitChoice 状态流转', () => {
   })
 
   it('submitChoice 多次调用正确累积偏离度', async () => {
-    mockSubmitChapterChoice
+    mockSubmitChoiceWithMock
       .mockResolvedValueOnce({ chapter: { ...mockChapter, chapterNo: 1 }, deviation: 8 })
       .mockResolvedValueOnce({ chapter: { ...mockChapter, chapterNo: 2 }, deviation: -5 })
 
@@ -168,7 +170,7 @@ describe('useStoryStore — submitChoice 状态流转', () => {
   })
 
   it('submitChoice 更新 currentChapter', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({ chapter: { ...mockChapter, chapterNo: 2 }, deviation: 0 })
+    mockSubmitChoiceWithMock.mockResolvedValue({ chapter: { ...mockChapter, chapterNo: 2 }, deviation: 0 })
     const store = useStoryStore()
     store.currentStory = { ...mockStory, currentChapter: 1 }
 
@@ -178,7 +180,7 @@ describe('useStoryStore — submitChoice 状态流转', () => {
   })
 
   it('submitChoice 更新 currentChapter 为 chapterNo + 1', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({ chapter: { ...mockChapter, chapterNo: 2 }, deviation: 0 })
+    mockSubmitChoiceWithMock.mockResolvedValue({ chapter: { ...mockChapter, chapterNo: 2 }, deviation: 0 })
     const store = useStoryStore()
     store.currentStory = { ...mockStory, currentChapter: 1 }
 
@@ -188,7 +190,7 @@ describe('useStoryStore — submitChoice 状态流转', () => {
   })
 
   it('submitChoice 设置 isLoading 并在完成时清除', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({ chapter: mockChapter, deviation: 0 })
+    mockSubmitChoiceWithMock.mockResolvedValue({ chapter: mockChapter, deviation: 0 })
     const store = useStoryStore()
     store.currentStory = { ...mockStory }
 
@@ -199,7 +201,7 @@ describe('useStoryStore — submitChoice 状态流转', () => {
   })
 
   it('submitChoice 失败时设置 error', async () => {
-    mockSubmitChapterChoice.mockRejectedValue(new Error('API Error'))
+    mockSubmitChoiceWithMock.mockRejectedValue(new Error('API Error'))
     const store = useStoryStore()
     store.currentStory = { ...mockStory }
 
@@ -208,7 +210,7 @@ describe('useStoryStore — submitChoice 状态流转', () => {
   })
 
   it('submitChoice 处理 deviation 为 undefined 时不报错', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({ chapter: mockChapter })
+    mockSubmitChoiceWithMock.mockResolvedValue({ chapter: mockChapter })
     const store = useStoryStore()
     store.currentStory = { ...mockStory, historyDeviation: 50 }
 
@@ -231,7 +233,7 @@ describe('useStoryStore — historyDeviation computed', () => {
   })
 
   it('historyDeviation 随 currentStory 更新而更新', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({ chapter: mockChapter, deviation: 12 })
+    mockSubmitChoiceWithMock.mockResolvedValue({ chapter: mockChapter, deviation: 12 })
     const store = useStoryStore()
     store.currentStory = { ...mockStory, historyDeviation: 50 }
 
@@ -243,18 +245,18 @@ describe('useStoryStore — historyDeviation computed', () => {
 
 describe('useStoryStore — fetchChapter', () => {
   it('fetchChapterAction 设置 currentChapter', async () => {
-    mockFetchChapter.mockResolvedValue(mockChapter)
+    mockFetchChapterWithMock.mockResolvedValue(mockChapter)
     const store = useStoryStore()
 
     const result = await store.fetchChapter('story-1', 1)
 
-    expect(mockFetchChapter).toHaveBeenCalledWith('story-1', 1)
+    expect(mockFetchChapterWithMock).toHaveBeenCalledWith('story-1', 1)
     expect(store.currentChapter).toEqual(mockChapter)
     expect(result).toEqual(mockChapter)
   })
 
   it('fetchChapterAction 设置 isLoadingChapter', async () => {
-    mockFetchChapter.mockResolvedValue(mockChapter)
+    mockFetchChapterWithMock.mockResolvedValue(mockChapter)
     const store = useStoryStore()
 
     const promise = store.fetchChapter('story-1', 1)
@@ -264,7 +266,7 @@ describe('useStoryStore — fetchChapter', () => {
   })
 
   it('fetchChapterAction 失败时设置 error', async () => {
-    mockFetchChapter.mockRejectedValue(new Error('Not found'))
+    mockFetchChapterWithMock.mockRejectedValue(new Error('Not found'))
     const store = useStoryStore()
 
     await expect(store.fetchChapter('story-1', 999)).rejects.toThrow()
@@ -274,13 +276,13 @@ describe('useStoryStore — fetchChapter', () => {
 
 describe('useStoryStore — generateManuscript / finishStory', () => {
   it('generateManuscript 设置 manuscript 并更新 story status', async () => {
-    mockFinishStory.mockResolvedValue(mockManuscript)
+    mockFinishStoryWithMock.mockResolvedValue(mockManuscript)
     const store = useStoryStore()
     store.currentStory = { ...mockStory }
 
     const result = await store.generateManuscript('story-1')
 
-    expect(mockFinishStory).toHaveBeenCalledWith('story-1')
+    expect(mockFinishStoryWithMock).toHaveBeenCalledWith('story-1')
     expect(store.manuscript).toEqual(mockManuscript)
     expect(store.currentStory!.status).toBe(2) // 已完成
     expect(store.currentStory!.finishedAt).toBeDefined()
@@ -288,7 +290,7 @@ describe('useStoryStore — generateManuscript / finishStory', () => {
   })
 
   it('generateManuscript 设置 isLoadingManuscript', async () => {
-    mockFinishStory.mockResolvedValue(mockManuscript)
+    mockFinishStoryWithMock.mockResolvedValue(mockManuscript)
     const store = useStoryStore()
     store.currentStory = { ...mockStory }
 
@@ -299,7 +301,7 @@ describe('useStoryStore — generateManuscript / finishStory', () => {
   })
 
   it('generateManuscript 失败时设置 error', async () => {
-    mockFinishStory.mockRejectedValue(new Error('AI Error'))
+    mockFinishStoryWithMock.mockRejectedValue(new Error('AI Error'))
     const store = useStoryStore()
     store.currentStory = { ...mockStory }
 
@@ -393,7 +395,7 @@ describe('useStoryStore — updateKeywordResonance', () => {
   })
 
   it('submitChoice 更新 keywordResonance', async () => {
-    mockSubmitChapterChoice.mockResolvedValue({
+    mockSubmitChoiceWithMock.mockResolvedValue({
       chapter: { ...mockChapter, keywordResonance: { 1: 2 } },
       deviation: 5,
     })
@@ -406,11 +408,11 @@ describe('useStoryStore — updateKeywordResonance', () => {
   })
 
   it('连续选择累加 keywordResonance', async () => {
-    mockSubmitChapterChoice.mockResolvedValueOnce({
+    mockSubmitChoiceWithMock.mockResolvedValueOnce({
       chapter: { ...mockChapter, chapterNo: 1, keywordResonance: { 1: 2, 2: 1 } },
       deviation: 5,
     })
-    mockSubmitChapterChoice.mockResolvedValueOnce({
+    mockSubmitChoiceWithMock.mockResolvedValueOnce({
       chapter: { ...mockChapter, chapterNo: 2, keywordResonance: { 1: 1, 3: 2 } },
       deviation: 3,
     })
