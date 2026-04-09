@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useCardDraw } from '@/composables/useCardDraw'
+import { hapticLight } from '@/composables/useHaptic'
 
 const emit = defineEmits<{
   draw: [card: Record<string, unknown>]
@@ -11,6 +12,7 @@ const poolRef = ref<HTMLDivElement | null>(null)
 
 async function handleDraw() {
   if (isDrawing.value) return
+  hapticLight() // UI-11: 触感反馈
   const card = await drawCard('keyword')
   // 即使 API 失败也 emit，让 PoolView 决定如何处理（使用 fallback 数据）
   emit('draw', card ?? null)

@@ -1,5 +1,6 @@
 import { ref, onMounted, onUnmounted, Ref } from 'vue'
 import { playBrushTap } from '@/composables/useSound'
+import { hapticLight, hapticMedium, hapticForceful } from '@/composables/useHaptic'
 
 // 手势力度类型
 export type GestureIntensity = 'gentle' | 'urgent' | 'forceful'
@@ -105,6 +106,7 @@ export function useSwipe(
           gestureIntensity: intensity,
         }
         playBrushTap()
+        hapticForceful() // UI-11: 触感反馈 - 长按用力
         onLongPress?.(swipeState.value)
       }
     }, longPressThresholdMs)
@@ -158,6 +160,7 @@ export function useSwipe(
         gestureIntensity: intensity,
       }
       playBrushTap()
+      hapticMedium() // UI-11: 触感反馈 - 滑动确认
       onSwipe?.(swipeState.value)
     }
 

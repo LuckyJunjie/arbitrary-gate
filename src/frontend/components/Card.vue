@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { KeywordCard } from '@/services/api'
+import { hapticLight } from '@/composables/useHaptic'
 
 const props = defineProps<{
   card: KeywordCard | Record<string, unknown> | null
@@ -15,6 +16,7 @@ const isFlipped = ref(false)
 function handleClick() {
   if (!isFlipped.value) {
     isFlipped.value = true
+    hapticLight() // UI-11: 触感反馈 - 卡片翻转
   } else {
     emit('flip')
   }
