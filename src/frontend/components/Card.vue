@@ -40,6 +40,7 @@ const categoryConfig: Record<number, string> = {
 const rarity = computed(() => (props.card?.rarity as number) ?? 1)
 const category = computed(() => props.card?.category as number)
 const inkFragrance = computed(() => props.card?.inkFragrance ?? 0)
+const resonanceCount = computed(() => props.card?.resonanceCount ?? 0)
 
 import { computed } from 'vue'
 </script>
@@ -115,6 +116,11 @@ import { computed } from 'vue'
               : {}"
           ></span>
         </div>
+      </div>
+
+      <!-- K-06 累计共鸣次数显示 -->
+      <div v-if="resonanceCount > 0" class="resonance-count">
+        <span class="resonance-text">共鸣 ×{{ resonanceCount }}</span>
       </div>
 
       <!-- 翻转提示 -->
@@ -345,6 +351,18 @@ import { computed } from 'vue'
   0%   { opacity: 0.8; }
   50%  { opacity: 0.4; }
   100% { opacity: 0.8; }
+}
+
+/* K-06 累计共鸣次数 - 赭石色小字 */
+.resonance-count {
+  margin-top: 0.3rem;
+  text-align: center;
+}
+
+.resonance-text {
+  font-size: 0.6rem;
+  color: #a07050; /* 赭石色 */
+  letter-spacing: 0.1em;
 }
 
 /* 翻转提示 */
