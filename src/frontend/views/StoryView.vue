@@ -428,6 +428,9 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
       </div>
     </Teleport>
 
+    <!-- 进度墨线 UI-08 -->
+    <div class="ink-progress-line" :style="{ width: `${(currentChapterNo / totalChapters) * 100}%` }" />
+
     <!-- 顶部导航栏 -->
     <header class="story-header">
       <button class="header-btn back-btn" @click="router.push('/')">← 书房</button>
@@ -602,6 +605,18 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   color: #e8dcc8;
   position: relative;
   overflow: hidden;
+}
+
+/* ── 进度墨线 UI-08 ── */
+.ink-progress-line {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background-color: #2C2C2A;
+  transition: width 0.5s ease;
+  z-index: 1000;
+  pointer-events: none;
 }
 
 /* ── 入局弹窗 ── */
