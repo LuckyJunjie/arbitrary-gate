@@ -62,11 +62,16 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
-  async function submitChoice(chapterId: string, chapterNo: number, optionId: number) {
+  async function submitChoice(
+    chapterId: string,
+    chapterNo: number,
+    optionId: number,
+    gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
+  ) {
     isLoading.value = true
     error.value = null
     try {
-      const res = await submitChoiceWithMock(chapterId, chapterNo, optionId)
+      const res = await submitChoiceWithMock(chapterId, chapterNo, optionId, gestureIntensity)
 
       // 记录选择
       chapters.value.push({
