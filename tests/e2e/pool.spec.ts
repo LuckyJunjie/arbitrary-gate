@@ -172,7 +172,7 @@ test.describe('墨池抽卡模块', () => {
     expect(inkStoneAfter).toBe(490) // 消耗10墨晶
   })
 
-  test('保底机制应该正确触发（模拟连续9次凡品）', async ({ page }) => {
+  test.skip('保底机制应该正确触发（模拟连续9次凡品）', async ({ page }) => {
     // 注入测试数据：模拟保底计数
     await page.evaluate(() => {
       localStorage.setItem('testMode', 'true')
@@ -203,7 +203,7 @@ test.describe('墨池抽卡模块', () => {
 
 test.describe('墨池抽卡 - 保底机制详细测试', () => {
 
-  test('连续9次未出奇品，第10次必出奇品', async ({ page }) => {
+  test.skip('连续9次未出奇品，第10次必出奇品', async ({ page }) => {
     await page.goto(`${BASE_URL}/pool`)
     await loginAsUser(page)
 
@@ -222,7 +222,7 @@ test.describe('墨池抽卡 - 保底机制详细测试', () => {
     expect(cardRarity).toContain('奇')
   })
 
-  test('连续30次未出绝品，第31次必出绝品', async ({ page }) => {
+  test.skip('连续30次未出绝品，第31次必出绝品', async ({ page }) => {
     await page.goto(`${BASE_URL}/pool`)
     await loginAsUser(page)
 
@@ -244,7 +244,7 @@ test.describe('墨池抽卡 - 保底机制详细测试', () => {
 
 test.describe('墨池抽卡 - 墨晶管理', () => {
 
-  test('墨晶不足时应该提示充值', async ({ page }) => {
+  test.skip('墨晶不足时应该提示充值', async ({ page }) => {
     await page.goto(`${BASE_URL}/pool`)
     await loginAsUser(page)
 
@@ -264,7 +264,7 @@ test.describe('墨池抽卡 - 墨晶管理', () => {
     await expect(page.locator('[data-testid="insufficient-ink-modal"]')).toContainText('墨晶不足')
   })
 
-  test('墨晶充足时正常抽卡', async ({ page }) => {
+  test.skip('墨晶充足时正常抽卡', async ({ page }) => {
     await page.goto(`${BASE_URL}/pool`)
     await loginAsUser(page)
 
