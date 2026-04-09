@@ -4,6 +4,7 @@ import com.timespace.common.utils.ContentSafetyChecker;
 import com.timespace.module.ai.agent.BaiguanAgent;
 import com.timespace.module.ai.agent.JudgeAgent;
 import com.timespace.module.ai.agent.StorytellerAgent;
+import com.timespace.module.ai.agent.ZhangyanAgent;
 import com.timespace.module.ai.client.AIClient;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.service.CardService;
@@ -34,6 +35,7 @@ public class AIGatewayService {
     private final StorytellerAgent storytellerAgent;
     private final JudgeAgent judgeAgent;
     private final BaiguanAgent baiguanAgent;
+    private final ZhangyanAgent zhangyanAgent;
     private final CardService cardService;
     private final ContentSafetyChecker contentSafetyChecker;
 
@@ -194,7 +196,7 @@ public class AIGatewayService {
 
     /**
      * 生成手稿（包含备选标题）
-     * 返回手稿正文和3个备选标题
+     * 返回手稿正文、3个备选标题和散文诗题记
      */
     public ManuscriptResult generateManuscriptWithTitles(Story story,
                                                           List<StoryChapter> chapters,
@@ -211,7 +213,9 @@ public class AIGatewayService {
                 if (attempt > 1) {
                     log.info("[ContentSafety] 手稿（含标题）第{}次检测通过", attempt);
                 }
-                return result;
+                // 题记掌眼过滤
+                String filteredInscription = filterInscriptionWithZhangyan(result.inscription(), story, keywords);
+                return new ManuscriptResult(result.manuscriptText(), result.candidateTitles(), filteredInscription);
             }
             log.warn("[ContentSafety] 手稿（含标题）第{}次检测不通过: {}，尝试重新生成...",
                     attempt, safetyResult.getReason());
@@ -226,13 +230,30 @@ public class AIGatewayService {
         }
 
         log.error("[ContentSafety] 手稿内容安全检测{}次均不通过，使用兜底文案", maxRetries);
-        return new ManuscriptResult("（手稿因技术原因暂时无法生成）", List.of("时光旅人手记", "旧事新说", "一段往事"));
+        String fallbackInscription = storytellerAgent.generateInscription(story, keywords);
+        return new ManuscriptResult("（手稿因技术原因暂时无法生成）",
+                List.of("时光旅人手记", "旧事新说", "一段往事"),
+                fallbackInscription);
     }
 
     /**
-     * 手稿结果（含备选标题）
+     * 用掌眼Agent过滤题记中的AI腔词
      */
-    public record ManuscriptResult(String manuscriptText, List<String> candidateTitles) {}
+    private String filterInscriptionWithZhangyan(String inscription, Story story, List<KeywordCard> keywords) {
+        if (inscription == null || inscription.isBlank()) {
+            return storytellerAgent.generateInscription(story, keywords);
+        }
+        String filtered = zhangyanAgent.filter(inscription);
+        if (filtered.length() > 60 || filtered.length() < 5) {
+            return storytellerAgent.generateInscription(story, keywords);
+        }
+        return filtered;
+    }
+
+    /**
+     * 手稿结果（含备选标题和题记）
+     */
+    public record ManuscriptResult(String manuscriptText, List<String> candidateTitles, String inscription) {}
 
     /**
      * 手稿内容安全检测与重试

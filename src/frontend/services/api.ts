@@ -182,6 +182,14 @@ export async function fetchChapter(storyId: string, chapterNo: number): Promise<
   return api.get(`/story/${storyId}/chapter/${chapterNo}`)
 }
 
+/**
+ * GET /api/story/{id}/chapter/{no}/progress
+ * 返回当前已生成的文本长度（用于断线重连）
+ */
+export async function fetchChapterProgress(storyId: string, chapterNo: number): Promise<{ chapterNo: number; generatedLength: number }> {
+  return api.get(`/story/${storyId}/chapter/${chapterNo}/progress`)
+}
+
 // 获取手稿
 export async function fetchManuscript(storyId: string): Promise<Manuscript> {
   return api.get(`/story/${storyId}/manuscript`)

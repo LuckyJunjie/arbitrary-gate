@@ -219,6 +219,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                                 .build());
                         // SSE 推送
                         pushSseChunk(storyId, chunk);
+                        // 持久化生成进度
+                        saveChapterProgress(storyId, chapterNo, chunk);
                     }
             ).getSceneText();
 
@@ -235,8 +237,14 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 currentChapter.setStoryId(storyId);
                 currentChapter.setChapterNo(chapterNo);
                 currentChapter.setSceneText(fullText);
+                currentChapter.setGeneratedLength(fullText != null ? fullText.length() : 0);
                 // options 已在 AI 调用中设置
                 chapterMapper.insert(currentChapter);
+            } else {
+                // 已有预插入记录，更新最终内容
+                currentChapter.setSceneText(fullText);
+                currentChapter.setGeneratedLength(fullText != null ? fullText.length() : 0);
+                chapterMapper.updateById(currentChapter);
             }
 
             // 推送选项
@@ -309,7 +317,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             pushSseEvent(storyId, "chapter_start",
                     "{\"storyId\\\":" + storyId + ",\"chapterNo\":" + nextChapterNo + "}");
 
-            // 流式回调
+            // 流式回调：更新数据库进度
             java.util.function.Consumer<String> onChunk = chunk -> {
                 pushToUser(userId, "chapter_stream", ChapterStreamVO.builder()
                         .storyId(storyId)
@@ -317,6 +325,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                         .chunk(chunk)
                         .build());
                 pushSseChunk(storyId, chunk);
+                // 持久化生成进度
+                saveChapterProgress(storyId, nextChapterNo, chunk);
             };
 
             StoryChapter nextChapter = aiGatewayService.generateNextChapter(
@@ -325,6 +335,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             // 4. 保存下一章节
             nextChapter.setStoryId(storyId);
             nextChapter.setSelectedOption(null);
+            nextChapter.setGeneratedLength(nextChapter.getSceneText() != null ? nextChapter.getSceneText().length() : 0);
             chapterMapper.insert(nextChapter);
 
             // 4.1 更新配角的初见印象
@@ -435,6 +446,13 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         StringBuilder fullText = new StringBuilder();
 
         // 5. 生成第一章（流式推送）
+        // 预先插入章节记录（进度追踪）
+        StoryChapter preChapter = new StoryChapter();
+        preChapter.setStoryId(story.getId());
+        preChapter.setChapterNo(1);
+        preChapter.setGeneratedLength(0);
+        chapterMapper.insert(preChapter);
+
         StoryChapter firstChapter = aiGatewayService.generateFirstChapter(
                 story, keywords, characters,
                 chunk -> {
@@ -447,8 +465,16 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                     // SSE 推送
                     pushSseChunk(story.getId(), chunk);
                     fullText.append(chunk);
+                    // 持久化生成进度
+                    saveChapterProgress(story.getId(), 1, chunk);
                 }
         );
+
+        // 更新第一章（覆盖预插入记录）
+        firstChapter.setStoryId(story.getId());
+        firstChapter.setSelectedOption(null);
+        firstChapter.setGeneratedLength(fullText.length());
+        chapterMapper.updateById(firstChapter);
 
         // 6. 保存第一章
         firstChapter.setStoryId(story.getId());
@@ -622,7 +648,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 new LambdaQueryWrapper<StoryCharacter>()
                         .eq(StoryCharacter::getStoryId, storyId));
 
-        // 4. 生成手稿正文（说书人，含3个备选标题）
+        // 4. 生成手稿正文（说书人，含3个备选标题和题记）
         AIGatewayService.ManuscriptResult manuscriptResult =
                 aiGatewayService.generateManuscriptWithTitles(story, chapters, keywords, characters);
         String manuscriptText = manuscriptResult.manuscriptText();
@@ -631,17 +657,11 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         manuscriptText = zhangyanAgent.filter(manuscriptText);
         int wordCount = manuscriptText.length();
 
-        // 4.2 备选标题
-        List<String> candidateTitles = manuscriptResult.candidateTitles();
+        // 4.2 题记（已在 AIGatewayService 中掌眼过滤）
+        String inscription = manuscriptResult.inscription();
 
-        // 4.3 生成题记（散文诗风格）
-        String inscription = aiGatewayService.generateEpigraph(story, manuscriptText);
-        ContentSafetyChecker.SafetyResult insResult =
-                contentSafetyChecker.checkWithRetry(inscription, 3, null, null);
-        if (!insResult.isSafe()) {
-            log.warn("[ContentSafety] 题记不通过: {}, 使用兜底文案", insResult.getReason());
-            inscription = "（题记未生成）";
-        }
+        // 4.3 备选标题
+        List<String> candidateTitles = manuscriptResult.candidateTitles();
 
         // 5. 生成后日谈（稗官）+ 内容安全检测
         String overallComment = baiguanAgent.generateOverallComment(
@@ -908,6 +928,30 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .filter(o -> o.getId().equals(chapter.getSelectedOption()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    // ========== 断线重连进度追踪 ==========
+
+    /**
+     * 增量保存章节生成进度（append 到 sceneText）
+     * 用于 WebSocket 断线重连后前端补全内容
+     */
+    private void saveChapterProgress(Long storyId, Integer chapterNo, String chunk) {
+        try {
+            StoryChapter chapter = chapterMapper.selectOne(
+                    new LambdaQueryWrapper<StoryChapter>()
+                            .eq(StoryChapter::getStoryId, storyId)
+                            .eq(StoryChapter::getChapterNo, chapterNo));
+            if (chapter != null) {
+                String existingText = chapter.getSceneText() != null ? chapter.getSceneText() : "";
+                chapter.setSceneText(existingText + chunk);
+                chapter.setGeneratedLength(chapter.getSceneText().length());
+                chapterMapper.updateById(chapter);
+            }
+        } catch (Exception e) {
+            log.warn("saveChapterProgress failed: storyId={}, chapterNo={}, error={}",
+                    storyId, chapterNo, e.getMessage());
+        }
     }
 
     // ========== SSE 推送工具 ==========

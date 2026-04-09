@@ -420,10 +420,10 @@ function goBack() {
 
 .inscription-text {
   font-family: 'Noto Serif SC', 'Songti SC', serif;
-  font-size: 1rem;
-  color: #5a4a3a;
+  font-size: 1.15rem;
+  color: #8b5e3c;
   font-style: italic;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.2em;
   line-height: 1.8;
 }
 

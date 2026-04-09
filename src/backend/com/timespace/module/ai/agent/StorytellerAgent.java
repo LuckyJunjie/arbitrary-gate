@@ -78,8 +78,8 @@ public class StorytellerAgent {
     }
 
     /**
-     * 生成完整手稿（含3个备选标题）
-     * 在故事结束时调用，返回手稿正文和3个备选标题
+     * 生成完整手稿（含3个备选标题和题记）
+     * 在故事结束时调用，返回手稿正文、3个备选标题和散文诗题记
      */
     public AIGatewayService.ManuscriptResult generateManuscriptWithTitles(Story story,
                                                                           List<StoryChapter> chapters,
@@ -91,7 +91,84 @@ public class StorytellerAgent {
         String userMessage = buildManuscriptUserMessage(story, chapters);
 
         String response = aiClient.callSync(systemPrompt, userMessage);
-        return parseManuscriptWithTitlesResponse(response);
+        AIGatewayService.ManuscriptResult result = parseManuscriptWithTitlesResponse(response);
+
+        // 同步生成题记
+        String inscription = generateInscription(story, keywords);
+        return new AIGatewayService.ManuscriptResult(result.manuscriptText(), result.candidateTitles(), inscription);
+    }
+
+    /**
+     * 生成散文诗式题记
+     * 风格：古雅、留白、有意境；20-50字，呼应关键词/历史事件/故事主题
+     * 与正文白描风格不同，题记更注重意境和留白
+     */
+    public String generateInscription(Story story, List<KeywordCard> keywords) {
+        log.info("说书人生成题记: storyId={}", story.getId());
+
+        String keywordsText = keywords.stream()
+                .map(KeywordCard::getName)
+                .collect(Collectors.joining("、"));
+
+        String systemPrompt = String.format("""
+                你是一位擅长古典文学创作的说书人。
+
+                当前故事信息：
+                - 时代背景：%s
+                - 叙事风格：%s
+                - 关键词：%s
+
+                任务：
+                请为这个故事生成一段散文诗引子（题记），要求：
+                1. 字数：20-50字
+                2. 风格：古雅、留白、有意境，与正文白描风格形成对比
+                3. 内容：呼应关键词和故事主题
+                4. 禁止使用"宛如""仿佛""宛若""恰似""若隐若现""无法言说"等AI腔词汇
+                5. 不要出现感叹号
+                6. 纯文字，不要加引号或书名号
+
+                请直接输出题记内容，不要加任何前缀说明。
+                """,
+                "历史时代",
+                getStyleName(story.getStyle()),
+                keywordsText.isEmpty() ? "无" : keywordsText
+        );
+
+        String userMessage = String.format("""
+                请为以下故事生成一段散文诗风格的题记引子：
+
+                关键词：%s
+                时代背景：%s
+                入局答案：%s
+
+                要求：20-50字，古雅有意境，呼应主题。
+                """,
+                keywordsText.isEmpty() ? "无" : keywordsText,
+                "历史时代",
+                story.getEntryAnswers() != null ? story.getEntryAnswers() : "无"
+        );
+
+        try {
+            String raw = aiClient.callSync(systemPrompt, userMessage);
+            // 清理：去掉首尾空白和可能的引号
+            String cleaned = raw.trim();
+            if ((cleaned.startsWith("\"") && cleaned.endsWith("\"")) ||
+                (cleaned.startsWith("「") && cleaned.endsWith("」")) ||
+                (cleaned.startsWith("《") && cleaned.endsWith("》"))) {
+                cleaned = cleaned.substring(1, cleaned.length() - 1);
+            }
+            if (cleaned.length() < 5) {
+                return getDefaultInscription();
+            }
+            return cleaned;
+        } catch (Exception e) {
+            log.warn("生成题记失败，使用默认题记: {}", e.getMessage());
+            return getDefaultInscription();
+        }
+    }
+
+    private String getDefaultInscription() {
+        return "光阴如箭，岁月如梭，古今多少事，都付笑谈中。";
     }
 
     private String buildChapterSystemPrompt(Story story, int chapterNo, List<KeywordCard> keywords,
@@ -242,7 +319,8 @@ public class StorytellerAgent {
                 if (titles == null || titles.size() < 3) {
                     titles = List.of("时光旅人手记", "旧事新说", "一段往事");
                 }
-                return new AIGatewayService.ManuscriptResult(manuscriptText, titles);
+                // inscription 由 generateManuscriptWithTitles 单独生成
+                return new AIGatewayService.ManuscriptResult(manuscriptText, titles, null);
             }
         } catch (Exception e) {
             log.warn("解析手稿（含标题）响应失败: {}, raw response={}", e.getMessage(), response);
@@ -250,7 +328,8 @@ public class StorytellerAgent {
         // Fallback
         return new AIGatewayService.ManuscriptResult(
                 response.length() > 100 ? response : "（手稿内容）",
-                List.of("时光旅人手记", "旧事新说", "一段往事")
+                List.of("时光旅人手记", "旧事新说", "一段往事"),
+                null
         );
     }
 
