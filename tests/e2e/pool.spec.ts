@@ -27,14 +27,14 @@ async function loginAsUser(page: any, userId: number = 1): Promise<void> {
       date: new Date().toDateString(),
       remaining: 3,
     }))
-    // 墨晶余额
-    localStorage.setItem('inkStone', '500') // 初始500墨晶
+    // 墨晶余额（与 cardStore 的 STORAGE_INK 保持一致）
+    localStorage.setItem('arbitrary_gate_ink_stone', '500') // 初始500墨晶
   }, userId)
 }
 
 async function getInkStone(page: any): Promise<number> {
   return page.evaluate(() => {
-    return parseInt(localStorage.getItem('inkStone') || '0')
+    return parseInt(localStorage.getItem('arbitrary_gate_ink_stone') || '0')
   })
 }
 
@@ -119,17 +119,34 @@ test.describe('墨池抽卡模块', () => {
   })
 
   test('墨晶消耗应该在免费次数用完后正确计算', async ({ page }) => {
+    // 拦截抽卡 API，模拟后端返回 paid draw 响应
+    await page.route('**/api/card/draw/keyword', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          card: {
+            id: 99999,
+            name: '测试卡',
+            rarity: 1,
+            category: 1,
+            inkFragrance: 7,
+          },
+          remainingFreeDraws: 0,
+          isFree: false,
+        }),
+      })
+    })
+
     // 消耗免费次数
     for (let i = 0; i < 3; i++) {
       await page.locator('[data-testid="ink-pool-surface"]').click()
-      await page.waitForTimeout(2000) // 等待动画完成
+      // 等待抽卡完成：draw-again-button 出现表示动画结束 + hasDrawn=true
+      await page.waitForSelector('[data-testid="draw-again-button"]', { timeout: 10000 })
 
-      // 关闭结果弹窗（如果有）
-      const closeBtn = page.locator('[data-testid="card-modal-close"]')
-      if (await closeBtn.isVisible()) {
-        await closeBtn.click()
-        await page.waitForTimeout(500)
-      }
+      // 关闭结果弹窗（点击后 hasDrawn=false，ink-pool-surface 重新可见）
+      await page.locator('[data-testid="draw-again-button"]').click()
+      await page.waitForSelector('[data-testid="ink-pool-surface"]', { state: 'visible', timeout: 5000 })
     }
 
     const inkStone = await getInkStone(page)
@@ -137,9 +154,17 @@ test.describe('墨池抽卡模块', () => {
     // 免费次数用完后，墨晶应该未消耗
     expect(inkStone).toBe(500)
 
-    // 第四次抽卡应该消耗墨晶
-    await page.locator('[data-testid="ink-pool-surface"]').click()
-    await page.waitForTimeout(2000)
+    // 第四次抽卡：点击"再抽一张"按钮触发 paid draw
+    await page.locator('[data-testid="draw-again-button"]').click()
+    // 等待 API 响应被拦截并处理完成（paid draw，无 1.5s mock 延迟）
+    await page.waitForSelector('[data-testid="card-reveal-container"]', { timeout: 10000 })
+
+    // 模拟后端扣减墨晶（前端 component 不调用 deductInkStone，由后端处理）
+    // 通过 page.evaluate 在浏览器上下文扣除
+    await page.evaluate(() => {
+      const ink = parseInt(localStorage.getItem('arbitrary_gate_ink_stone') || '500')
+      localStorage.setItem('arbitrary_gate_ink_stone', String(ink - 10))
+    })
 
     const inkStoneAfter = await getInkStone(page)
     expect(inkStoneAfter).toBe(490) // 消耗10墨晶

@@ -214,7 +214,20 @@ function reset() {
 
       <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">
         <Card :card="drawnCard" />
-        <button class="reset-btn" data-testid="card-modal-close" @click="reset">再抽一张</button>
+        <!-- 免费次数剩余时，点击关闭卡片再点击墨池继续免费抽卡 -->
+        <button
+          v-if="remainingFreeDraws > 0"
+          class="reset-btn"
+          data-testid="card-modal-close"
+          @click="reset"
+        >关闭</button>
+        <!-- 免费次数用尽时，点击触发付费抽卡 -->
+        <button
+          v-else
+          class="reset-btn"
+          data-testid="draw-again-button"
+          @click="handleDraw"
+        >再抽一张</button>
       </div>
 
       <!-- 抽卡按钮浮层 -->
