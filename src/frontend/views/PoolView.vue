@@ -149,6 +149,10 @@ async function handleDraw() {
       if (drawId.value !== currentDrawId) return
       cardData = res.card
       remainingFreeDraws.value = res.remainingFreeDraws ?? Math.max(0, remainingFreeDraws.value - 1)
+      // 后端已处理墨晶扣减（isFree=false 时），前端需同步本地状态
+      if (res.isFree === false) {
+        cardStore.deductInkStone(10)
+      }
     } catch {
       // API 不可用时使用本地模拟（带 drawId 检查）
       console.warn('[PoolView] API unavailable, using mock data')
