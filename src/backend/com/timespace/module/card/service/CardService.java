@@ -261,4 +261,68 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
         private Integer resonanceCount;
         private LocalDateTime acquiredAt;
     }
+
+    // ========== 墨迹占卜（今日运势）========== //
+
+    /**
+     * 运势文案库（30+条）
+     * 格式：运势文字 + 暗示类别（器物/职人/风物/情绪/称谓）
+     */
+    private static final List<FortuneEntry> FORTUNE_LIBRARY = List.of(
+            new FortuneEntry("今日墨色偏青，似有旧物来寻。", "器物"),
+            new FortuneEntry("池中落了一片桂花，或有故人将至。", "职人"),
+            new FortuneEntry("墨浓欲凝，宜静待时机。", "称谓"),
+            new FortuneEntry("池水微漾，珍奇隐于其下。", "器物"),
+            new FortuneEntry("砚中墨浅，然大机缘将至。", "风物"),
+            new FortuneEntry("窗外有风过堂，今日宜得一奇字。", "称谓"),
+            new FortuneEntry("墨迹未干，池底似有微光透出。", "器物"),
+            new FortuneEntry("月色入水，宜候一纸良缘。", "情绪"),
+            new FortuneEntry("落笔之处，香气隐隐似曾相识。", "风物"),
+            new FortuneEntry("墨香四溢，今夜当有巧遇。", "职人"),
+            new FortuneEntry("砚边微尘聚散，缘分暗中牵引。", "情绪"),
+            new FortuneEntry("池面初平，有舟自远处来。", "风物"),
+            new FortuneEntry("墨色渐淡，有人在记忆深处等你。", "称谓"),
+            new FortuneEntry("笔尖微颤，今日宜书写新章。", "器物"),
+            new FortuneEntry("水墨交融时，最宜邂逅故人。", "职人"),
+            new FortuneEntry("砚池无波，心事却起涟漪。", "情绪"),
+            new FortuneEntry("一缕墨烟飘散，暗示远行人将归。", "称谓"),
+            new FortuneEntry("笔搁砚台，今日宜静不宜动。", "风物"),
+            new FortuneEntry("墨汁浓稠如心事，待人解其中味。", "器物"),
+            new FortuneEntry("池畔柳絮飞，今日宜别离亦宜重逢。", "情绪"),
+            new FortuneEntry("砚中墨色温润如玉，宜缓缓书之。", "职人"),
+            new FortuneEntry("落墨无声，却惊动池底游鱼。", "风物"),
+            new FortuneEntry("墨香与茶香相融，今日宜会友。", "称谓"),
+            new FortuneEntry("笔锋一转，暗藏一段未了情。", "器物"),
+            new FortuneEntry("池水映月光，有人倚栏独望。", "情绪"),
+            new FortuneEntry("墨点如星，今日宜思念旧友。", "职人"),
+            new FortuneEntry("砚台微温，暗示前方有暖意。", "风物"),
+            new FortuneEntry("笔走龙蛇处，今日当有奇遇。", "器物"),
+            new FortuneEntry("墨干复又润，缘分几番轮回。", "称谓"),
+            new FortuneEntry("池边独坐，风送故人消息。", "情绪"),
+            new FortuneEntry("墨色如旧年，情绪却已不同。", "风物"),
+            new FortuneEntry("一纸空白，候谁来落笔。", "器物"),
+            new FortuneEntry("砚边寒露起，今日宜收敛心神。", "职人"),
+            new FortuneEntry("墨迹斑驳，似一段被遗忘的往事。", "称谓")
+    );
+
+    /**
+     * 根据当天日期 + 用户ID 生成确定性运势
+     * 使用日期作为seed，同一用户同一天看到的运势相同
+     */
+    public FortuneResult getFortune(Long userId) {
+        int today = java.time.LocalDate.now().getYear() * 10000
+                + java.time.LocalDate.now().getMonthValue() * 100
+                + java.time.LocalDate.now().getDayOfMonth();
+
+        // 用日期 seed + 用户 ID 混合哈希，确保不同用户、不同日期结果不同
+        int hash = Integer.hashCode(today) ^ Long.hashCode(userId);
+        int index = Math.abs(hash) % FORTUNE_LIBRARY.size();
+
+        FortuneEntry entry = FORTUNE_LIBRARY.get(index);
+        return new FortuneResult(entry.fortune, entry.hint);
+    }
+
+    public record FortuneEntry(String fortune, String hint) {}
+
+    public record FortuneResult(String fortune, String hint) {}
 }

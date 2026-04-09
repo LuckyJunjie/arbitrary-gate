@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { filterManuscript } from './zhangyan'
 
 // 配置实际 API Base URL（环境变量注入）
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
@@ -126,6 +127,16 @@ export async function drawKeywordCard(): Promise<DrawResponse> {
   return api.post('/card/draw/keyword')
 }
 
+// 墨迹占卜（今日运势）
+export interface FortuneResult {
+  fortune: string
+  hint: string
+}
+
+export async function fetchFortune(): Promise<FortuneResult> {
+  return api.get('/card/fortune')
+}
+
 // 获取历史事件列表
 export async function fetchHistoryEvents(): Promise<HistoryEvent[]> {
   return api.get('/events')
@@ -245,6 +256,8 @@ async function mockFinishStory(storyId: string): Promise<Manuscript> {
   const judgment = j.getFinalJudgment(totalDeviation)
 
   const manuscript = teller.generateManuscript(_chapterHistory.length, totalDeviation)
+  // 掌眼 Agent 过滤 AI 腔
+  manuscript.manuscript = filterManuscript(manuscript.manuscript)
   _chapterHistory.length = 0 // 重置
 
   return {

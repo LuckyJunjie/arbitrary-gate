@@ -145,6 +145,20 @@ public class CardController {
         return Result.ok(card);
     }
 
+    /**
+     * GET /api/card/fortune
+     * 墨迹占卜（今日运势）
+     * 根据当天日期 seed + 用户 ID 哈希，从预置运势文案中选取一条
+     * 同一用户同一天看到的运势相同，不同日期或用户看到的运势不同
+     */
+    @GetMapping("/fortune")
+    public Result<CardService.FortuneResult> getFortune() {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("墨迹占卜请求: userId={}", userId);
+        CardService.FortuneResult result = cardService.getFortune(userId);
+        return Result.ok(result);
+    }
+
     @Data
     public static class DrawKeywordRequest {
         private boolean useFreeDraw;

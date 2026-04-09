@@ -2,11 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import InkPool from '@/components/InkPool.vue'
 import Card from '@/components/Card.vue'
+import ScratchCard from '@/components/ScratchCard.vue'
 import RippleEffect from '@/components/RippleEffect.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
-import { drawKeywordCard, fetchKeywordCard } from '@/services/api'
+import { drawKeywordCard, fetchKeywordCard, fetchFortune } from '@/services/api'
 import type { KeywordCard } from '@/services/api'
 
 const cardStore = useCardStore()
@@ -21,19 +22,8 @@ const drawId = ref(0) // 用于取消进行中的抽卡动画
 const revealPhase = ref<'partial' | 'full'>('partial') // 残片拼接阶段
 
 // 今日运势预兆文本
-const fortuneLines = [
-  '今日墨色偏青，似有旧物来寻。',
-  '池中落了一片桂花，或有故人将至。',
-  '墨浓欲凝，宜静待时机。',
-  '池水微漾，珍奇隐于其下。',
-  '砚中墨浅，然大机缘将至。',
-  '窗外有风过堂，今日宜得一奇字。',
-  '墨迹未干，池底似有微光透出。',
-  '月色入水，宜候一纸良缘。',
-  '落笔之处，香气隐隐似曾相识。',
-  '墨香四溢，今夜当有巧遇。',
-]
 const fortuneText = ref('')
+const fortuneHint = ref('')
 const currentFortune = computed(() => fortuneText.value)
 
 // 每日免费次数上限
@@ -42,12 +32,19 @@ const DAILY_FREE_LIMIT = 3
 const dailyFreeLeft = computed(() => remainingFreeDraws.value)
 
 // 从 localStorage 读取已有卡牌
-onMounted(() => {
+onMounted(async () => {
   inkValueStore.loadFromStorage()
   loadDailyFreeDraws()
   loadSavedCards()
-  // 随机选取一条今日运势
-  fortuneText.value = fortuneLines[Math.floor(Math.random() * fortuneLines.length)]
+  // 调用后端 API 获取今日运势（基于日期+用户ID确定性选取）
+  try {
+    const res = await fetchFortune()
+    fortuneText.value = res.fortune
+    fortuneHint.value = res.hint
+  } catch {
+    // API 不可用时静默降级，不展示运势
+    fortuneText.value = ''
+  }
 })
 
 function loadDailyFreeDraws() {
@@ -237,11 +234,14 @@ function revealInk() {
       <InkPool v-if="!hasDrawn" @draw="handleDraw" data-testid="ink-pool-surface" />
 
       <!-- 今日运势预兆文字 -->
-      <p
+      <div
         v-if="!hasDrawn && currentFortune"
-        class="fortune-text"
+        class="fortune-wrapper"
         data-testid="fortune-text"
-      >{{ currentFortune }}</p>
+      >
+        <p class="fortune-text">{{ currentFortune }}</p>
+        <p class="fortune-hint">墨中有物，拂去墨迹</p>
+      </div>
 
       <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">
         <!-- 残片拼接：墨迹遮罩层 -->
@@ -491,15 +491,31 @@ function revealInk() {
 }
 
 /* 今日运势预兆文字 */
+.fortune-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  animation: fortuneFadeIn 3s ease-out;
+}
+
 .fortune-text {
-  font-size: 0.85rem;
-  color: rgba(232, 220, 200, 0.35);
-  font-style: italic;
-  letter-spacing: 0.1em;
+  font-size: 0.9rem;
+  color: rgba(148, 148, 145, 0.5); /* 烟灰色 */
+  font-family: '方正清刻本悦宋', 'FZQingKeBenYueSong', 'STKaiti', 'KaiTi', serif;
+  letter-spacing: 0.12em;
   text-align: center;
   margin: 0;
   padding: 0 1rem;
-  animation: fortuneFadeIn 1s ease-out;
+}
+
+.fortune-hint {
+  font-size: 0.7rem;
+  color: rgba(148, 148, 145, 0.35); /* 烟灰色，更淡 */
+  font-family: '方正清刻本悦宋', 'FZQingKeBenYueSong', 'STKaiti', 'KaiTi', serif;
+  letter-spacing: 0.2em;
+  text-align: center;
+  margin: 0;
 }
 
 @keyframes fortuneFadeIn {
