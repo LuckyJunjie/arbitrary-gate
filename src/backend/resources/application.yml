@@ -69,6 +69,10 @@ spring.ai:
   images:
     options:
       model: wanx-v1
+  # 内容安全配置
+  content-safety:
+    enabled: ${CONTENT_SAFETY_ENABLED:true}
+    api-key: ${CONTENT_SAFETY_API_KEY:}
 
 # Sa-Token 配置
 sa-token:

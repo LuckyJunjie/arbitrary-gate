@@ -104,12 +104,14 @@ export interface Chapter {
   options: Option[]
   keywordResonance?: Record<number, number>
   ripples?: Array<{ target: string; status: string }>
+  characterAppearances?: Array<{ name: string; firstImpression: string }>
 }
 
 export interface Story {
   id: string
   storyNo: string
   title: string
+  candidateTitles?: string[]
   status: number // 1=进行中 2=已完成
   currentChapter: number
   historyDeviation: number
@@ -125,6 +127,7 @@ export interface Manuscript {
   choiceMarks?: Array<{ chapterNo?: number; optionId?: number; text?: string }>
   epilogue?: string
   baiguanComment?: string
+  candidateTitles?: string[]
 }
 
 // ===== API 方法 =====
@@ -187,6 +190,11 @@ export async function fetchStoryList(): Promise<Story[]> {
 // 完成故事（触发 AI 生成手稿）
 export async function finishStory(storyId: string): Promise<Manuscript> {
   return api.post(`/story/${storyId}/finish`)
+}
+
+// 更新故事标题
+export async function updateStoryTitle(storyId: string, title: string): Promise<void> {
+  return api.post(`/story/${storyId}/title`, { title })
 }
 
 // ─── Mock 降级层 ─────────────────────────────────────────────────────────────

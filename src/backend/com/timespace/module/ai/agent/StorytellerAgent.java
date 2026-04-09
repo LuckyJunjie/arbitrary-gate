@@ -76,6 +76,23 @@ public class StorytellerAgent {
         return aiClient.callSync(systemPrompt, userMessage);
     }
 
+    /**
+     * 生成完整手稿（含3个备选标题）
+     * 在故事结束时调用，返回手稿正文和3个备选标题
+     */
+    public AIGatewayService.ManuscriptResult generateManuscriptWithTitles(Story story,
+                                                                          List<StoryChapter> chapters,
+                                                                          List<KeywordCard> keywords,
+                                                                          List<StoryCharacter> characters) {
+        log.info("说书人生成手稿（含备选标题）: storyId={}, chapters={}", story.getId(), chapters.size());
+
+        String systemPrompt = buildManuscriptSystemPromptWithTitles(story, keywords, characters);
+        String userMessage = buildManuscriptUserMessage(story, chapters);
+
+        String response = aiClient.callSync(systemPrompt, userMessage);
+        return parseManuscriptWithTitlesResponse(response);
+    }
+
     private String buildChapterSystemPrompt(Story story, int chapterNo, List<KeywordCard> keywords,
                                            List<StoryCharacter> characters) {
         String styleName = getStyleName(story.getStyle());
@@ -106,13 +123,17 @@ public class StorytellerAgent {
                 3. 关键词必须自然融入场景描写中
                 4. 每段话不超过3句
                 5. 结尾必须给出一个两难选择，让读者有代入感
-                6. 最后用JSON格式返回章节内容，格式如下：
+                6. 每个配角出场时，不要用上帝视角介绍身份。用主角的眼睛，描述此人"此刻的样子"，一句话，不超过30字。例如："瘦高个子，鞋上有泥，走路时右手一直攥着什么。"
+                7. 最后用JSON格式返回章节内容，格式如下：
                 {
-                  "sceneText": "场景描写正文...",
+                  "sceneText": "场景描写正文（自然地融入关键词和配角出场描写）...",
                   "options": [
                     {"id": 1, "text": "选项1文字", "hint": "隐藏提示：选择后可能的后果"},
                     {"id": 2, "text": "选项2文字", "hint": "隐藏提示：选择后可能的后果"},
                     {"id": 3, "text": "选项3文字", "hint": "隐藏提示：选择后可能的后果"}
+                  ],
+                  "characterAppearances": [
+                    {"name": "张翁", "firstImpression": "一句话描述初见印象，不超过30字"}
                   ]
                 }
                 """,
@@ -170,6 +191,68 @@ public class StorytellerAgent {
         );
     }
 
+    private String buildManuscriptSystemPromptWithTitles(Story story, List<KeywordCard> keywords,
+                                                         List<StoryCharacter> characters) {
+        return String.format("""
+                你是一位资深文学编辑，擅长润色和整合故事文本。
+
+                背景：
+                - 原稿：多章节故事文本
+                - 关键词：%s（必须全部融入正文）
+                - 叙事风格：%s
+                - 目标字数：3000-8000字
+
+                任务：
+                1. 整合所有章节，去除重复和矛盾
+                2. 润色文字，保持%s风格
+                3. 确保所有关键词自然融入
+                4. 添加适当的章节过渡
+                5. 生成3个备选标题（古典文学风格，各不超过10字）
+                6. 输出完整的短篇小说正文（不含选项和提示）
+
+                特别注意：
+                - 禁止"宛如""仿佛""无法言说"等AI腔
+                - 结局要有情感力量
+                - 字数控制在3000-8000字
+                - 标题要典雅、有意境
+
+                请用以下JSON格式返回（必须严格遵守格式）：
+                {
+                  "manuscript": "完整的小说正文...",
+                  "titles": ["标题1", "标题2", "标题3"]
+                }
+                """,
+                keywords.stream().map(KeywordCard::getName).collect(Collectors.joining("、")),
+                getStyleName(story.getStyle()),
+                getStyleName(story.getStyle())
+        );
+    }
+
+    private AIGatewayService.ManuscriptResult parseManuscriptWithTitlesResponse(String response) {
+        try {
+            int jsonStart = response.indexOf("{");
+            int jsonEnd = response.lastIndexOf("}");
+            if (jsonStart != -1 && jsonEnd != -1) {
+                String jsonStr = response.substring(jsonStart, jsonEnd + 1);
+                Map<String, Object> parsed = objectMapper.readValue(jsonStr, Map.class);
+                String manuscriptText = (String) parsed.get("manuscript");
+                @SuppressWarnings("unchecked")
+                List<String> titles = (List<String>) parsed.get("titles");
+                if (titles == null || titles.size() < 3) {
+                    titles = List.of("时光旅人手记", "旧事新说", "一段往事");
+                }
+                return new AIGatewayService.ManuscriptResult(manuscriptText, titles);
+            }
+        } catch (Exception e) {
+            log.warn("解析手稿（含标题）响应失败: {}, raw response={}", e.getMessage(), response);
+        }
+        // Fallback
+        return new AIGatewayService.ManuscriptResult(
+                response.length() > 100 ? response : "（手稿内容）",
+                List.of("时光旅人手记", "旧事新说", "一段往事")
+        );
+    }
+
     private String buildManuscriptUserMessage(Story story, List<StoryChapter> chapters) {
         StringBuilder sb = new StringBuilder("请整合以下章节内容：\n\n");
         for (StoryChapter chapter : chapters) {
@@ -205,6 +288,19 @@ public class StorytellerAgent {
                         options.add(option);
                     }
                     chapter.setOptions(options);
+                }
+
+                // 解析配角初见印象
+                List<Map<String, Object>> appearancesRaw = (List<Map<String, Object>>) parsed.get("characterAppearances");
+                if (appearancesRaw != null) {
+                    List<StoryChapter.CharacterAppearance> appearances = new ArrayList<>();
+                    for (Map<String, Object> app : appearancesRaw) {
+                        StoryChapter.CharacterAppearance appearance = new StoryChapter.CharacterAppearance();
+                        appearance.setName((String) app.get("name"));
+                        appearance.setFirstImpression((String) app.get("firstImpression"));
+                        appearances.add(appearance);
+                    }
+                    chapter.setCharacterAppearances(appearances);
                 }
             } else {
                 // 非JSON格式，整段作为场景描写

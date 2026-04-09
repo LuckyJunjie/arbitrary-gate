@@ -327,6 +327,23 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             nextChapter.setSelectedOption(null);
             chapterMapper.insert(nextChapter);
 
+            // 4.1 更新配角的初见印象
+            if (nextChapter.getCharacterAppearances() != null && !nextChapter.getCharacterAppearances().isEmpty()) {
+                for (StoryChapter.CharacterAppearance app : nextChapter.getCharacterAppearances()) {
+                    characterMapper.selectList(
+                            new LambdaQueryWrapper<StoryCharacter>()
+                                    .eq(StoryCharacter::getStoryId, storyId)
+                                    .eq(StoryCharacter::getName, app.getName()))
+                            .stream().findFirst()
+                            .ifPresent(c -> {
+                                if (c.getFirstImpression() == null || c.getFirstImpression().isEmpty()) {
+                                    c.setFirstImpression(app.getFirstImpression());
+                                    characterMapper.updateById(c);
+                                }
+                            });
+                }
+            }
+
             // 5. 更新故事状态
             story.setCurrentChapter(nextChapterNo);
             story.setHistoryDeviation(Math.max(0, Math.min(100, story.getHistoryDeviation())));
@@ -528,6 +545,23 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         nextChapter.setSelectedOption(null);
         chapterMapper.insert(nextChapter);
 
+        // 6.1 更新配角的初见印象（如果AI返回了新角色的初见描写）
+        if (nextChapter.getCharacterAppearances() != null && !nextChapter.getCharacterAppearances().isEmpty()) {
+            for (StoryChapter.CharacterAppearance app : nextChapter.getCharacterAppearances()) {
+                characterMapper.selectList(
+                        new LambdaQueryWrapper<StoryCharacter>()
+                                .eq(StoryCharacter::getStoryId, storyId)
+                                .eq(StoryCharacter::getName, app.getName()))
+                        .stream().findFirst()
+                        .ifPresent(c -> {
+                            if (c.getFirstImpression() == null || c.getFirstImpression().isEmpty()) {
+                                c.setFirstImpression(app.getFirstImpression());
+                                characterMapper.updateById(c);
+                            }
+                        });
+            }
+        }
+
         // 7. 更新故事状态
         int newChapterNo = chapterNo + 1;
         story.setCurrentChapter(newChapterNo);
@@ -588,12 +622,17 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 new LambdaQueryWrapper<StoryCharacter>()
                         .eq(StoryCharacter::getStoryId, storyId));
 
-        // 4. 生成手稿正文（说书人）
-        String manuscriptText = aiGatewayService.generateManuscript(story, chapters, keywords, characters);
+        // 4. 生成手稿正文（说书人，含3个备选标题）
+        AIGatewayService.ManuscriptResult manuscriptResult =
+                aiGatewayService.generateManuscriptWithTitles(story, chapters, keywords, characters);
+        String manuscriptText = manuscriptResult.manuscriptText();
 
         // 4.1 掌眼 Agent 过滤 AI 腔
         manuscriptText = zhangyanAgent.filter(manuscriptText);
         int wordCount = manuscriptText.length();
+
+        // 4.2 备选标题
+        List<String> candidateTitles = manuscriptResult.candidateTitles();
 
         // 5. 生成后日谈（稗官）+ 内容安全检测
         String overallComment = baiguanAgent.generateOverallComment(
@@ -663,16 +702,23 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         manuscript.setCreatedAt(LocalDateTime.now());
         manuscriptMapper.insert(manuscript);
 
-        // 9. 更新故事状态
+        // 9. 更新故事状态和备选标题
         story.setStatus(2); // 已完成
         story.setTotalWords(wordCount);
         story.setFinishedAt(LocalDateTime.now());
+        try {
+            story.setCandidateTitles(objectMapper.writeValueAsString(candidateTitles));
+        } catch (Exception e) {
+            log.warn("备选标题序列化失败: {}", e.getMessage());
+            story.setCandidateTitles("[\"时光旅人手记\",\"旧事新说\",\"一段往事\"]");
+        }
         storyMapper.updateById(story);
 
         // 10. 更新用户统计
         updateUserStoryStats(userId, true);
 
-        log.info("手稿生成完成: storyId={}, wordCount={}", storyId, wordCount);
+        log.info("手稿生成完成: storyId={}, wordCount={}, candidateTitles={}",
+                storyId, wordCount, candidateTitles);
 
         return FinishStoryVO.builder()
                 .storyId(storyId)
@@ -682,6 +728,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .choiceMarks(choiceMarks)
                 .epilogue(overallComment)
                 .historyDeviation(story.getHistoryDeviation())
+                .candidateTitles(candidateTitles)
                 .build();
     }
 
@@ -713,6 +760,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .storyId(storyId)
                 .storyNo(story.getStoryNo())
                 .title(story.getTitle())
+                .candidateTitles(story.getCandidateTitles())
                 .style(story.getStyle())
                 .status(story.getStatus())
                 .currentChapter(story.getCurrentChapter())
@@ -724,6 +772,25 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .characters(characters)
                 .manuscript(manuscript)
                 .build();
+    }
+
+    /**
+     * 更新故事标题
+     *
+     * POST /api/story/{id}/title
+     */
+    public void updateStoryTitle(Long storyId, String title) {
+        long userId = StpUtil.getLoginIdAsLong();
+        Story story = storyMapper.selectById(storyId);
+        if (story == null || !story.getUserId().equals(userId)) {
+            throw BusinessException.STORY_NOT_FOUND;
+        }
+        if (title == null || title.isBlank()) {
+            throw new BusinessException(400, "标题不能为空");
+        }
+        story.setTitle(title);
+        storyMapper.updateById(story);
+        log.info("故事标题更新: storyId={}, title={}", storyId, title);
     }
 
     // ========== 私有辅助方法 ==========
@@ -964,6 +1031,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private List<StoryManuscript.ChoiceMark> choiceMarks;
         private String epilogue;
         private Integer historyDeviation;
+        private List<String> candidateTitles;
     }
 
     @Data @lombok.Builder
@@ -971,6 +1039,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private Long storyId;
         private String storyNo;
         private String title;
+        private List<String> candidateTitles;
         private Integer style;
         private Integer status;
         private Integer currentChapter;

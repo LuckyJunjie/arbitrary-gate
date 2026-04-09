@@ -123,6 +123,7 @@ function enableButtonMode() {
 // ── 流式渲染状态 ──
 const displayedText = ref('') // 已渲染的纯文本
 const currentChapter = ref<Chapter | null>(null)
+const shownCharacterAppearances = ref<Map<string, string>>(new Map()) // 已展示的初见印象
 const isStreaming = ref(false)
 const isLoading = ref(true)
 const streamError = ref<string | null>(null)
@@ -141,6 +142,15 @@ const entryAnswers = ref({义: '', 利: '', 情: ''})
 // ── 章节导航 ──
 const currentChapterNo = ref(1)
 const hasPrevChapter = computed(() => currentChapterNo.value > 1)
+
+// ── 配角初见印象 ──
+const currentAppearances = computed(() => {
+  if (!currentChapter.value?.characterAppearances) return []
+  // 只返回本章新出现的（去重逻辑在 loadChapter 时已处理）
+  return currentChapter.value.characterAppearances.filter(
+    app => shownCharacterAppearances.value.get(app.name) === app.firstImpression
+  )
+})
 const hasNextChapter = computed(() => {
   const ch = currentChapter.value
   return ch && ch.options.length > 0 && !isEndChapter.value
@@ -186,6 +196,15 @@ async function loadChapter(chapterNo: number) {
     const ch = await fetchChapter(storyId, chapterNo)
     currentChapter.value = ch
     storyStore.currentChapter = ch
+
+    // 记录本章配角初见印象（去重，已展示过的不再重复展示）
+    if (ch.characterAppearances) {
+      for (const app of ch.characterAppearances) {
+        if (!shownCharacterAppearances.value.has(app.name)) {
+          shownCharacterAppearances.value.set(app.name, app.firstImpression)
+        }
+      }
+    }
 
     if (ch.sceneText) {
       // 非流式模式：直接渲染，带打字机效果
@@ -470,6 +489,17 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 
       <!-- 流式内容 -->
       <div v-else class="scroll-area" data-testid="scroll-content">
+        <!-- 配角初见印象 -->
+        <div v-if="currentAppearances.length > 0" class="character-introductions">
+          <div
+            v-for="app in currentAppearances"
+            :key="app.name"
+            class="character-intro-item"
+          >
+            <span class="character-intro-name">{{ app.name }}</span>
+            <span class="character-intro-impression">—— {{ app.firstImpression }}</span>
+          </div>
+        </div>
         <div class="scene-text" data-testid="chapter-text" v-html="renderedHtml" />
         <div v-if="isStreaming" class="typing-cursor" />
       </div>
@@ -874,6 +904,43 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   white-space: pre-wrap;
   word-break: break-word;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* ── 配角初见印象 ── */
+.character-introductions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+}
+
+.character-intro-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  animation: intro-fade-in 0.6s ease-out both;
+}
+
+.character-intro-name {
+  color: #c4a882;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+}
+
+.character-intro-impression {
+  color: #7a7a7a;
+  font-style: italic;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+@keyframes intro-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* 逐字淡入动画 */

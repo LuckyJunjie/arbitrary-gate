@@ -28,5 +28,7 @@ public class StoryCharacter {
 
     private String relationToUser;   // 与用户扮演角色的关系
 
+    private String firstImpression;   // 初见印象（非上帝视角，一句话，不超过30字）
+
     private LocalDateTime createdAt;
 }

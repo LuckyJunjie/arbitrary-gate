@@ -1,5 +1,6 @@
 package com.timespace.module.ai.service;
 
+import com.timespace.common.utils.ContentSafetyChecker;
 import com.timespace.module.ai.agent.BaiguanAgent;
 import com.timespace.module.ai.agent.JudgeAgent;
 import com.timespace.module.ai.agent.StorytellerAgent;
@@ -34,6 +35,7 @@ public class AIGatewayService {
     private final JudgeAgent judgeAgent;
     private final BaiguanAgent baiguanAgent;
     private final CardService cardService;
+    private final ContentSafetyChecker contentSafetyChecker;
 
     /**
      * 流式生成章节（WebSocket 推送）
@@ -95,17 +97,35 @@ public class AIGatewayService {
         updateStoryContext(story, evaluation, characters);
 
         // ====== 3. 说书人生成下一章（流式）======
+        int nextChapterNo = currentChapter.getChapterNo() + 1;
+        StoryChapter.Option capturedLastChoice = selectedOption;
+
         StoryChapter nextChapter = storytellerAgent.generateChapter(
                 story,
-                currentChapter.getChapterNo() + 1,
+                nextChapterNo,
                 selectedOption,
                 keywords,
                 characters,
                 onChunk  // 流式推送
         );
 
+        // ====== 3.1 内容安全检测（说书人输出）======
+        nextChapter = contentSafetyCheckWithRetry(
+                nextChapter, nextChapterNo,
+                () -> storytellerAgent.generateChapter(
+                        story, nextChapterNo, capturedLastChoice, keywords, characters, null),
+                "故事内容因技术原因暂时无法生成");
+
         // 将判官判词存入章节（供前端展示）
-        nextChapter.setChapterComment(evaluation.getJudgment());
+        // ====== 3.2 内容安全检测（判官判词）======
+        String judgment = evaluation.getJudgment();
+        ContentSafetyChecker.SafetyResult judgmentResult =
+                contentSafetyChecker.checkWithRetry(judgment, 3,
+                        () -> judgeAgent.evaluate(story, currentChapter, selectedOption, keywords, characters).getJudgment());
+        if (!judgmentResult.isSafe()) {
+            judgment = "（此处无声胜有声）";
+        }
+        nextChapter.setChapterComment(judgment);
 
         // ====== 4. 判官生成选项（已在生成章节时一并生成）======
         // 选项已包含在 nextChapter.options 中
@@ -131,7 +151,7 @@ public class AIGatewayService {
         log.info("AI生成第一章节: storyId={}", story.getId());
 
         // 说书人生成第一章节
-        return storytellerAgent.generateChapter(
+        StoryChapter chapter = storytellerAgent.generateChapter(
                 story,
                 1,
                 null,
@@ -139,6 +159,12 @@ public class AIGatewayService {
                 characters,
                 onChunk
         );
+
+        // ====== 内容安全检测（说书人输出）======
+        return contentSafetyCheckWithRetry(
+                chapter, 1,
+                () -> storytellerAgent.generateChapter(story, 1, null, keywords, characters, null),
+                "故事内容因技术原因暂时无法生成");
     }
 
     /**
@@ -161,7 +187,84 @@ public class AIGatewayService {
                                       List<KeywordCard> keywords,
                                       List<StoryCharacter> characters) {
         log.info("AI生成手稿: storyId={}, chapters={}", story.getId(), chapters.size());
-        return storytellerAgent.generateManuscript(story, chapters, keywords, characters);
+
+        String manuscript = safetyCheckManuscriptWithRetry(story, chapters, keywords, characters);
+        return manuscript;
+    }
+
+    /**
+     * 生成手稿（包含备选标题）
+     * 返回手稿正文和3个备选标题
+     */
+    public ManuscriptResult generateManuscriptWithTitles(Story story,
+                                                          List<StoryChapter> chapters,
+                                                          List<KeywordCard> keywords,
+                                                          List<StoryCharacter> characters) {
+        log.info("AI生成手稿（含备选标题）: storyId={}, chapters={}", story.getId(), chapters.size());
+
+        int maxRetries = 3;
+        ManuscriptResult result = storytellerAgent.generateManuscriptWithTitles(story, chapters, keywords, characters);
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            ContentSafetyChecker.SafetyResult safetyResult = contentSafetyChecker.check(result.getManuscriptText());
+            if (safetyResult.isSafe()) {
+                if (attempt > 1) {
+                    log.info("[ContentSafety] 手稿（含标题）第{}次检测通过", attempt);
+                }
+                return result;
+            }
+            log.warn("[ContentSafety] 手稿（含标题）第{}次检测不通过: {}，尝试重新生成...",
+                    attempt, safetyResult.getReason());
+
+            if (attempt < maxRetries) {
+                try {
+                    result = storytellerAgent.generateManuscriptWithTitles(story, chapters, keywords, characters);
+                } catch (Exception e) {
+                    log.warn("[ContentSafety] 手稿（含标题）重新生成失败: {}", e.getMessage());
+                }
+            }
+        }
+
+        log.error("[ContentSafety] 手稿内容安全检测{}次均不通过，使用兜底文案", maxRetries);
+        return new ManuscriptResult("（手稿因技术原因暂时无法生成）", List.of("时光旅人手记", "旧事新说", "一段往事"));
+    }
+
+    /**
+     * 手稿结果（含备选标题）
+     */
+    public record ManuscriptResult(String manuscriptText, List<String> candidateTitles) {}
+
+    /**
+     * 手稿内容安全检测与重试
+     */
+    private String safetyCheckManuscriptWithRetry(Story story, List<StoryChapter> chapters,
+                                                   List<KeywordCard> keywords,
+                                                   List<StoryCharacter> characters) {
+        int maxRetries = 3;
+        String manuscript = storytellerAgent.generateManuscript(story, chapters, keywords, characters);
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            ContentSafetyChecker.SafetyResult result = contentSafetyChecker.check(manuscript);
+            if (result.isSafe()) {
+                if (attempt > 1) {
+                    log.info("[ContentSafety] 手稿第{}次检测通过", attempt);
+                }
+                return manuscript;
+            }
+            log.warn("[ContentSafety] 手稿第{}次检测不通过: {}，尝试重新生成...",
+                    attempt, result.getReason());
+
+            if (attempt < maxRetries) {
+                try {
+                    manuscript = storytellerAgent.generateManuscript(story, chapters, keywords, characters);
+                } catch (Exception e) {
+                    log.warn("[ContentSafety] 手稿重新生成失败: {}", e.getMessage());
+                }
+            }
+        }
+
+        log.error("[ContentSafety] 手稿内容安全检测{}次均不通过，使用兜底文案", maxRetries);
+        return "（手稿因技术原因暂时无法生成）";
     }
 
     private void updateStoryContext(Story story,
@@ -318,5 +421,55 @@ public class AIGatewayService {
                     .hint("故事暗线")
                     .build()
         );
+    }
+
+    // ── 内容安全检测辅助方法 ─────────────────────────────────────────────────
+
+    /**
+     * 对 StoryChapter 内容进行安全检测，不通过则重新生成（最多3次）
+     *
+     * @param chapter       当前章节
+     * @param chapterNo     章节号
+     * @param regenerateFn  重新生成回调（流式回调传 null，使用非流式重生成）
+     * @param fallbackText  兜底文案（所有尝试都不通过时使用）
+     * @return 检测通过的章节
+     */
+    private StoryChapter contentSafetyCheckWithRetry(StoryChapter chapter, int chapterNo,
+                                                     java.util.function.Supplier<StoryChapter> regenerateFn,
+                                                     String fallbackText) {
+        String text = chapter.getSceneText();
+        int maxRetries = 3;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            ContentSafetyChecker.SafetyResult result = contentSafetyChecker.check(text);
+            if (result.isSafe()) {
+                if (attempt > 1) {
+                    log.info("[ContentSafety] 章节{}第{}次检测通过", chapterNo, attempt);
+                }
+                return chapter;
+            }
+            log.warn("[ContentSafety] 章节{}第{}次检测不通过: {}，尝试重新生成...",
+                    chapterNo, attempt, result.getReason());
+
+            if (attempt < maxRetries && regenerateFn != null) {
+                try {
+                    StoryChapter newChapter = regenerateFn.get();
+                    if (newChapter != null && newChapter.getSceneText() != null) {
+                        text = newChapter.getSceneText();
+                        chapter = newChapter;
+                    }
+                } catch (Exception e) {
+                    log.warn("[ContentSafety] 章节{}重新生成失败: {}", chapterNo, e.getMessage());
+                }
+            }
+        }
+
+        // 所有尝试都不通过，返回兜底章节
+        log.error("[ContentSafety] 章节{}内容安全检测{}次均不通过，使用兜底文案", chapterNo, maxRetries);
+        chapter.setSceneText(fallbackText);
+        if (chapter.getOptions() != null) {
+            chapter.getOptions().clear();
+        }
+        return chapter;
     }
 }

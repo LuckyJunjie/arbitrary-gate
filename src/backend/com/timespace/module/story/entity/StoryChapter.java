@@ -30,6 +30,8 @@ public class StoryChapter {
 
     private List<RippleEffect> ripples; // 涟漪效果
 
+    private List<CharacterAppearance> characterAppearances; // 配角初见印象
+
     private String aiFullText;       // AI生成的完整叙述
 
     private String chapterComment;   // 章节判官判词（用于前端展示）
@@ -47,5 +49,11 @@ public class StoryChapter {
     public static class RippleEffect {
         private String target;        // 涟漪目标关键词
         private String status;        // 状态变化
+    }
+
+    @Data
+    public static class CharacterAppearance {
+        private String name;          // 配角名称
+        private String firstImpression; // 初见印象（一句话，不超过30字）
     }
 }
