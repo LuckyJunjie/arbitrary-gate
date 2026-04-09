@@ -99,8 +99,7 @@ function buildPlaceholderSvg(text: string, color = '#8B5E3C'): string {
   <rect x="20" y="20" width="240" height="360" fill="none" stroke="${color}" stroke-width="2" rx="4"/>
   <text x="140" y="200" font-family="serif" font-size="32" fill="${color}" text-anchor="middle" dominant-baseline="middle">${lines[0] || ''}</text>
   ${lines[1] ? `<text x="140" y="240" font-family="serif" font-size="32" fill="${color}" text-anchor="middle">${lines[1]}</text>` : ''}
-</svg>`)`)} }
-
+</svg>`)}` }
 // ─── AIPainterService ────────────────────────────────────────────────────────
 
 class AIPainterService {
