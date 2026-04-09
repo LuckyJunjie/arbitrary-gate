@@ -3,9 +3,10 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
-import { aiPainter } from '@/services/aiPainter'
+import { aiPainter, previewJudgment } from '@/services/api'
 import Card from '@/components/Card.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
+import JudgmentPreview from '@/components/JudgmentPreview.vue'
 import type { KeywordCard } from '@/services/api'
 
 const router = useRouter()
@@ -18,6 +19,11 @@ const activeRarity = ref<number | null>(null)
 const selectedKeywordCards = ref<Array<{ id: number; name: string; rarity: number; category: number }>>([])
 const selectedEventCard = ref<{ id: number; name: string; rarity: number; category: number } | null>(null)
 const MAX_KEYWORD_SELECT = 3
+
+// ── P-01 组合判词预览 ──
+const showJudgmentPreview = ref(false)
+const judgmentText = ref('')
+const isLoadingJudgment = ref(false)
 
 const canStartStory = computed(() =>
   selectedKeywordCards.value.length === MAX_KEYWORD_SELECT && selectedEventCard.value !== null
@@ -60,11 +66,39 @@ function isEventSelected(id: number) {
   return selectedEventCard.value?.id === id
 }
 
-function goToEntryQuestions() {
+async function goToEntryQuestions() {
+  if (!canStartStory.value) return
+
   // 保存已选卡牌到 localStorage，供 EntryQuestionsView 使用
   localStorage.setItem('selectedKeywordCards', JSON.stringify(selectedKeywordCards.value))
   localStorage.setItem('selectedEventCard', JSON.stringify(selectedEventCard.value))
+
+  // P-01: 调用 AI 生成组合判词
+  isLoadingJudgment.value = true
+  try {
+    const res = await previewJudgment({
+      keywordIds: selectedKeywordCards.value.map(c => c.id),
+      eventId: selectedEventCard.value?.id,
+    })
+    judgmentText.value = res.judgment ?? '墨中藏命，缘起无形。'
+  } catch (err) {
+    console.warn('[CardsView] previewJudgment failed, using fallback:', err)
+    judgmentText.value = '墨中藏命，缘起无形。'
+  } finally {
+    isLoadingJudgment.value = false
+  }
+
+  // 展示判词浮层
+  showJudgmentPreview.value = true
+}
+
+function onJudgmentConfirm() {
+  showJudgmentPreview.value = false
   router.push('/entry-questions')
+}
+
+function onJudgmentCancel() {
+  showJudgmentPreview.value = false
 }
 
 const filteredCards = computed(() => {
@@ -233,6 +267,14 @@ async function generateAICardImage() {
         {{ canStartStory ? '入局三问' : `还需选${MAX_KEYWORD_SELECT - selectedKeywordCards.length}个` }}
       </button>
     </div>
+
+    <!-- P-01 组合判词预览浮层 -->
+    <JudgmentPreview
+      :visible="showJudgmentPreview"
+      :judgment="judgmentText"
+      @confirm="onJudgmentConfirm"
+      @cancel="onJudgmentCancel"
+    />
   </div>
 </template>
 

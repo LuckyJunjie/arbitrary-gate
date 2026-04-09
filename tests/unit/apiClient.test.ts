@@ -208,6 +208,41 @@ describe('API functions', () => {
     expect(mockInstance.post).toHaveBeenCalledWith('/story/story-1/finish')
     expect(result.wordCount).toBe(1200)
   })
+
+  // ─── previewJudgment (P-01) ─────────────────────────────────────────────────
+
+  it('previewJudgment calls POST /card/preview with keywordIds and eventId', async () => {
+    const mockData = { judgment: '江边渡口，有人把半生未说出口的话，折成一张旧船票。' }
+    mockInstance.post.mockResolvedValueOnce(mockData)
+
+    const { previewJudgment } = await reloadApi()
+    const result = await previewJudgment({ keywordIds: [1, 2, 3], eventId: 5 })
+
+    expect(mockInstance.post).toHaveBeenCalledWith('/card/preview', { keywordIds: [1, 2, 3], eventId: 5 })
+    expect(result.judgment).toBe(mockData.judgment)
+  })
+
+  it('previewJudgment works without eventId', async () => {
+    const mockData = { judgment: '墨中藏命，缘起无形。' }
+    mockInstance.post.mockResolvedValueOnce(mockData)
+
+    const { previewJudgment } = await reloadApi()
+    const result = await previewJudgment({ keywordIds: [1, 2, 3] })
+
+    expect(mockInstance.post).toHaveBeenCalledWith('/card/preview', { keywordIds: [1, 2, 3] })
+    expect(result.judgment).toBe('墨中藏命，缘起无形。')
+  })
+
+  it('previewJudgment returns correct shape', async () => {
+    const mockData = { judgment: '旧梦重温，时光渡口。' }
+    mockInstance.post.mockResolvedValueOnce(mockData)
+
+    const { previewJudgment } = await reloadApi()
+    const result = await previewJudgment({ keywordIds: [1, 2, 3], eventId: 1 })
+
+    expect(result).toHaveProperty('judgment')
+    expect(typeof result.judgment).toBe('string')
+  })
 })
 
 describe('API error handling', () => {

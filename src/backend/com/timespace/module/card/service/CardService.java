@@ -12,6 +12,7 @@ import com.timespace.module.card.mapper.EventCardMapper;
 import com.timespace.module.card.mapper.KeywordCardMapper;
 import com.timespace.module.card.mapper.UserEventCardMapper;
 import com.timespace.module.card.mapper.UserKeywordCardMapper;
+import com.timespace.module.ai.client.AIClient;
 import com.timespace.module.user.service.UserService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,7 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     private final UserService userService;
     private final RedissonClient redissonClient;
     private final DrawAlgorithm drawAlgorithm;
+    private final AIClient aiClient;
 
     @Value("${timespace.card.ink-stone-cost:10}")
     private int inkStoneCost;
@@ -549,4 +551,75 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
         private String era;
         private boolean isGuaranteedRare;
     }
+
+    // ========== P-01 组合判词生成 ========== //
+
+    /**
+     * P-01 组合判词生成
+     * 根据选中的3张关键词卡+1事件卡，调用 AI 生成一句古文判词（20字以内）
+     */
+    public PreviewResult generatePreviewJudgment(List<Long> keywordIds, Integer eventId) {
+        // 查询关键词卡详情
+        List<String> keywordNames = new ArrayList<>();
+        if (keywordIds != null && !keywordIds.isEmpty()) {
+            List<KeywordCard> cards = keywordCardMapper.selectBatchIds(keywordIds);
+            keywordNames = cards.stream()
+                    .sorted(Comparator.comparingInt(id -> keywordIds.indexOf(id.getId())))
+                    .map(KeywordCard::getName)
+                    .collect(Collectors.toList());
+        }
+
+        // 查询事件卡详情
+        String eventTitle = "";
+        if (eventId != null) {
+            EventCard eventCard = eventCardMapper.selectById(eventId);
+            if (eventCard != null) {
+                eventTitle = eventCard.getTitle();
+            }
+        }
+
+        // 构造 AI prompt（说书人 Agent 轻量 prompt）
+        String keywordDesc = keywordNames.isEmpty() ? "无" : String.join("、", keywordNames);
+        String prompt = String.format("""
+                三张关键词：%s，历史事件：%s。
+                请用一句判词（20字以内）暗示这组卡可能产生的故事，用古文口吻。
+                只返回一句古文判词，不要任何解释，不要加引号，不要用括号。
+                """,
+                keywordDesc,
+                eventTitle.isEmpty() ? "无" : eventTitle);
+
+        try {
+            String judgment = aiClient.callSync(
+                    "你是一位古代判官，擅长用古文写判词。", prompt);
+            // 清洗返回内容：去掉可能的引号、换行、前后空白
+            judgment = judgment.trim()
+                    .replaceAll("^[\"'「『\\[]+", "")
+                    .replaceAll("[\"'」』\\]]+$", "");
+            // 限制字数（要求20字以内）
+            if (judgment.length() > 20) {
+                judgment = judgment.substring(0, 20);
+            }
+            // 空结果兜底
+            if (judgment.isBlank()) {
+                judgment = "墨中藏命，缘起无形。";
+            }
+            log.info("组合判词生成成功: keywordIds={}, eventId={}, judgment={}",
+                    keywordIds, eventId, judgment);
+            return new PreviewResult(judgment);
+        } catch (Exception e) {
+            log.warn("组合判词生成失败，降级为兜底文案: keywordIds={}, eventId={}, error={}",
+                    keywordIds, eventId, e.getMessage());
+            return new PreviewResult("墨中藏命，缘起无形。");
+        }
+    }
+
+    /**
+     * 组合判词预览请求
+     */
+    public record PreviewRequest(List<Long> keywordIds, Integer eventId) {}
+
+    /**
+     * 组合判词预览结果
+     */
+    public record PreviewResult(String judgment) {}
 }

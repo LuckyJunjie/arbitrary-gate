@@ -196,4 +196,34 @@ public class CardController {
     public static class DrawKeywordRequest {
         private boolean useFreeDraw;
     }
+
+    // ========== P-01 组合判词生成 ========== //
+
+    /**
+     * POST /api/card/preview
+     * 选完3张关键词+1事件后，点击"入局"前，调用 AI 生成一句古文判词（20字以内）
+     *
+     * 请求：
+     * {
+     *   "keywordIds": [1, 2, 3],
+     *   "eventId": 1
+     * }
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "data": {
+     *     "judgment": "江边渡口，有人把半生未说出口的话，折成一张旧船票。"
+     *   }
+     * }
+     */
+    @PostMapping("/preview")
+    public Result<CardService.PreviewResult> preview(@RequestBody CardService.PreviewRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("组合判词预览请求: userId={}, keywordIds={}, eventId={}",
+                userId, request.getKeywordIds(), request.getEventId());
+        CardService.PreviewResult result = cardService.generatePreviewJudgment(
+                request.getKeywordIds(), request.getEventId());
+        return Result.ok(result);
+    }
 }

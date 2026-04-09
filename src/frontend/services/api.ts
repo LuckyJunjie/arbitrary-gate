@@ -166,6 +166,25 @@ export async function fetchFortune(): Promise<FortuneResult> {
   return api.get('/card/fortune')
 }
 
+// ========== P-01 组合判词生成 ==========
+
+export interface PreviewJudgmentRequest {
+  keywordIds: number[]
+  eventId?: number
+}
+
+export interface PreviewJudgmentResult {
+  judgment: string
+}
+
+/**
+ * POST /api/card/preview
+ * 选完3张关键词+1事件后，点击"入局"前，调用 AI 生成一句古文判词
+ */
+export async function previewJudgment(payload: PreviewJudgmentRequest): Promise<PreviewJudgmentResult> {
+  return api.post('/card/preview', payload)
+}
+
 // 获取历史事件列表
 export async function fetchHistoryEvents(): Promise<HistoryEvent[]> {
   return api.get('/events')
