@@ -60,6 +60,17 @@ export interface EventCard {
   drawnAt?: string
 }
 
+export interface EventDrawResult {
+  cardId: number
+  cardNo: string
+  title: string
+  dynasty: string
+  location: string
+  description: string
+  era: string
+  isGuaranteedRare: boolean
+}
+
 export interface DrawResponse {
   card: KeywordCard
   remainingFreeDraws: number
@@ -125,6 +136,11 @@ export async function fetchKeywordCard(): Promise<{ card: KeywordCard; remaining
 // 抽关键词卡（POST，实际执行抽卡）
 export async function drawKeywordCard(): Promise<DrawResponse> {
   return api.post('/card/draw/keyword')
+}
+
+// 抽事件卡
+export async function drawEventCard(): Promise<EventDrawResult> {
+  return api.post('/card/draw/event')
 }
 
 // 墨迹占卜（今日运势）

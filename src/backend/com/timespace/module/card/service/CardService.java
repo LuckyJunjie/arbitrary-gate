@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.timespace.common.exception.BusinessException;
 import com.timespace.common.utils.IdGenerator;
+import com.timespace.module.card.entity.EventCard;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.entity.UserKeywordCard;
+import com.timespace.module.card.mapper.EventCardMapper;
 import com.timespace.module.card.mapper.KeywordCardMapper;
 import com.timespace.module.card.mapper.UserKeywordCardMapper;
 import com.timespace.module.user.service.UserService;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -39,6 +42,7 @@ import java.util.stream.Collectors;
 public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
 
     private final KeywordCardMapper keywordCardMapper;
+    private final EventCardMapper eventCardMapper;
     private final UserKeywordCardMapper userKeywordCardMapper;
     private final UserService userService;
     private final RedissonClient redissonClient;
@@ -115,6 +119,190 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
                 lock.unlock();
             }
         }
+    }
+
+    // ========== 事件卡抽取 ========== //
+
+    /**
+     * 抽事件卡
+     * 复用 DrawAlgorithm 权重桶算法，事件卡独立保底计数器（key 加 event: 前缀）
+     *
+     * 事件卡保底规则（简化版）：
+     * - 连续9次未出珍品（rarity=2），第10抽必出珍品
+     * - 珍品保底优先级高于普通概率
+     *
+     * @param userId 用户ID
+     * @return 抽中的事件卡信息
+     */
+    @Transactional
+    public DrawEventResult drawEventCard(Long userId) {
+        String lockKey = "event:draw:lock:user:" + userId;
+        RLock lock = redissonClient.getLock(lockKey);
+
+        boolean locked = false;
+        try {
+            locked = lock.tryLock(3, 10, TimeUnit.SECONDS);
+            if (!locked) {
+                throw new BusinessException(400, "抽卡过于频繁，请稍后");
+            }
+
+            // 获取事件卡保底状态（独立 key）
+            EventGuaranteeState state = getEventGuaranteeState(userId);
+
+            // 执行加权随机抽卡
+            EventCard card = executeEventDraw(state);
+
+            // 更新保底状态
+            updateEventGuaranteeState(userId, state, card.getWeight());
+
+            // 记录抽卡
+            log.info("抽事件卡: userId={}, cardId={}, title={}", userId, card.getId(), card.getTitle());
+
+            return DrawEventResult.builder()
+                    .cardId(card.getId())
+                    .cardNo(card.getCardNo())
+                    .title(card.getTitle())
+                    .dynasty(card.getDynasty())
+                    .location(card.getLocation())
+                    .description(card.getDescription())
+                    .era(card.getEra())
+                    .isGuaranteedRare(card.getWeight() >= 100)
+                    .build();
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException(500, "抽卡系统繁忙");
+        } finally {
+            if (locked && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
+
+    private static final String EVENT_GUARANTEE_KEY = "event:card:guarantee:user:%d";
+    private static final long EVENT_GUARANTEE_TTL = 7 * 24 * 3600L;
+
+    /**
+     * 事件卡保底状态
+     */
+    private static class EventGuaranteeState {
+        int consecutiveNonRare; // 连续未出珍品（weight>=100）次数
+    }
+
+    /**
+     * 获取事件卡保底状态
+     */
+    private EventGuaranteeState getEventGuaranteeState(Long userId) {
+        String key = String.format(EVENT_GUARANTEE_KEY, userId);
+        String json = redissonClient.getBucket(key).get();
+        if (json == null) {
+            return new EventGuaranteeState();
+        }
+        try {
+            EventGuaranteeState state = new EventGuaranteeState();
+            state.consecutiveNonRare = Integer.parseInt(json.trim());
+            return state;
+        } catch (Exception e) {
+            log.error("解析事件卡保底状态失败: userId={}", userId, e);
+            return new EventGuaranteeState();
+        }
+    }
+
+    /**
+     * 更新事件卡保底状态
+     * weight >= 100 视为珍品（核心事件）
+     */
+    private void updateEventGuaranteeState(Long userId, EventGuaranteeState state, int weight) {
+        if (weight < 100) {
+            state.consecutiveNonRare++;
+        } else {
+            state.consecutiveNonRare = 0;
+        }
+        String key = String.format(EVENT_GUARANTEE_KEY, userId);
+        redissonClient.getBucket(key).set(String.valueOf(state.consecutiveNonRare),
+                java.util.concurrent.TimeUnit.SECONDS, EVENT_GUARANTEE_TTL);
+        log.info("事件卡保底状态更新: userId={}, consecutiveNonRare={}, weight={}",
+                userId, state.consecutiveNonRare, weight);
+    }
+
+    /**
+     * 执行事件卡加权随机抽卡
+     * 保底：连续9次未出珍品，第10抽必出珍品（weight >= 100）
+     */
+    private EventCard executeEventDraw(EventGuaranteeState state) {
+        // 检查保底
+        if (state.consecutiveNonRare >= 9) {
+            log.info("触发事件卡珍品保底: consecutiveNonRare={}", state.consecutiveNonRare);
+            return selectEventCardByWeight(true);
+        }
+        // 加权随机
+        List<EventCard> allCards = eventCardMapper.selectList(null);
+        if (allCards == null || allCards.isEmpty()) {
+            log.warn("事件卡表为空，使用 Mock 数据");
+            return buildMockEventCard();
+        }
+        // 权重桶算法
+        int totalWeight = allCards.stream().mapToInt(EventCard::getWeight).sum();
+        int roll = ThreadLocalRandom.current().nextInt(totalWeight);
+        int cumulative = 0;
+        for (EventCard card : allCards) {
+            cumulative += card.getWeight();
+            if (roll < cumulative) {
+                return card;
+            }
+        }
+        return allCards.get(allCards.size() - 1);
+    }
+
+    private EventCard selectEventCardByWeight(boolean guaranteedRare) {
+        List<EventCard> allCards = eventCardMapper.selectList(null);
+        if (allCards == null || allCards.isEmpty()) {
+            return buildMockEventCard();
+        }
+        if (!guaranteedRare) {
+            int totalWeight = allCards.stream().mapToInt(EventCard::getWeight).sum();
+            int roll = ThreadLocalRandom.current().nextInt(totalWeight);
+            int cumulative = 0;
+            for (EventCard card : allCards) {
+                cumulative += card.getWeight();
+                if (roll < cumulative) {
+                    return card;
+                }
+            }
+        }
+        // 保底：只从珍品（weight>=100）中选
+        List<EventCard> rareCards = allCards.stream()
+                .filter(c -> c.getWeight() >= 100)
+                .collect(Collectors.toList());
+        if (rareCards.isEmpty()) {
+            return allCards.get(ThreadLocalRandom.current().nextInt(allCards.size()));
+        }
+        int totalWeight = rareCards.stream().mapToInt(EventCard::getWeight).sum();
+        int roll = ThreadLocalRandom.current().nextInt(totalWeight);
+        int cumulative = 0;
+        for (EventCard card : rareCards) {
+            cumulative += card.getWeight();
+            if (roll < cumulative) {
+                return card;
+            }
+        }
+        return rareCards.get(rareCards.size() - 1);
+    }
+
+    /**
+     * Mock 事件卡（当数据库为空时使用）
+     */
+    private EventCard buildMockEventCard() {
+        EventCard mock = new EventCard();
+        mock.setId(1);
+        mock.setCardNo("EV001");
+        mock.setTitle("巨鹿·破釜沉舟");
+        mock.setDynasty("秦");
+        mock.setLocation("巨鹿");
+        mock.setDescription("项羽率楚军渡河，凿沉船只，粉碎秦军主力");
+        mock.setWeight(100);
+        mock.setEra("秦末");
+        return mock;
     }
 
     /**
@@ -325,4 +513,19 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     public record FortuneEntry(String fortune, String hint) {}
 
     public record FortuneResult(String fortune, String hint) {}
+
+    // ========== 事件卡抽卡结果 ========== //
+
+    @Data
+    @lombok.Builder
+    public static class DrawEventResult {
+        private Integer cardId;
+        private String cardNo;
+        private String title;
+        private String dynasty;
+        private String location;
+        private String description;
+        private String era;
+        private boolean isGuaranteedRare;
+    }
 }

@@ -159,6 +159,39 @@ public class CardController {
         return Result.ok(result);
     }
 
+    /**
+     * POST /api/card/draw/event
+     * 抽事件卡
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "data": {
+     *     "cardId": 1,
+     *     "cardNo": "EV001",
+     *     "title": "巨鹿·破釜沉舟",
+     *     "dynasty": "秦",
+     *     "location": "巨鹿",
+     *     "description": "项羽率楚军渡河...",
+     *     "era": "秦末",
+     *     "isGuaranteedRare": false
+     *   }
+     * }
+     *
+     * 【事件卡抽卡算法】
+     * - 复用 DrawAlgorithm 权重桶算法
+     * - 事件卡独立保底计数器（Redis key 加 event: 前缀）
+     * - 事件卡保底：连续9次未出珍品，第10抽必出珍品（简化版保底）
+     * - 事件卡无免费次数限制（每日可抽任意次）
+     */
+    @PostMapping("/draw/event")
+    public Result<CardService.DrawEventResult> drawEventCard() {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("抽事件卡请求: userId={}", userId);
+        CardService.DrawEventResult result = cardService.drawEventCard(userId);
+        return Result.ok(result);
+    }
+
     @Data
     public static class DrawKeywordRequest {
         private boolean useFreeDraw;
