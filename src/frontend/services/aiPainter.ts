@@ -115,8 +115,8 @@ class AIPainterService {
    * @returns 图片URL（base64或http）
    */
   async generateKeywordCard(params: CardImageParams): Promise<GenerationResult> {
-    const prompt = buildKeywordPrompt(params)
-    const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`
+    const prompt = buildKeywordPrompt(params);
+    const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`;
 
     const cached = this.getCached(cacheKey)
     if (cached) return cached
