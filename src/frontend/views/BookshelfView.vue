@@ -56,6 +56,9 @@ const detailPanelStory = ref<StoredStory | null>(null)
 // === 删除确认 ===
 const deleteConfirmStory = ref<StoredStory | null>(null)
 
+// === 卡菜单（卡片级） ===
+const cardMenuStory = ref<StoredStory | null>(null)
+
 // === 下拉展开状态 ===
 const sortDropdownOpen = ref(false)
 const keywordDropdownOpen = ref(false)
@@ -193,8 +196,19 @@ function shareStory(story: StoredStory) {
   router.push(`/share/${story.storyNo ?? story.id}`)
 }
 
-// 删除故事
-function requestDelete(story: StoredStory) {
+// 删除故事 - 打开卡菜单
+function openCardMenu(story: StoredStory) {
+  cardMenuStory.value = story
+}
+
+// 关闭卡菜单
+function closeCardMenu() {
+  cardMenuStory.value = null
+}
+
+// 打开删除确认
+function openDeleteConfirm(story: StoredStory) {
+  cardMenuStory.value = null
   deleteConfirmStory.value = story
 }
 
@@ -351,7 +365,15 @@ onMounted(() => {
           @click="openDetail(story)"
         >
           <div class="story-card-inner">
-            <h3 class="story-title" data-testid="story-title">{{ story.title }}</h3>
+            <div class="card-header-row">
+              <h3 class="story-title" data-testid="story-title">{{ story.title }}</h3>
+              <button
+                class="card-menu-btn"
+                data-testid="card-menu-button"
+                @click.stop="openCardMenu(story)"
+                title="删除"
+              >⋮</button>
+            </div>
             <div class="story-event" data-testid="story-event">{{ story.eventName }}</div>
             <div class="story-meta">
               <span
@@ -527,7 +549,7 @@ onMounted(() => {
             <button
               class="action-btn menu-btn"
               data-testid="card-menu-button"
-              @click="requestDelete(detailPanelStory!)"
+              @click="openDeleteConfirm(detailPanelStory!)"
             >删除</button>
           </div>
         </div>
@@ -548,6 +570,19 @@ onMounted(() => {
               @click="confirmDelete"
             >确认删除</button>
           </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 卡片菜单弹窗 -->
+    <Teleport to="body">
+      <div v-if="cardMenuStory" class="card-menu-overlay" @click.self="closeCardMenu">
+        <div class="card-menu-popup">
+          <button
+            class="card-menu-item"
+            data-testid="delete-option"
+            @click="openDeleteConfirm(cardMenuStory!)"
+          >删除</button>
         </div>
       </div>
     </Teleport>
@@ -751,6 +786,30 @@ onMounted(() => {
 
 .story-card-inner {
   padding: 0.75rem;
+}
+
+.card-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-header-row .story-title {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.card-menu-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #a08060;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .story-title {
@@ -1057,6 +1116,43 @@ onMounted(() => {
   color: #c9a84c;
   border-color: #c9a84c;
   margin-left: auto;
+}
+
+/* 卡片菜单 */
+.card-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 31, 20, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+}
+
+.card-menu-popup {
+  background: #f5efe0;
+  border: 1px solid rgba(44, 31, 20, 0.15);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(44, 31, 20, 0.25);
+  overflow: hidden;
+  min-width: 140px;
+}
+
+.card-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #c0392b;
+  cursor: pointer;
+}
+
+.card-menu-item:hover {
+  background: rgba(192, 57, 43, 0.08);
 }
 
 /* 删除确认弹窗 */

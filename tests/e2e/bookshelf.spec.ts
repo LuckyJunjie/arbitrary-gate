@@ -335,12 +335,11 @@ test.describe('故事卡操作', () => {
 test.describe('书架空状态', () => {
 
   test('空书架应该显示引导提示', async ({ page }) => {
-    // 清空数据
+    await page.goto(`${BASE_URL}/bookshelf`)
+    // 清空数据（在已加载页面上操作localStorage）
     await page.evaluate(() => {
       localStorage.setItem('bookshelf_stories', JSON.stringify([]))
     })
-
-    await page.goto(`${BASE_URL}/bookshelf`)
     await page.reload()
     await page.waitForTimeout(1000)
 
@@ -350,11 +349,10 @@ test.describe('书架空状态', () => {
   })
 
   test('空书架应该显示开始按钮', async ({ page }) => {
+    await page.goto(`${BASE_URL}/bookshelf`)
     await page.evaluate(() => {
       localStorage.setItem('bookshelf_stories', JSON.stringify([]))
     })
-
-    await page.goto(`${BASE_URL}/bookshelf`)
     await page.reload()
     await page.waitForTimeout(1000)
 
