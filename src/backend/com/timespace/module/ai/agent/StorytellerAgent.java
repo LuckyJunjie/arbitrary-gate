@@ -3,10 +3,12 @@ package com.timespace.module.ai.agent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.ai.client.AIClient;
 import com.timespace.module.ai.service.AIGatewayService.ManuscriptResult;
+import com.timespace.module.ai.service.AiPromptTemplateService;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.entity.StoryCharacter;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,6 +30,11 @@ import java.util.stream.Collectors;
  * - 禁止"宛如""仿佛""无法言说"等AI腔
  * - 场景描写控制在200字左右
  * - 必须融入指定关键词
+ *
+ * AI-07 Prompt 热更新：
+ * - 启动时从数据库加载 prompt 模板
+ * - 失败时 fallback 到硬编码默认值
+ * - 支持运行时更新 prompt
  */
 @Slf4j
 @Component
@@ -36,6 +43,92 @@ public class StorytellerAgent {
 
     private final AIClient aiClient;
     private final ObjectMapper objectMapper;
+    private final AiPromptTemplateService promptTemplateService;
+
+    // 运行时 prompt 模板（从 DB 加载）
+    private String chapterSystemPromptTemplate;
+    private String manuscriptSystemPromptTemplate;
+    private String inscriptionPromptTemplate;
+
+    // 默认 Prompt 常量（fallback 用）
+    private static final String DEFAULT_CHAPTER_SYSTEM_PROMPT = """
+            你是一位擅长历史叙事的古代说书人。你的声音沉稳有力，讲述故事时如同亲历。
+
+            叙事风格：
+            - 豪放：大气磅礴，场面恢弘，笔触粗犷
+            - 婉约：细腻入微，情感丰富，笔触柔和
+            - 诗意：意境深远，语言优美，富有诗画感
+            - 史实：严谨考究，尊重史实，客观叙述
+
+            关键词必须全部融入正文。每个关键词出现至少1次。
+            禁止"宛如""仿佛""无法言说""不禁""缓缓说道""轻声说道""目光中满是""心中一动""似乎在诉说"等AI腔词汇。
+            """;
+
+    private static final String DEFAULT_MANUSCRIPT_SYSTEM_PROMPT = """
+            你是一位资深文学编辑，擅长润色和整合故事文本。
+
+            背景：
+            - 原稿：多章节故事文本
+            - 关键词：{keywords}（必须全部融入正文）
+            - 叙事风格：{style}
+            - 目标字数：3000-8000字
+
+            任务：
+            1. 整合所有章节，去除重复和矛盾
+            2. 润色文字，保持{style}风格
+            3. 确保所有关键词自然融入
+            4. 添加适当的章节过渡
+            5. 生成3个备选标题（古典文学风格，各不超过10字）
+            6. 输出完整的短篇小说正文（不含选项和提示）
+
+            特别注意：
+            - 禁止"宛如""仿佛""无法言说"等AI腔
+            - 结局要有情感力量
+            - 字数控制在3000-8000字
+            - 标题要典雅、有意境
+            """;
+
+    private static final String DEFAULT_INCRIPTION_PROMPT = """
+            你是一个古代文士。请为下面的故事生成一句题记（20-40字）。
+            风格要求：
+            - 古典、含蓄、有画面感
+            - 暗示故事主题但不说破
+            - 如同诗词的起句，留有余韵
+            - 使用文言文风格的措辞，但不必完全复古
+            - 禁止使用"宛如""仿佛""无法言说"等AI腔词汇
+
+            只返回题记，不要其他内容。
+            """;
+
+    /**
+     * AI-07: 启动时从数据库加载 prompt 模板
+     * 失败时 fallback 到硬编码默认值
+     */
+    @PostConstruct
+    public void loadPromptsFromDatabase() {
+        log.info("[AI-07] 说书人 Agent 正在加载 Prompt 模板...");
+
+        this.chapterSystemPromptTemplate = promptTemplateService.getPromptTextOrDefault(
+                AiPromptTemplateService.AGENT_STORYTELLER,
+                AiPromptTemplateService.PROMPT_CHAPTER_SYSTEM,
+                DEFAULT_CHAPTER_SYSTEM_PROMPT
+        );
+        log.info("[AI-07] 章节系统 Prompt 加载完成, length={}", chapterSystemPromptTemplate.length());
+
+        this.manuscriptSystemPromptTemplate = promptTemplateService.getPromptTextOrDefault(
+                AiPromptTemplateService.AGENT_STORYTELLER,
+                AiPromptTemplateService.PROMPT_MANUSCRIPT_SYSTEM,
+                DEFAULT_MANUSCRIPT_SYSTEM_PROMPT
+        );
+        log.info("[AI-07] 手稿系统 Prompt 加载完成, length={}", manuscriptSystemPromptTemplate.length());
+
+        this.inscriptionPromptTemplate = promptTemplateService.getPromptTextOrDefault(
+                AiPromptTemplateService.AGENT_STORYTELLER,
+                AiPromptTemplateService.PROMPT_INSCRIPTION,
+                DEFAULT_INCRIPTION_PROMPT
+        );
+        log.info("[AI-07] 题记 Prompt 加载完成, length={}", inscriptionPromptTemplate.length());
+    }
 
     /**
      * 生成单章节场景
@@ -128,25 +221,8 @@ public class StorytellerAgent {
                 .map(KeywordCard::getName)
                 .collect(Collectors.joining("、"));
 
-        String systemPrompt = String.format("""
-                你是一位擅长古典文学创作的说书人。
-
-                当前故事信息：
-                - 时代背景：%s
-                - 叙事风格：%s
-                - 关键词：%s
-
-                任务：
-                请为这个故事生成一段散文诗引子（题记），要求：
-                1. 字数：20-50字
-                2. 风格：古雅、留白、有意境，与正文白描风格形成对比
-                3. 内容：呼应关键词和故事主题
-                4. 禁止使用"宛如""仿佛""宛若""恰似""若隐若现""无法言说"等AI腔词汇
-                5. 不要出现感叹号
-                6. 纯文字，不要加引号或书名号
-
-                请直接输出题记内容，不要加任何前缀说明。
-                """,
+        // AI-07: 使用从 DB 加载的 prompt 模板
+        String systemPrompt = String.format(inscriptionPromptTemplate,
                 "历史时代",
                 getStyleName(story.getStyle()),
                 keywordsText.isEmpty() ? "无" : keywordsText
