@@ -5,6 +5,18 @@ import { ref, computed } from 'vue'
 
 const STORAGE_KEY = 'arbitrary_gate_ink_value'
 
+/** 上次访问时间戳存储 key */
+const LAST_ACCESS_KEY = 'arbitrary_gate_last_access'
+
+/** 墨香衰减阈值：24小时 */
+const DECAY_INTERVAL_MS = 24 * 60 * 60 * 1000
+
+/** 每次衰减比例：10% */
+const DECAY_RATE = 0.1
+
+/** 墨香值衰减最低下限（不低于此值） */
+const MIN_INK_BASE = 10
+
 /** 稀有度对应基础墨香值 */
 export const RARITY_INK_BONUS: Record<number, number> = {
   1: 0,   // 凡
@@ -167,6 +179,85 @@ export const useInkValueStore = defineStore('inkValue', () => {
     lastDrawTime = null
   }
 
+  // ── 时间衰减 ───────────────────────────────────────────────────────────────
+
+  /** 获取上次访问时间戳 */
+  function getLastAccessTime(): number | null {
+    try {
+      const raw = localStorage.getItem(LAST_ACCESS_KEY)
+      return raw ? parseInt(raw, 10) : null
+    } catch {
+      return null
+    }
+  }
+
+  /** 保存本次访问时间戳 */
+  function saveLastAccessTime() {
+    try {
+      localStorage.setItem(LAST_ACCESS_KEY, String(Date.now()))
+    } catch {
+      // ignore storage errors
+    }
+  }
+
+  /**
+   * 执行墨香值时间衰减
+   * 每 24 小时未访问，衰减 10%，最低不低于 MIN_INK_BASE
+   */
+  function decayInkValue(): number {
+    const now = Date.now()
+    const lastAccess = getLastAccessTime()
+
+    // 无上次访问记录，无需衰减
+    if (!lastAccess) {
+      saveLastAccessTime()
+      return 0
+    }
+
+    const elapsed = now - lastAccess
+    // 不足 24 小时，无需衰减
+    if (elapsed < DECAY_INTERVAL_MS) {
+      saveLastAccessTime()
+      return 0
+    }
+
+    // 计算衰减轮次（每 24 小时衰减一次）
+    const decayCycles = Math.floor(elapsed / DECAY_INTERVAL_MS)
+    // 最多衰减至 MIN_INK_BASE（总积分的 30% 约为最低值）
+    const minFloor = Math.floor(totalPoints.value * 0.3)
+
+    let decayed = 0
+    for (let i = 0; i < decayCycles; i++) {
+      const current = totalPoints.value - decayed
+      const nextValue = Math.floor(current * (1 - DECAY_RATE))
+      const floorCheck = Math.max(minFloor, MIN_INK_BASE)
+
+      if (nextValue <= floorCheck) {
+        // 已达下限，停止衰减
+        decayed = totalPoints.value - floorCheck
+        break
+      }
+      decayed += Math.floor(current * DECAY_RATE)
+    }
+
+    if (decayed > 0) {
+      totalPoints.value -= decayed
+      syncToStorage()
+    }
+
+    saveLastAccessTime()
+    return decayed
+  }
+
+  /**
+   * 在应用启动时检查并执行衰减
+   * 会被 onMounted 调用
+   * @returns 衰减的墨香值（如果有）
+   */
+  function checkAndDecayOnAppStart(): number {
+    return decayInkValue()
+  }
+
   return {
     totalPoints,
     records,
@@ -179,6 +270,8 @@ export const useInkValueStore = defineStore('inkValue', () => {
     syncToStorage,
     awardInkForDraw,
     resetStreak,
+    decayInkValue,
+    checkAndDecayOnAppStart,
   }
 })
 

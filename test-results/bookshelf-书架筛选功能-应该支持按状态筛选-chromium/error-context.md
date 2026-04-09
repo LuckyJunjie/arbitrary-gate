@@ -12,34 +12,18 @@
 # Error details
 
 ```
-TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
 Call log:
-  - waiting for locator('[data-testid="story-card"]') to be visible
+  - navigating to "http://localhost:5175/bookshelf", waiting until "load"
 
-```
-
-# Page snapshot
-
-```yaml
-- generic [ref=e3]:
-  - generic [ref=e4]: "[plugin:vite:esbuild] Transform failed with 1 error: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22: ERROR: Expected \";\" but found \"kw\""
-  - generic [ref=e5]: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22
-  - generic [ref=e6]: "Expected \";\" but found \"kw\" 117| async generateKeywordCard(params: CardImageParams): Promise<GenerationResult> { 118| const prompt = buildKeywordPrompt(params); 119| const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`; | ^ 120| 121| const cached = this.getCached(cacheKey);"
-  - generic [ref=e7]: at failureErrorWithLog (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:1472:15) at /Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:755:50 at responseCallbacks.<computed> (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:622:9) at handleIncomingPacket (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:677:12) at Socket.readFromStdout (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:600:7) at Socket.emit (node:events:508:28) at addChunk (node:internal/streams/readable:563:12) at readableAddChunkPushByteMode (node:internal/streams/readable:514:3) at Readable.push (node:internal/streams/readable:394:5) at Pipe.onStreamRead (node:internal/stream_base_commons:189:23
-  - generic [ref=e8]:
-    - text: Click outside, press Esc key, or fix the code to dismiss.
-    - text: You can also disable this overlay by setting
-    - code [ref=e9]: server.hmr.overlay
-    - text: to
-    - code [ref=e10]: "false"
-    - text: in
-    - code [ref=e11]: vite.config.ts
-    - text: .
 ```
 
 # Test source
 
 ```ts
+  86  | 
+  87  |   test('书架页面应该正确加载', async ({ page }) => {
+  88  |     // 等待书架容器加载
   89  |     await expect(page.locator('[data-testid="bookshelf-container"]')).toBeVisible({ timeout: 10000 })
   90  | 
   91  |     // 检查书架标题
@@ -137,11 +121,11 @@ Call log:
   183 | test.describe('书架筛选功能', () => {
   184 | 
   185 |   test.beforeEach(async ({ page }) => {
-  186 |     await page.goto(`${BASE_URL}/bookshelf`)
+> 186 |     await page.goto(`${BASE_URL}/bookshelf`)
+      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
   187 |     await setupMockData(page)
   188 |     await page.reload()
-> 189 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
-      |                ^ TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+  189 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
   190 |   })
   191 | 
   192 |   test('应该支持按状态筛选', async ({ page }) => {
@@ -239,7 +223,4 @@ Call log:
   284 |     await setupMockData(page)
   285 |     await page.reload()
   286 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
-  287 |   })
-  288 | 
-  289 |   test('点击故事卡应该打开详情', async ({ page }) => {
 ```

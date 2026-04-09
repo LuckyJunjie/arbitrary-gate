@@ -21,6 +21,41 @@ interface StoryChapterData {
   keywordResonance: Record<number, number>
 }
 
+// ─── 题记生成 Prompt ────────────────────────────────────────────────────────────────
+
+/**
+ * 生成散文诗式题记
+ * 要求：20-40字，古典、留白、有画面感，暗示故事主题但不说破
+ */
+const INSCRIPTION_PROMPT = `你是一个古代文士。请为下面的故事生成一句题记（20-40字）。
+风格要求：
+- 古典、含蓄、有画面感
+- 暗示故事主题但不说破
+- 如同诗词的起句，留有余韵
+- 使用文言文风格的措辞，但不必完全复古
+- 禁止使用"宛如""仿佛""无法言说"等AI腔词汇
+
+故事关键词：{keywords}
+故事背景：{eventName}
+入局答案：{entryAnswers}
+
+只返回题记，不要其他内容。`
+
+interface StoryContext {
+  storyId: string
+  chapterCount: number
+  keywords: string[]
+  eventName: string
+  entryAnswers: { 义?: string; 利?: string; 情?: string }
+  chapterDeviations: number[]
+}
+
+interface StoryChapterData {
+  sceneText: string
+  options: Array<{ id: number; text: string }>
+  keywordResonance: Record<number, number>
+}
+
 // ─── 故事内容库（基于赤壁·东风骤起）─────────────────────────────────────────
 
 const CHAPTERS: Record<number, StoryChapterData> = {
@@ -142,9 +177,13 @@ class StoryTellerService {
   }
 
   generateManuscript(_chapterCount: number, _totalDeviation: number): Omit<Manuscript, 'baiguanComment'> {
+    // 如果有上下文，生成题记
+    const inscription = this.context ? this.generateInscription() : undefined
+
     return {
       fullText: MANUSCRIPT_TEMPLATE,
       wordCount: MANUSCRIPT_TEMPLATE.length,
+      inscription,
       annotations: [
         { chapterNo: 1, x: 0, y: 0, text: '此节与正史略有出入，曹操败走华容道而非主动撤离。', color: 'red' },
         { chapterNo: 2, x: 0, y: 0, text: '徐先生其人，正史无载，或为虚构。', color: 'red' },
@@ -157,6 +196,52 @@ class StoryTellerService {
       ],
       epilogue: '尾声',
     }
+  }
+
+  /**
+   * 生成散文诗式题记
+   * 基于故事上下文生成一句20-40字的引子
+   */
+  generateInscription(): string {
+    if (!this.context) {
+      return '东风过处，草木皆兵。'
+    }
+
+    const { keywords, eventName, entryAnswers } = this.context
+
+    // 根据关键词和背景生成不同的题记
+    // 这里使用模板匹配，实际项目中可以调用真实 AI
+    const keyStr = keywords.join('、')
+    const ansStr = Object.values(entryAnswers).filter(Boolean).join('、')
+
+    // 题记模板库
+    const inscriptionTemplates: string[] = [
+      // 赤壁相关
+      '东风一夜，铁索连环。',
+      '江流有声，浪淘千古。',
+      '樯橹灰飞，烟消云散。',
+      '火起赤壁，风助曹瞒。',
+      // 战争/历史相关
+      '兴，百姓苦；亡，百姓苦。',
+      '是非成败转头空。',
+      '古今多少事，都付笑谈中。',
+      '一将功成万骨枯。',
+      // 人生/命运相关
+      '命由天定，运由己造。',
+      '天数难知，人谋可逆。',
+      '天数茫茫，秋水汤汤。',
+      // 默认
+      '光阴如箭，岁月如梭。',
+      '历史长河，浪淘风卷。',
+      '旧时王谢堂前燕，飞入寻常百姓家。',
+      '人事代谢，往来古今。',
+    ]
+
+    // 简单哈希选择
+    const hash = (keyStr + ansStr + eventName).split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+    const idx = hash % inscriptionTemplates.length
+
+    return inscriptionTemplates[idx]
   }
 }
 

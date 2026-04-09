@@ -12,38 +12,41 @@
 # Error details
 
 ```
-Test timeout of 30000ms exceeded.
-```
-
-```
-Error: locator.click: Test timeout of 30000ms exceeded.
+Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
 Call log:
-  - waiting for locator('[data-testid="view-toggle-timeline"]')
+  - navigating to "http://localhost:5175/bookshelf", waiting until "load"
 
-```
-
-# Page snapshot
-
-```yaml
-- generic [ref=e3]:
-  - generic [ref=e4]: "[plugin:vite:esbuild] Transform failed with 1 error: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22: ERROR: Expected \";\" but found \"kw\""
-  - generic [ref=e5]: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22
-  - generic [ref=e6]: "Expected \";\" but found \"kw\" 117| async generateKeywordCard(params: CardImageParams): Promise<GenerationResult> { 118| const prompt = buildKeywordPrompt(params); 119| const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`; | ^ 120| 121| const cached = this.getCached(cacheKey);"
-  - generic [ref=e7]: at failureErrorWithLog (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:1472:15) at /Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:755:50 at responseCallbacks.<computed> (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:622:9) at handleIncomingPacket (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:677:12) at Socket.readFromStdout (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:600:7) at Socket.emit (node:events:508:28) at addChunk (node:internal/streams/readable:563:12) at readableAddChunkPushByteMode (node:internal/streams/readable:514:3) at Readable.push (node:internal/streams/readable:394:5) at Pipe.onStreamRead (node:internal/stream_base_commons:189:23
-  - generic [ref=e8]:
-    - text: Click outside, press Esc key, or fix the code to dismiss.
-    - text: You can also disable this overlay by setting
-    - code [ref=e9]: server.hmr.overlay
-    - text: to
-    - code [ref=e10]: "false"
-    - text: in
-    - code [ref=e11]: vite.config.ts
-    - text: .
 ```
 
 # Test source
 
 ```ts
+  39  |       {
+  40  |         id: 2,
+  41  |         storyNo: 'SN002',
+  42  |         title: '马嵬月下',
+  43  |         eventName: '马嵬驿·杨贵妃缢死',
+  44  |         status: 'completed',
+  45  |         historyDeviation: 72,
+  46  |         wordCount: 5200,
+  47  |         createdAt: '2024-01-16T14:00:00Z',
+  48  |         finishedAt: '2024-01-16T16:00:00Z',
+  49  |         keywords: [
+  50  |           { id: 3, name: '意难平', rarity: 4 },
+  51  |           { id: 4, name: '青石板', rarity: 1 },
+  52  |         ],
+  53  |       },
+  54  |       {
+  55  |         id: 3,
+  56  |         storyNo: 'SN003',
+  57  |         title: '待续...',
+  58  |         eventName: '玄武门·李世民射兄',
+  59  |         status: 'in_progress',
+  60  |         historyDeviation: 50,
+  61  |         wordCount: 0,
+  62  |         createdAt: '2024-01-17T09:00:00Z',
+  63  |         finishedAt: null,
+  64  |         keywords: [
   65  |           { id: 5, name: '铜锁芯', rarity: 2 },
   66  |         ],
   67  |         currentChapter: 2,
@@ -118,7 +121,8 @@ Call log:
   136 | test.describe('书架视图切换', () => {
   137 | 
   138 |   test.beforeEach(async ({ page }) => {
-  139 |     await page.goto(`${BASE_URL}/bookshelf`)
+> 139 |     await page.goto(`${BASE_URL}/bookshelf`)
+      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
   140 |     await setupMockData(page)
   141 |     await page.reload()
   142 |   })
@@ -144,8 +148,7 @@ Call log:
   162 |   })
   163 | 
   164 |   test('时光轴视图应该显示时间线', async ({ page }) => {
-> 165 |     await page.locator('[data-testid="view-toggle-timeline"]').click()
-      |                                                                ^ Error: locator.click: Test timeout of 30000ms exceeded.
+  165 |     await page.locator('[data-testid="view-toggle-timeline"]').click()
   166 |     await page.waitForSelector('[data-testid="timeline-view"]', { timeout: 5000 })
   167 | 
   168 |     // 检查时间线节点
@@ -220,30 +223,4 @@ Call log:
   237 |   })
   238 | })
   239 | 
-  240 | test.describe('书架排序功能', () => {
-  241 | 
-  242 |   test.beforeEach(async ({ page }) => {
-  243 |     await page.goto(`${BASE_URL}/bookshelf`)
-  244 |     await setupMockData(page)
-  245 |     await page.reload()
-  246 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
-  247 |   })
-  248 | 
-  249 |   test('应该支持按时间排序', async ({ page }) => {
-  250 |     await page.locator('[data-testid="sort-select"]').click()
-  251 |     await page.locator('[data-testid="sort-option-date"]').click()
-  252 |     await page.waitForTimeout(500)
-  253 | 
-  254 |     // 验证排序（最新在前）
-  255 |     const dates = page.locator('[data-testid="story-date"]')
-  256 |     const firstDate = await dates.first().textContent()
-  257 | 
-  258 |     expect(firstDate).toBeTruthy()
-  259 |   })
-  260 | 
-  261 |   test('应该支持按偏离度排序', async ({ page }) => {
-  262 |     await page.locator('[data-testid="sort-select"]').click()
-  263 |     await page.locator('[data-testid="sort-option-deviation"]').click()
-  264 |     await page.waitForTimeout(500)
-  265 | 
 ```

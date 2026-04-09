@@ -12,29 +12,10 @@
 # Error details
 
 ```
-TimeoutError: page.waitForSelector: Timeout 15000ms exceeded.
+Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/cards
 Call log:
-  - waiting for locator('.card-slot') to be visible
+  - navigating to "http://localhost:5175/cards", waiting until "load"
 
-```
-
-# Page snapshot
-
-```yaml
-- generic [ref=e3]:
-  - generic [ref=e4]: "[plugin:vite:esbuild] Transform failed with 1 error: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22: ERROR: Expected \";\" but found \"kw\""
-  - generic [ref=e5]: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22
-  - generic [ref=e6]: "Expected \";\" but found \"kw\" 117| async generateKeywordCard(params: CardImageParams): Promise<GenerationResult> { 118| const prompt = buildKeywordPrompt(params); 119| const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`; | ^ 120| 121| const cached = this.getCached(cacheKey);"
-  - generic [ref=e7]: at failureErrorWithLog (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:1472:15) at /Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:755:50 at responseCallbacks.<computed> (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:622:9) at handleIncomingPacket (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:677:12) at Socket.readFromStdout (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:600:7) at Socket.emit (node:events:508:28) at addChunk (node:internal/streams/readable:563:12) at readableAddChunkPushByteMode (node:internal/streams/readable:514:3) at Readable.push (node:internal/streams/readable:394:5) at Pipe.onStreamRead (node:internal/stream_base_commons:189:23
-  - generic [ref=e8]:
-    - text: Click outside, press Esc key, or fix the code to dismiss.
-    - text: You can also disable this overlay by setting
-    - code [ref=e9]: server.hmr.overlay
-    - text: to
-    - code [ref=e10]: "false"
-    - text: in
-    - code [ref=e11]: vite.config.ts
-    - text: .
 ```
 
 # Test source
@@ -63,10 +44,10 @@ Call log:
   21 |       localStorage.setItem('arbitrary_gate_event_cards', JSON.stringify(eventCards))
   22 |       localStorage.setItem('arbitrary_gate_ink_stone', JSON.stringify(500))
   23 |     }, SEED_DATA)
-  24 |     await page.goto(`${BASE_URL}/cards`)
+> 24 |     await page.goto(`${BASE_URL}/cards`)
+     |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/cards
   25 |     // Wait for card grid to render
-> 26 |     await page.waitForSelector('.card-slot', { timeout: 15000 })
-     |                ^ TimeoutError: page.waitForSelector: Timeout 15000ms exceeded.
+  26 |     await page.waitForSelector('.card-slot', { timeout: 15000 })
   27 |   })
   28 | 
   29 |   test('AI Painter section appears when a keyword card is selected in CardsView', async ({ page }) => {

@@ -120,6 +120,7 @@ export interface Story {
 export interface Manuscript {
   fullText: string
   wordCount: number
+  inscription?: string
   annotations?: Array<{ chapterNo?: number; x: number; y: number; text: string; color?: string }>
   choiceMarks?: Array<{ chapterNo?: number; optionId?: number; text?: string }>
   epilogue?: string

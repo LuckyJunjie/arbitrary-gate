@@ -12,34 +12,30 @@
 # Error details
 
 ```
-TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
 Call log:
-  - waiting for locator('[data-testid="story-card"]') to be visible
+  - navigating to "http://localhost:5175/bookshelf", waiting until "load"
 
-```
-
-# Page snapshot
-
-```yaml
-- generic [ref=e3]:
-  - generic [ref=e4]: "[plugin:vite:esbuild] Transform failed with 1 error: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22: ERROR: Expected \";\" but found \"kw\""
-  - generic [ref=e5]: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22
-  - generic [ref=e6]: "Expected \";\" but found \"kw\" 117| async generateKeywordCard(params: CardImageParams): Promise<GenerationResult> { 118| const prompt = buildKeywordPrompt(params); 119| const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`; | ^ 120| 121| const cached = this.getCached(cacheKey);"
-  - generic [ref=e7]: at failureErrorWithLog (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:1472:15) at /Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:755:50 at responseCallbacks.<computed> (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:622:9) at handleIncomingPacket (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:677:12) at Socket.readFromStdout (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:600:7) at Socket.emit (node:events:508:28) at addChunk (node:internal/streams/readable:563:12) at readableAddChunkPushByteMode (node:internal/streams/readable:514:3) at Readable.push (node:internal/streams/readable:394:5) at Pipe.onStreamRead (node:internal/stream_base_commons:189:23
-  - generic [ref=e8]:
-    - text: Click outside, press Esc key, or fix the code to dismiss.
-    - text: You can also disable this overlay by setting
-    - code [ref=e9]: server.hmr.overlay
-    - text: to
-    - code [ref=e10]: "false"
-    - text: in
-    - code [ref=e11]: vite.config.ts
-    - text: .
 ```
 
 # Test source
 
 ```ts
+  1   | /**
+  2   |  * 书架管理 E2E 测试
+  3   |  *
+  4   |  * 测试覆盖：
+  5   |  * - 书架页面加载
+  6   |  * - 时光轴视图
+  7   |  * - 山河图视图
+  8   |  * - 故事卡管理
+  9   |  * - 筛选和排序
+  10  |  */
+  11  | 
+  12  | import { test, expect } from '@playwright/test'
+  13  | 
+  14  | // ==================== 测试配置 ====================
+  15  | 
   16  | const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5175'
   17  | 
   18  | // ==================== 辅助函数 ====================
@@ -106,7 +102,8 @@ Call log:
   79  | test.describe('书架管理模块', () => {
   80  | 
   81  |   test.beforeEach(async ({ page }) => {
-  82  |     await page.goto(`${BASE_URL}/bookshelf`)
+> 82  |     await page.goto(`${BASE_URL}/bookshelf`)
+      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
   83  |     await setupMockData(page)
   84  |     await page.reload()
   85  |   })
@@ -140,8 +137,7 @@ Call log:
   113 |   })
   114 | 
   115 |   test('完成状态的故事应该标记为已完成', async ({ page }) => {
-> 116 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
-      |                ^ TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+  116 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
   117 | 
   118 |     // 查找已完成的故事
   119 |     const completedCards = page.locator('[data-testid="story-card"][data-status="completed"]')
@@ -208,38 +204,4 @@ Call log:
   180 |   })
   181 | })
   182 | 
-  183 | test.describe('书架筛选功能', () => {
-  184 | 
-  185 |   test.beforeEach(async ({ page }) => {
-  186 |     await page.goto(`${BASE_URL}/bookshelf`)
-  187 |     await setupMockData(page)
-  188 |     await page.reload()
-  189 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
-  190 |   })
-  191 | 
-  192 |   test('应该支持按状态筛选', async ({ page }) => {
-  193 |     // 点击"已完成"筛选
-  194 |     await page.locator('[data-testid="filter-status-completed"]').click()
-  195 |     await page.waitForTimeout(500)
-  196 | 
-  197 |     // 验证只显示已完成的故事
-  198 |     const visibleCards = page.locator('[data-testid="story-card"]:visible')
-  199 |     const count = await visibleCards.count()
-  200 | 
-  201 |     for (let i = 0; i < count; i++) {
-  202 |       const status = await visibleCards.nth(i).getAttribute('data-status')
-  203 |       expect(status).toBe('completed')
-  204 |     }
-  205 |   })
-  206 | 
-  207 |   test('应该支持按关键词筛选', async ({ page }) => {
-  208 |     // 点击关键词筛选
-  209 |     await page.locator('[data-testid="filter-keyword"]').click()
-  210 |     await page.waitForTimeout(500)
-  211 | 
-  212 |     // 选择一个关键词
-  213 |     await page.locator('[data-testid="keyword-option-旧船票"]').click()
-  214 |     await page.waitForTimeout(500)
-  215 | 
-  216 |     // 验证筛选结果
 ```

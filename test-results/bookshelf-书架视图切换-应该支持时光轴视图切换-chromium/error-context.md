@@ -12,34 +12,21 @@
 # Error details
 
 ```
-TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
 Call log:
-  - waiting for locator('[data-testid="view-toggle"]') to be visible
+  - navigating to "http://localhost:5175/bookshelf", waiting until "load"
 
-```
-
-# Page snapshot
-
-```yaml
-- generic [ref=e3]:
-  - generic [ref=e4]: "[plugin:vite:esbuild] Transform failed with 1 error: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22: ERROR: Expected \";\" but found \"kw\""
-  - generic [ref=e5]: /Users/jay/Projects/arbitrary-gate/src/frontend/services/aiPainter.ts:119:22
-  - generic [ref=e6]: "Expected \";\" but found \"kw\" 117| async generateKeywordCard(params: CardImageParams): Promise<GenerationResult> { 118| const prompt = buildKeywordPrompt(params); 119| const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`; | ^ 120| 121| const cached = this.getCached(cacheKey);"
-  - generic [ref=e7]: at failureErrorWithLog (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:1472:15) at /Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:755:50 at responseCallbacks.<computed> (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:622:9) at handleIncomingPacket (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:677:12) at Socket.readFromStdout (/Users/jay/Projects/arbitrary-gate/node_modules/esbuild/lib/main.js:600:7) at Socket.emit (node:events:508:28) at addChunk (node:internal/streams/readable:563:12) at readableAddChunkPushByteMode (node:internal/streams/readable:514:3) at Readable.push (node:internal/streams/readable:394:5) at Pipe.onStreamRead (node:internal/stream_base_commons:189:23
-  - generic [ref=e8]:
-    - text: Click outside, press Esc key, or fix the code to dismiss.
-    - text: You can also disable this overlay by setting
-    - code [ref=e9]: server.hmr.overlay
-    - text: to
-    - code [ref=e10]: "false"
-    - text: in
-    - code [ref=e11]: vite.config.ts
-    - text: .
 ```
 
 # Test source
 
 ```ts
+  39  |       {
+  40  |         id: 2,
+  41  |         storyNo: 'SN002',
+  42  |         title: '马嵬月下',
+  43  |         eventName: '马嵬驿·杨贵妃缢死',
+  44  |         status: 'completed',
   45  |         historyDeviation: 72,
   46  |         wordCount: 5200,
   47  |         createdAt: '2024-01-16T14:00:00Z',
@@ -134,14 +121,14 @@ Call log:
   136 | test.describe('书架视图切换', () => {
   137 | 
   138 |   test.beforeEach(async ({ page }) => {
-  139 |     await page.goto(`${BASE_URL}/bookshelf`)
+> 139 |     await page.goto(`${BASE_URL}/bookshelf`)
+      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
   140 |     await setupMockData(page)
   141 |     await page.reload()
   142 |   })
   143 | 
   144 |   test('应该支持时光轴视图切换', async ({ page }) => {
-> 145 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
-      |                ^ TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+  145 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
   146 | 
   147 |     // 点击时光轴视图按钮
   148 |     await page.locator('[data-testid="view-toggle-timeline"]').click()
@@ -236,10 +223,4 @@ Call log:
   237 |   })
   238 | })
   239 | 
-  240 | test.describe('书架排序功能', () => {
-  241 | 
-  242 |   test.beforeEach(async ({ page }) => {
-  243 |     await page.goto(`${BASE_URL}/bookshelf`)
-  244 |     await setupMockData(page)
-  245 |     await page.reload()
 ```

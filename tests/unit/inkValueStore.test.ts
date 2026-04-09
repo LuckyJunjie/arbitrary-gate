@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import {
   useInkValueStore,
@@ -11,6 +11,9 @@ import {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/** 模拟本地存储 */
+const mockStorage: Record<string, string> = {}
+
 /** 创建一个全新的 store 实例（每个测试独立） */
 function createFreshStore() {
   const store = useInkValueStore()
@@ -22,6 +25,21 @@ function createFreshStore() {
   }
   return store
 }
+
+// ─── Mock localStorage ────────────────────────────────────────────────────
+beforeEach(() => {
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => mockStorage[key] ?? null,
+    setItem: (key: string, value: string) => { mockStorage[key] = value },
+    removeItem: (key: string) => { delete mockStorage[key] },
+    clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]) },
+  })
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  Object.keys(mockStorage).forEach(k => delete mockStorage[k])
+})
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -287,5 +305,93 @@ describe('STREAK_BONUS_MAX / STREAK_BONUS_PER_STEP', () => {
 
   it('STREAK_BONUS_PER_STEP = 5', () => {
     expect(STREAK_BONUS_PER_STEP).toBe(5)
+  })
+})
+
+// ─── 时间衰减测试 ────────────────────────────────────────────────────────────
+
+const DECAY_INTERVAL_MS = 24 * 60 * 60 * 1000
+
+describe('墨香值时间衰减 - decayInkValue', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => mockStorage[key] ?? null,
+      setItem: (key: string, value: string) => { mockStorage[key] = value },
+      removeItem: (key: string) => { delete mockStorage[key] },
+      clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]) },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Object.keys(mockStorage).forEach(k => delete mockStorage[k])
+  })
+
+  it('无上次访问记录，无需衰减', () => {
+    const store = createFreshStore()
+    store.totalPoints = 100
+    const decayed = store.decayInkValue()
+    expect(decayed).toBe(0)
+  })
+
+  it('不足 24 小时，无需衰减', () => {
+    const store = createFreshStore()
+    store.totalPoints = 100
+    // 设置 12 小时前的时间
+    const twelveHoursAgo = Date.now() - (12 * 60 * 60 * 1000)
+    mockStorage['arbitrary_gate_last_access'] = String(twelveHoursAgo)
+    const decayed = store.decayInkValue()
+    expect(decayed).toBe(0)
+  })
+
+  it('超过 24 小时，衰减 10%', () => {
+    const store = createFreshStore()
+    store.totalPoints = 100
+    const twentyFiveHoursAgo = Date.now() - DECAY_INTERVAL_MS - (1 * 60 * 60 * 1000)
+    mockStorage['arbitrary_gate_last_access'] = String(twentyFiveHoursAgo)
+    const decayed = store.decayInkValue()
+    expect(decayed).toBe(10)
+    expect(store.totalPoints).toBe(90)
+  })
+
+  it('超过 48 小时，衰减 2 轮（20%）', () => {
+    const store = createFreshStore()
+    store.totalPoints = 100
+    const fiftyHoursAgo = Date.now() - (50 * 60 * 60 * 1000)
+    mockStorage['arbitrary_gate_last_access'] = String(fiftyHoursAgo)
+    const decayed = store.decayInkValue()
+    // 100 * 0.9 = 90, 90 * 0.9 = 81 → 衰减 19
+    expect(decayed).toBeGreaterThanOrEqual(18)
+    expect(store.totalPoints).toBeLessThan(82)
+  })
+
+  it('衰减不低于最低下限 MIN_INK_BASE(10)', () => {
+    const store = createFreshStore()
+    store.totalPoints = 15
+    const fiftyHoursAgo = Date.now() - (50 * 60 * 60 * 1000)
+    mockStorage['arbitrary_gate_last_access'] = String(fiftyHoursAgo)
+    const decayed = store.decayInkValue()
+    // 第一次衰减: 15 * 0.1 = 1.5 → floor 1
+    // 剩余: 15 - 1 = 14
+    // 第二次: 14 * 0.1 = 1.4 → floor 1
+    // 剩余不能低于 10
+    expect(store.totalPoints).toBeGreaterThanOrEqual(10)
+  })
+})
+
+describe('墨香值时间衰减 - checkAndDecayOnAppStart', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('应在应用启动时被调用，返回衰减墨香值', () => {
+    const store = createFreshStore()
+    store.totalPoints = 100
+    const twentyFiveHoursAgo = Date.now() - DECAY_INTERVAL_MS - (1 * 60 * 60 * 1000)
+    mockStorage['arbitrary_gate_last_access'] = String(twentyFiveHoursAgo)
+    const decayed = store.checkAndDecayOnAppStart()
+    expect(decayed).toBeGreaterThan(0)
+    expect(store.totalPoints).toBeLessThan(100)
   })
 })
