@@ -634,6 +634,15 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         // 4.2 备选标题
         List<String> candidateTitles = manuscriptResult.candidateTitles();
 
+        // 4.3 生成题记（散文诗风格）
+        String inscription = aiGatewayService.generateEpigraph(story, manuscriptText);
+        ContentSafetyChecker.SafetyResult insResult =
+                contentSafetyChecker.checkWithRetry(inscription, 3, null, null);
+        if (!insResult.isSafe()) {
+            log.warn("[ContentSafety] 题记不通过: {}, 使用兜底文案", insResult.getReason());
+            inscription = "（题记未生成）";
+        }
+
         // 5. 生成后日谈（稗官）+ 内容安全检测
         String overallComment = baiguanAgent.generateOverallComment(
                 story, wordCount, story.getHistoryDeviation());
@@ -698,6 +707,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         manuscript.setAnnotations(annotations);
         manuscript.setChoiceMarks(choiceMarks);
         manuscript.setEpilogue(overallComment);
+        manuscript.setInscription(inscription);
         manuscript.setWordCount(wordCount);
         manuscript.setCreatedAt(LocalDateTime.now());
         manuscriptMapper.insert(manuscript);
@@ -727,6 +737,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .annotations(annotations)
                 .choiceMarks(choiceMarks)
                 .epilogue(overallComment)
+                .inscription(inscription)
                 .historyDeviation(story.getHistoryDeviation())
                 .candidateTitles(candidateTitles)
                 .build();
@@ -791,6 +802,34 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         story.setTitle(title);
         storyMapper.updateById(story);
         log.info("故事标题更新: storyId={}, title={}", storyId, title);
+    }
+
+    /**
+     * 获取章节生成进度（用于断线重连）
+     *
+     * GET /api/story/{id}/chapter/{no}/progress
+     */
+    public ChapterProgressVO getChapterProgress(Long storyId, Integer chapterNo) {
+        long userId = StpUtil.getLoginIdAsLong();
+        Story story = storyMapper.selectById(storyId);
+        if (story == null || !story.getUserId().equals(userId)) {
+            throw BusinessException.STORY_NOT_FOUND;
+        }
+
+        StoryChapter chapter = chapterMapper.selectOne(
+                new LambdaQueryWrapper<StoryChapter>()
+                        .eq(StoryChapter::getStoryId, storyId)
+                        .eq(StoryChapter::getChapterNo, chapterNo));
+
+        int generatedLength = 0;
+        if (chapter != null && chapter.getSceneText() != null) {
+            generatedLength = chapter.getSceneText().length();
+        }
+
+        return ChapterProgressVO.builder()
+                .chapterNo(chapterNo)
+                .generatedLength(generatedLength)
+                .build();
     }
 
     // ========== 私有辅助方法 ==========
@@ -1030,6 +1069,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private List<StoryManuscript.Annotation> annotations;
         private List<StoryManuscript.ChoiceMark> choiceMarks;
         private String epilogue;
+        private String inscription;
         private Integer historyDeviation;
         private List<String> candidateTitles;
     }

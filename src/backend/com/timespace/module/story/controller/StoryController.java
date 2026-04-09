@@ -250,6 +250,26 @@ public class StoryController {
     }
 
     /**
+     * GET /api/story/{id}/chapter/{no}/progress
+     * 返回当前章节已生成的文本长度（用于断线重连）
+     *
+     * 响应：
+     * {
+     *   "chapterNo": 1,
+     *   "generatedLength": 256
+     * }
+     */
+    @GetMapping("/{id}/chapter/{no}/progress")
+    public Result<ChapterProgressVO> getChapterProgress(
+            @PathVariable("id") Long storyId,
+            @PathVariable("no") Integer chapterNo) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("章节进度查询: userId={}, storyId={}, chapterNo={}", userId, storyId, chapterNo);
+        ChapterProgressVO vo = storyService.getChapterProgress(storyId, chapterNo);
+        return Result.ok(vo);
+    }
+
+    /**
      * GET /api/story/list
      * 获取用户的故事列表
      */
@@ -338,5 +358,11 @@ public class StoryController {
     @Data
     public static class UpdateTitleRequest {
         private String title;
+    }
+
+    @Data
+    public static class ChapterProgressVO {
+        private Integer chapterNo;
+        private Integer generatedLength;
     }
 }

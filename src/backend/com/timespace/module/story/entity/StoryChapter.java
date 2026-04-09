@@ -36,6 +36,8 @@ public class StoryChapter {
 
     private String chapterComment;   // 章节判官判词（用于前端展示）
 
+    private Integer generatedLength; // 当前已生成的文本长度（用于断线重连）
+
     private LocalDateTime createdAt;
 
     @Data

@@ -26,6 +26,8 @@ public class StoryManuscript {
 
     private String baiguanComment;  // 稗官评语
 
+    private String inscription;     // 题记（散文诗风格）
+
     private Integer wordCount;       // 字数统计
 
     private LocalDateTime createdAt;
