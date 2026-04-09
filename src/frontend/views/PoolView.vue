@@ -18,6 +18,23 @@ const isDrawing = ref(false)
 const drawError = ref<string | null>(null)
 const remainingFreeDraws = ref(0)
 const drawId = ref(0) // 用于取消进行中的抽卡动画
+const revealPhase = ref<'partial' | 'full'>('partial') // 残片拼接阶段
+
+// 今日运势预兆文本
+const fortuneLines = [
+  '今日墨色偏青，似有旧物来寻。',
+  '池中落了一片桂花，或有故人将至。',
+  '墨浓欲凝，宜静待时机。',
+  '池水微漾，珍奇隐于其下。',
+  '砚中墨浅，然大机缘将至。',
+  '窗外有风过堂，今日宜得一奇字。',
+  '墨迹未干，池底似有微光透出。',
+  '月色入水，宜候一纸良缘。',
+  '落笔之处，香气隐隐似曾相识。',
+  '墨香四溢，今夜当有巧遇。',
+]
+const fortuneText = ref('')
+const currentFortune = computed(() => fortuneText.value)
 
 // 每日免费次数上限
 const DAILY_FREE_LIMIT = 3
@@ -29,6 +46,8 @@ onMounted(() => {
   inkValueStore.loadFromStorage()
   loadDailyFreeDraws()
   loadSavedCards()
+  // 随机选取一条今日运势
+  fortuneText.value = fortuneLines[Math.floor(Math.random() * fortuneLines.length)]
 })
 
 function loadDailyFreeDraws() {
@@ -91,6 +110,7 @@ async function onCardDrawn(card: Record<string, unknown> | null) {
   }
   drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
   hasDrawn.value = true
+  revealPhase.value = 'partial'
 
   const exists = cardStore.keywordCards.find(c => c.id === cardData.id)
   if (!exists) {
@@ -121,6 +141,7 @@ async function applyMockDraw(currentDrawId = -1) {
   remainingFreeDraws.value = Math.max(0, remainingFreeDraws.value - 1)
   drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
   hasDrawn.value = true
+  revealPhase.value = 'partial'
 
   const exists = cardStore.keywordCards.find(c => c.id === cardData.id)
   if (!exists) {
@@ -163,6 +184,7 @@ async function handleDraw() {
     if (cardData) {
       drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
       hasDrawn.value = true
+      revealPhase.value = 'partial'
 
       // 保存到 store 和 localStorage
       const exists = cardStore.keywordCards.find(c => c.id === cardData!.id)
@@ -189,6 +211,11 @@ function reset() {
   hasDrawn.value = false
   drawnCard.value = null
   drawError.value = null
+  revealPhase.value = 'partial'
+}
+
+function revealInk() {
+  revealPhase.value = 'full'
 }
 </script>
 
@@ -209,18 +236,48 @@ function reset() {
       <RippleEffect :active="!hasDrawn" data-testid="ink-ripple-animation" />
       <InkPool v-if="!hasDrawn" @draw="handleDraw" data-testid="ink-pool-surface" />
 
+      <!-- 今日运势预兆文字 -->
+      <p
+        v-if="!hasDrawn && currentFortune"
+        class="fortune-text"
+        data-testid="fortune-text"
+      >{{ currentFortune }}</p>
+
       <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">
+        <!-- 残片拼接：墨迹遮罩层 -->
+        <div
+          v-if="revealPhase === 'partial'"
+          class="ink-overlay"
+          data-testid="reveal-ink-overlay"
+        >
+          <!-- 中心透明圆孔，只露出卡名首字 -->
+          <div class="ink-hollow">
+            <span class="hint-char">{{ drawnCard.name.charAt(0) }}</span>
+          </div>
+        </div>
+
         <Card :card="drawnCard" />
+
+        <!-- 拂去墨迹按钮（残片拼接阶段） -->
+        <button
+          v-if="revealPhase === 'partial'"
+          class="reset-btn brush-ink-btn"
+          data-testid="brush-ink-button"
+          @click="revealInk"
+        >
+          <span class="brush-icon">💧</span>拂去墨迹
+        </button>
+
         <!-- 免费次数剩余时，点击关闭卡片再点击墨池继续免费抽卡 -->
         <button
-          v-if="remainingFreeDraws > 0"
+          v-if="revealPhase === 'full' && remainingFreeDraws > 0"
           class="reset-btn"
           data-testid="card-modal-close"
           @click="reset"
         >关闭</button>
         <!-- 免费次数用尽时，点击触发付费抽卡 -->
         <button
-          v-else
+          v-if="revealPhase === 'full' && remainingFreeDraws <= 0"
           class="reset-btn"
           data-testid="draw-again-button"
           @click="handleDraw"
@@ -326,6 +383,7 @@ function reset() {
   align-items: center;
   gap: 1.5rem;
   animation: cardReveal 0.5s ease-out;
+  position: relative;
 }
 
 @keyframes cardReveal {
@@ -430,5 +488,94 @@ function reset() {
   color: #c96c6c;
   font-size: 0.85rem;
   padding: 0.5rem;
+}
+
+/* 今日运势预兆文字 */
+.fortune-text {
+  font-size: 0.85rem;
+  color: rgba(232, 220, 200, 0.35);
+  font-style: italic;
+  letter-spacing: 0.1em;
+  text-align: center;
+  margin: 0;
+  padding: 0 1rem;
+  animation: fortuneFadeIn 1s ease-out;
+}
+
+@keyframes fortuneFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 残片拼接墨迹遮罩 */
+.ink-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(15, 12, 8, 0.85) 0%, rgba(5, 3, 2, 0.95) 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  animation: inkOverlayIn 0.3s ease-out;
+  transition: opacity 0.5s ease;
+}
+
+.ink-overlay.fading {
+  opacity: 0;
+}
+
+/* 中心透明圆孔 */
+.ink-hollow {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 0%, transparent 60%, rgba(30, 20, 10, 0.8) 100%);
+  box-shadow: 0 0 0 9999px rgba(10, 8, 5, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hint-char {
+  font-size: 2.5rem;
+  color: rgba(232, 220, 200, 0.2);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes inkOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 拂去墨迹按钮 */
+.brush-ink-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.5rem;
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 2px;
+  color: rgba(201, 168, 76, 0.8);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.3s ease;
+}
+
+.brush-ink-btn:hover {
+  background: rgba(201, 168, 76, 0.2);
+  border-color: rgba(201, 168, 76, 0.7);
+  color: #c9a84c;
+}
+
+.brush-icon {
+  font-size: 1rem;
 }
 </style>
