@@ -8,10 +8,15 @@ import {
   finishStoryWithMock,
   startNewStory,
   resetChapterHistory,
+  fetchChapterProgress,
   type Story,
   type Chapter,
   type Manuscript,
 } from '@/services/api'
+
+// ===== 断线重连配置 =====
+const RECONNECT_DELAYS = [1000, 2000, 4000, 8000] // 指数退避：1s/2s/4s/8s
+const MAX_RECONNECT_ATTEMPTS = 5
 
 export const useStoryStore = defineStore('story', () => {
   // ===== State =====
@@ -44,6 +49,182 @@ export const useStoryStore = defineStore('story', () => {
   // 关键词共鸣值追踪
   const keywordResonance = ref<Record<number, number>>({})
 
+  // ===== S-16 断线重连状态 =====
+  const wsStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
+  const ws = ref<WebSocket | null>(null)
+  const reconnectAttempts = ref(0)
+  const reconnectTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+
+  // 当前正在监听的流
+  const currentStream = ref<{
+    storyId: string
+    chapterNo: number
+  } | null>(null)
+
+  // ===== Draft Key =====
+  function draftKey(storyId: string, chapterNo: number) {
+    return `story_draft:${storyId}:${chapterNo}`
+  }
+
+  // ===== S-16 Actions: Draft 管理 =====
+
+  /**
+   * 将新收到的文本 append 到 localStorage 草稿
+   */
+  function saveDraft(storyId: string, chapterNo: number, newText: string) {
+    const key = draftKey(storyId, chapterNo)
+    const existing = localStorage.getItem(key) ?? ''
+    localStorage.setItem(key, existing + newText)
+  }
+
+  /**
+   * 读取 localStorage 草稿
+   */
+  function getDraft(storyId: string, chapterNo: number): string {
+    return localStorage.getItem(draftKey(storyId, chapterNo)) ?? ''
+  }
+
+  /**
+   * 清除 localStorage 草稿（章节完成后调用）
+   */
+  function clearDraft(storyId: string, chapterNo: number) {
+    localStorage.removeItem(draftKey(storyId, chapterNo))
+  }
+
+  // ===== S-16 Actions: WebSocket 流式连接 =====
+
+  /**
+   * 连接 WebSocket 流式接口，并注册标准回调
+   * - onChunk(text): 收到文本片段
+   * - onOptions(options): 收到选项列表（流式结束）
+   * - onReconnect(draft): 断线重连后调用，draft=草稿文本
+   * - onError(): 连接失败
+   */
+  function connectStream(params: {
+    storyId: string
+    chapterNo: number
+    onChunk: (text: string) => void
+    onOptions: (options: Array<{ id: number; text: string }>) => void
+    onReconnect: (draft: string, serverLength: number) => void
+    onError: () => void
+  }) {
+    const { storyId, chapterNo, onChunk, onOptions, onReconnect, onError } = params
+
+    // 记录当前流
+    currentStream.value = { storyId, chapterNo }
+
+    // 关闭已有连接
+    disconnectStream()
+
+    wsStatus.value = 'connecting'
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/api/story/${storyId}/ws`
+    const socket = new WebSocket(wsUrl)
+    ws.value = socket
+
+    socket.addEventListener('open', () => {
+      console.log('[storyStore] WebSocket connected')
+      wsStatus.value = 'connected'
+      reconnectAttempts.value = 0
+
+      // 重连后：对比服务端进度与本地草稿，决定是否需要补全
+      fetchChapterProgress(storyId, chapterNo)
+        .then(progress => {
+          const serverLength = progress.generatedLength ?? 0
+          const localDraft = getDraft(storyId, chapterNo)
+          if (serverLength > localDraft.length) {
+            // 服务端有更多内容，触发补全回调
+            onReconnect(localDraft, serverLength)
+          }
+        })
+        .catch(() => {
+          // 无法获取进度，触发补全回调用本地草稿
+          onReconnect(getDraft(storyId, chapterNo), 0)
+        })
+    })
+
+    socket.addEventListener('message', (event) => {
+      try {
+        const msg = JSON.parse(event.data as string)
+        if (msg.type === 'scene_text' && msg.text) {
+          // 保存草稿
+          saveDraft(storyId, chapterNo, msg.text)
+          // 通知调用方
+          onChunk(msg.text)
+        } else if (msg.type === 'options') {
+          // 流式结束，清理草稿
+          clearDraft(storyId, chapterNo)
+          onOptions(msg.options ?? [])
+        }
+      } catch (e) {
+        // 非 JSON 文本片段直接追加（兼容旧协议）
+        saveDraft(storyId, chapterNo, event.data as string)
+        onChunk(event.data as string)
+      }
+    })
+
+    socket.addEventListener('close', () => {
+      console.log('[storyStore] WebSocket closed')
+      if (currentStream.value?.storyId === storyId && currentStream.value?.chapterNo === chapterNo) {
+        wsStatus.value = 'disconnected'
+        scheduleReconnect(params)
+      }
+    })
+
+    socket.addEventListener('error', () => {
+      console.warn('[storyStore] WebSocket error')
+      wsStatus.value = 'disconnected'
+      socket.close()
+      onError()
+    })
+  }
+
+  /**
+   * 断开 WebSocket 并取消重连
+   */
+  function disconnectStream() {
+    if (reconnectTimer.value !== null) {
+      clearTimeout(reconnectTimer.value)
+      reconnectTimer.value = null
+    }
+    if (ws.value) {
+      ws.value.close()
+      ws.value = null
+    }
+    wsStatus.value = 'disconnected'
+    currentStream.value = null
+    reconnectAttempts.value = 0
+  }
+
+  /**
+   * 指数退避重连调度
+   */
+  function scheduleReconnect(params: {
+    storyId: string
+    chapterNo: number
+    onChunk: (text: string) => void
+    onOptions: (options: Array<{ id: number; text: string }>) => void
+    onReconnect: (draft: string, serverLength: number) => void
+    onError: () => void
+  }) {
+    const { storyId, chapterNo } = params
+
+    if (reconnectAttempts.value >= MAX_RECONNECT_ATTEMPTS) {
+      console.warn(`[storyStore] Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached for story=${storyId}, chapter=${chapterNo}`)
+      reconnectAttempts.value = 0
+      return
+    }
+
+    const delay = RECONNECT_DELAYS[reconnectAttempts.value] ?? RECONNECT_DELAYS[RECONNECT_DELAYS.length - 1]
+    console.log(`[storyStore] Scheduling reconnect attempt ${reconnectAttempts.value + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`)
+    reconnectAttempts.value++
+
+    reconnectTimer.value = setTimeout(() => {
+      reconnectTimer.value = null
+      connectStream(params)
+    }, delay)
+  }
+
   // ===== Actions =====
 
   async function fetchChapterAction(storyId: string, chapterNo: number) {
@@ -62,16 +243,11 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
-  async function submitChoice(
-    chapterId: string,
-    chapterNo: number,
-    optionId: number,
-    gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
-  ) {
+  async function submitChoice(storyId: string, chapterNo: number, optionId: number) {
     isLoading.value = true
     error.value = null
     try {
-      const res = await submitChoiceWithMock(chapterId, chapterNo, optionId, gestureIntensity)
+      const res = await submitChoiceWithMock(storyId, chapterNo, optionId)
 
       // 记录选择
       chapters.value.push({
@@ -195,6 +371,7 @@ export const useStoryStore = defineStore('story', () => {
     entryAnswers.value = []
     keywordResonance.value = {}
     error.value = null
+    disconnectStream()
   }
 
   /**
@@ -222,6 +399,10 @@ export const useStoryStore = defineStore('story', () => {
     isLoadingChapter,
     isLoadingManuscript,
     error,
+    // S-16 Stream state
+    wsStatus,
+    ws,
+    reconnectAttempts,
     // Actions
     fetchChapter: fetchChapterAction,
     submitChoice,
@@ -232,5 +413,11 @@ export const useStoryStore = defineStore('story', () => {
     setCurrentStory,
     clearCurrentStory,
     updateKeywordResonance,
+    // S-16 Actions
+    connectStream,
+    disconnectStream,
+    saveDraft,
+    getDraft,
+    clearDraft,
   }
 })
