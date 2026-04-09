@@ -82,6 +82,43 @@ test.describe('墨池抽卡模块', () => {
     await expect(page.locator('[data-testid="free-draws-count"]')).toContainText('3/3')
   })
 
+  test('C-08 墨迹占卜：今日运势应正确显示在墨池上方', async ({ page }) => {
+    // Mock 墨迹占卜 API（先注册路由，再导航）
+    await page.route('**/api/card/fortune', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 200,
+          message: 'success',
+          data: {
+            fortune: '今日墨色偏青，似有旧物来寻。',
+            hint: '器物',
+          },
+        }),
+      })
+    })
+
+    await page.goto(`${BASE_URL}/pool`)
+    await loginAsUser(page)
+
+    // 等待 Vue SPA 完全挂载（app 容器出现）
+    await page.waitForSelector('[data-testid="ink-pool-container"]', { state: 'visible', timeout: 15000 })
+
+    // 等待运势文字出现（API 响应 + 3秒 fadeIn 动画）
+    await page.waitForSelector('[data-testid="fortune-text"]', { state: 'visible', timeout: 15000 })
+
+    // 验证运势文案可见
+    const fortuneText = page.locator('[data-testid="fortune-text"]')
+    await expect(fortuneText).toBeVisible()
+    await expect(fortuneText).toContainText('今日墨色偏青')
+
+    // 验证运势 category（暗示类别）可见
+    const fortuneCategory = page.locator('[data-testid="fortune-category"]')
+    await expect(fortuneCategory).toBeVisible()
+    await expect(fortuneCategory).toContainText('器物')
+  })
+
   test('点击墨池应该触发抽卡动画', async ({ page }) => {
     // 监听抽卡开始的动画
     const animationPromise = page.waitForSelector(

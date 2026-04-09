@@ -64,6 +64,33 @@ describe('API functions', () => {
     return mod
   }
 
+  // ─── fetchFortune (C-08 墨迹占卜) ─────────────────────────────────────────
+
+  it('fetchFortune calls GET /card/fortune and returns fortune + hint', async () => {
+    const mockData = { fortune: '今日墨色偏青，似有旧物来寻。', hint: '器物' }
+    mockInstance.get.mockResolvedValueOnce(mockData)
+
+    const { fetchFortune } = await reloadApi()
+    const result = await fetchFortune()
+
+    expect(mockInstance.get).toHaveBeenCalledWith('/card/fortune')
+    expect(result.fortune).toBe('今日墨色偏青，似有旧物来寻。')
+    expect(result.hint).toBe('器物')
+  })
+
+  it('fetchFortune returns correct shape', async () => {
+    const mockData = { fortune: '池中落了一片桂花，或有故人将至。', hint: '职人' }
+    mockInstance.get.mockResolvedValueOnce(mockData)
+
+    const { fetchFortune } = await reloadApi()
+    const result = await fetchFortune()
+
+    expect(result).toHaveProperty('fortune')
+    expect(result).toHaveProperty('hint')
+    expect(typeof result.fortune).toBe('string')
+    expect(typeof result.hint).toBe('string')
+  })
+
   // ─── fetchKeywordCard ────────────────────────────────────────────────────────
 
   it('fetchKeywordCard calls GET /card/keyword and returns data', async () => {

@@ -130,7 +130,9 @@ async function onCardDrawn(card: Record<string, unknown> | null) {
   }
 
   playInkDrop()
-}(currentDrawId = -1) {
+}
+
+async function applyMockDraw(currentDrawId = -1) {
   // 使用本地 mock 数据（模拟抽卡动画 1.5s）
   await new Promise(resolve => setTimeout(resolve, 1500))
   // 如果 drawId 已变化（用户已重置），忽略本次结果
@@ -332,10 +334,9 @@ function onCardRevealed() {
       <div
         v-if="!hasDrawn && currentFortune"
         class="fortune-wrapper"
-        data-testid="fortune-text"
       >
-        <p class="fortune-text">{{ currentFortune }}</p>
-        <p class="fortune-hint">墨中有物，拂去墨迹</p>
+        <p class="fortune-text" data-testid="fortune-text">{{ currentFortune }}</p>
+        <p class="fortune-hint" data-testid="fortune-category">{{ fortuneHint }}</p>
       </div>
 
       <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">

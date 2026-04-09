@@ -550,4 +550,7 @@ export async function invokeWxPay(payParams: WxPayParams): Promise<void> {
   })
 }
 
+// Re-export aiPainter for CardsView compatibility
+export { aiPainter } from './aiPainter'
+
 export default api
