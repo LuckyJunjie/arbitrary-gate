@@ -6,15 +6,19 @@
 
 # Test info
 
-- Name: bookshelf.spec.ts >> 书架视图切换 >> 应该支持山河图视图切换
-- Location: tests/e2e/bookshelf.spec.ts:154:3
+- Name: bookshelf.spec.ts >> 书架视图切换 >> 山河图视图应该显示地图标记
+- Location: tests/e2e/bookshelf.spec.ts:173:3
 
 # Error details
 
 ```
-TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+Test timeout of 30000ms exceeded.
+```
+
+```
+Error: locator.click: Test timeout of 30000ms exceeded.
 Call log:
-  - waiting for locator('[data-testid="view-toggle"]') to be visible
+  - waiting for locator('[data-testid="view-toggle-map"]')
 
 ```
 
@@ -40,25 +44,6 @@ Call log:
 # Test source
 
 ```ts
-  55  |         id: 3,
-  56  |         storyNo: 'SN003',
-  57  |         title: '待续...',
-  58  |         eventName: '玄武门·李世民射兄',
-  59  |         status: 'in_progress',
-  60  |         historyDeviation: 50,
-  61  |         wordCount: 0,
-  62  |         createdAt: '2024-01-17T09:00:00Z',
-  63  |         finishedAt: null,
-  64  |         keywords: [
-  65  |           { id: 5, name: '铜锁芯', rarity: 2 },
-  66  |         ],
-  67  |         currentChapter: 2,
-  68  |         totalChapters: 5,
-  69  |       },
-  70  |     ]
-  71  | 
-  72  |     localStorage.setItem('bookshelf_stories', JSON.stringify(mockStories))
-  73  |     localStorage.setItem('currentUserId', '1')
   74  |   })
   75  | }
   76  | 
@@ -140,8 +125,7 @@ Call log:
   152 |   })
   153 | 
   154 |   test('应该支持山河图视图切换', async ({ page }) => {
-> 155 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
-      |                ^ TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+  155 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
   156 | 
   157 |     // 点击山河图视图按钮
   158 |     await page.locator('[data-testid="view-toggle-map"]').click()
@@ -160,7 +144,8 @@ Call log:
   171 |   })
   172 | 
   173 |   test('山河图视图应该显示地图标记', async ({ page }) => {
-  174 |     await page.locator('[data-testid="view-toggle-map"]').click()
+> 174 |     await page.locator('[data-testid="view-toggle-map"]').click()
+      |                                                           ^ Error: locator.click: Test timeout of 30000ms exceeded.
   175 |     await page.waitForSelector('[data-testid="map-view"]', { timeout: 5000 })
   176 | 
   177 |     // 检查地图标记点
@@ -242,4 +227,23 @@ Call log:
   253 | 
   254 |     // 验证排序（最新在前）
   255 |     const dates = page.locator('[data-testid="story-date"]')
+  256 |     const firstDate = await dates.first().textContent()
+  257 | 
+  258 |     expect(firstDate).toBeTruthy()
+  259 |   })
+  260 | 
+  261 |   test('应该支持按偏离度排序', async ({ page }) => {
+  262 |     await page.locator('[data-testid="sort-select"]').click()
+  263 |     await page.locator('[data-testid="sort-option-deviation"]').click()
+  264 |     await page.waitForTimeout(500)
+  265 | 
+  266 |     // 验证偏离度指示器显示
+  267 |     await expect(page.locator('[data-testid="deviation-badge"]').first()).toBeVisible()
+  268 |   })
+  269 | 
+  270 |   test('应该支持按字数排序', async ({ page }) => {
+  271 |     await page.locator('[data-testid="sort-select"]').click()
+  272 |     await page.locator('[data-testid="sort-option-words"]').click()
+  273 |     await page.waitForTimeout(500)
+  274 | 
 ```

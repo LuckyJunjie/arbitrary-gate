@@ -55,12 +55,8 @@ export function filterLocal(text: string): string {
   let result = text
 
   for (const [word, replacement] of Object.entries(REPLACEMENTS)) {
-    // 匹配中文词汇（前后有汉字边界，或在标点/空格旁）
-    const pattern = new RegExp(
-      `(?<=[\\u4e00-\\u9fff])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=[\\u4e00-\\u9fff\\s。，、；：！？])`,
-      'g'
-    )
-    result = result.replace(pattern, replacement)
+    // 直接替换所有出现的目标词（全局替换）
+    result = result.split(word).join(replacement)
   }
 
   // 清理连续空格

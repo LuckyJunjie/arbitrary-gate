@@ -6,15 +6,15 @@
 
 # Test info
 
-- Name: bookshelf.spec.ts >> 书架视图切换 >> 应该支持山河图视图切换
-- Location: tests/e2e/bookshelf.spec.ts:154:3
+- Name: bookshelf.spec.ts >> 书架筛选功能 >> 应该支持按状态筛选
+- Location: tests/e2e/bookshelf.spec.ts:192:3
 
 # Error details
 
 ```
 TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
 Call log:
-  - waiting for locator('[data-testid="view-toggle"]') to be visible
+  - waiting for locator('[data-testid="story-card"]') to be visible
 
 ```
 
@@ -40,40 +40,6 @@ Call log:
 # Test source
 
 ```ts
-  55  |         id: 3,
-  56  |         storyNo: 'SN003',
-  57  |         title: '待续...',
-  58  |         eventName: '玄武门·李世民射兄',
-  59  |         status: 'in_progress',
-  60  |         historyDeviation: 50,
-  61  |         wordCount: 0,
-  62  |         createdAt: '2024-01-17T09:00:00Z',
-  63  |         finishedAt: null,
-  64  |         keywords: [
-  65  |           { id: 5, name: '铜锁芯', rarity: 2 },
-  66  |         ],
-  67  |         currentChapter: 2,
-  68  |         totalChapters: 5,
-  69  |       },
-  70  |     ]
-  71  | 
-  72  |     localStorage.setItem('bookshelf_stories', JSON.stringify(mockStories))
-  73  |     localStorage.setItem('currentUserId', '1')
-  74  |   })
-  75  | }
-  76  | 
-  77  | // ==================== E2E 测试用例 ====================
-  78  | 
-  79  | test.describe('书架管理模块', () => {
-  80  | 
-  81  |   test.beforeEach(async ({ page }) => {
-  82  |     await page.goto(`${BASE_URL}/bookshelf`)
-  83  |     await setupMockData(page)
-  84  |     await page.reload()
-  85  |   })
-  86  | 
-  87  |   test('书架页面应该正确加载', async ({ page }) => {
-  88  |     // 等待书架容器加载
   89  |     await expect(page.locator('[data-testid="bookshelf-container"]')).toBeVisible({ timeout: 10000 })
   90  | 
   91  |     // 检查书架标题
@@ -140,8 +106,7 @@ Call log:
   152 |   })
   153 | 
   154 |   test('应该支持山河图视图切换', async ({ page }) => {
-> 155 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
-      |                ^ TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+  155 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
   156 | 
   157 |     // 点击山河图视图按钮
   158 |     await page.locator('[data-testid="view-toggle-map"]').click()
@@ -175,7 +140,8 @@ Call log:
   186 |     await page.goto(`${BASE_URL}/bookshelf`)
   187 |     await setupMockData(page)
   188 |     await page.reload()
-  189 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
+> 189 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
+      |                ^ TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
   190 |   })
   191 | 
   192 |   test('应该支持按状态筛选', async ({ page }) => {
@@ -242,4 +208,38 @@ Call log:
   253 | 
   254 |     // 验证排序（最新在前）
   255 |     const dates = page.locator('[data-testid="story-date"]')
+  256 |     const firstDate = await dates.first().textContent()
+  257 | 
+  258 |     expect(firstDate).toBeTruthy()
+  259 |   })
+  260 | 
+  261 |   test('应该支持按偏离度排序', async ({ page }) => {
+  262 |     await page.locator('[data-testid="sort-select"]').click()
+  263 |     await page.locator('[data-testid="sort-option-deviation"]').click()
+  264 |     await page.waitForTimeout(500)
+  265 | 
+  266 |     // 验证偏离度指示器显示
+  267 |     await expect(page.locator('[data-testid="deviation-badge"]').first()).toBeVisible()
+  268 |   })
+  269 | 
+  270 |   test('应该支持按字数排序', async ({ page }) => {
+  271 |     await page.locator('[data-testid="sort-select"]').click()
+  272 |     await page.locator('[data-testid="sort-option-words"]').click()
+  273 |     await page.waitForTimeout(500)
+  274 | 
+  275 |     // 验证字数显示
+  276 |     await expect(page.locator('[data-testid="word-count-badge"]').first()).toBeVisible()
+  277 |   })
+  278 | })
+  279 | 
+  280 | test.describe('故事卡操作', () => {
+  281 | 
+  282 |   test.beforeEach(async ({ page }) => {
+  283 |     await page.goto(`${BASE_URL}/bookshelf`)
+  284 |     await setupMockData(page)
+  285 |     await page.reload()
+  286 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
+  287 |   })
+  288 | 
+  289 |   test('点击故事卡应该打开详情', async ({ page }) => {
 ```
