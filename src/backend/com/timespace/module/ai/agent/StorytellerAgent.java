@@ -85,9 +85,27 @@ public class StorytellerAgent {
                                                                           List<StoryChapter> chapters,
                                                                           List<KeywordCard> keywords,
                                                                           List<StoryCharacter> characters) {
-        log.info("说书人生成手稿（含备选标题）: storyId={}, chapters={}", story.getId(), chapters.size());
+        return generateManuscriptWithTitles(story, chapters, keywords, characters, "");
+    }
 
-        String systemPrompt = buildManuscriptSystemPromptWithTitles(story, keywords, characters);
+    /**
+     * 生成完整手稿（含3个备选标题和题记），支持关键词融入强调
+     *
+     * @param story           故事元信息
+     * @param chapters        所有章节
+     * @param keywords        关键词卡列表
+     * @param characters      配角列表
+     * @param emphasisPrompt  关键词融入强调 prompt（由 KeywordChecker 生成）
+     */
+    public AIGatewayService.ManuscriptResult generateManuscriptWithTitles(Story story,
+                                                                          List<StoryChapter> chapters,
+                                                                          List<KeywordCard> keywords,
+                                                                          List<StoryCharacter> characters,
+                                                                          String emphasisPrompt) {
+        log.info("说书人生成手稿（含备选标题）: storyId={}, chapters={}, hasEmphasis={}",
+                story.getId(), chapters.size(), emphasisPrompt != null && !emphasisPrompt.isBlank());
+
+        String systemPrompt = buildManuscriptSystemPromptWithTitles(story, keywords, characters, emphasisPrompt);
         String userMessage = buildManuscriptUserMessage(story, chapters);
 
         String response = aiClient.callSync(systemPrompt, userMessage);
@@ -284,6 +302,17 @@ public class StorytellerAgent {
 
     private String buildManuscriptSystemPromptWithTitles(Story story, List<KeywordCard> keywords,
                                                          List<StoryCharacter> characters) {
+        return buildManuscriptSystemPromptWithTitles(story, keywords, characters, "");
+    }
+
+    private String buildManuscriptSystemPromptWithTitles(Story story, List<KeywordCard> keywords,
+                                                         List<StoryCharacter> characters,
+                                                         String emphasisPrompt) {
+        String keywordList = keywords.stream().map(KeywordCard::getName).collect(Collectors.joining("、"));
+        String emphasisSection = (emphasisPrompt != null && !emphasisPrompt.isBlank())
+                ? "\n\n【关键词融入强调】" + emphasisPrompt
+                : "";
+
         return String.format("""
                 你是一位资深文学编辑，擅长润色和整合故事文本。
 
@@ -305,7 +334,7 @@ public class StorytellerAgent {
                 - 禁止"宛如""仿佛""无法言说"等AI腔
                 - 结局要有情感力量
                 - 字数控制在3000-8000字
-                - 标题要典雅、有意境
+                - 标题要典雅、有意境%s
 
                 请用以下JSON格式返回（必须严格遵守格式）：
                 {
@@ -313,9 +342,10 @@ public class StorytellerAgent {
                   "titles": ["标题1", "标题2", "标题3"]
                 }
                 """,
-                keywords.stream().map(KeywordCard::getName).collect(Collectors.joining("、")),
+                keywordList.isEmpty() ? "无" : keywordList,
                 getStyleName(story.getStyle()),
-                getStyleName(story.getStyle())
+                getStyleName(story.getStyle()),
+                emphasisSection
         );
     }
 

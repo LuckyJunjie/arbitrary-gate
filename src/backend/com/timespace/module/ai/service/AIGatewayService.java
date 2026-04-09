@@ -6,6 +6,7 @@ import com.timespace.module.ai.agent.JudgeAgent;
 import com.timespace.module.ai.agent.StorytellerAgent;
 import com.timespace.module.ai.agent.ZhangyanAgent;
 import com.timespace.module.ai.client.AIClient;
+import com.timespace.module.ai.util.KeywordChecker;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.service.CardService;
 import com.timespace.module.story.controller.StoryController.QuestionItem;
@@ -205,28 +206,53 @@ public class AIGatewayService {
         log.info("AI生成手稿（含备选标题）: storyId={}, chapters={}", story.getId(), chapters.size());
 
         int maxRetries = 3;
-        ManuscriptResult result = storytellerAgent.generateManuscriptWithTitles(story, chapters, keywords, characters);
+        int maxKeywordRetries = 2; // AI-09: 关键词融入检测最多重试2次
+        ManuscriptResult result = storytellerAgent.generateManuscriptWithTitles(story, chapters, keywords, characters, "");
+        String currentEmphasisPrompt = "";
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             ContentSafetyChecker.SafetyResult safetyResult = contentSafetyChecker.check(result.getManuscriptText());
-            if (safetyResult.isSafe()) {
-                if (attempt > 1) {
-                    log.info("[ContentSafety] 手稿（含标题）第{}次检测通过", attempt);
+            if (!safetyResult.isSafe()) {
+                log.warn("[ContentSafety] 手稿（含标题）第{}次检测不通过: {}，尝试重新生成...",
+                        attempt, safetyResult.getReason());
+                if (attempt < maxRetries) {
+                    try {
+                        result = storytellerAgent.generateManuscriptWithTitles(story, chapters, keywords, characters, currentEmphasisPrompt);
+                    } catch (Exception e) {
+                        log.warn("[ContentSafety] 手稿（含标题）重新生成失败: {}", e.getMessage());
+                    }
                 }
-                // 题记掌眼过滤
-                String filteredInscription = filterInscriptionWithZhangyan(result.inscription(), story, keywords);
-                return new ManuscriptResult(result.manuscriptText(), result.candidateTitles(), filteredInscription);
+                continue;
             }
-            log.warn("[ContentSafety] 手稿（含标题）第{}次检测不通过: {}，尝试重新生成...",
-                    attempt, safetyResult.getReason());
 
-            if (attempt < maxRetries) {
-                try {
-                    result = storytellerAgent.generateManuscriptWithTitles(story, chapters, keywords, characters);
-                } catch (Exception e) {
-                    log.warn("[ContentSafety] 手稿（含标题）重新生成失败: {}", e.getMessage());
+            // ====== AI-09: 关键词融入率检测 ======
+            KeywordChecker.CheckResult keywordCheck = KeywordChecker.checkManuscript(
+                    result.getManuscriptText(), keywords);
+
+            if (!keywordCheck.isAllIntegrated()) {
+                log.warn("[KeywordChecker] 第{}次检测：关键词未完全融入，缺失={}, 尝试重新生成...",
+                        attempt, keywordCheck.getMissingKeywords());
+
+                if (attempt <= maxKeywordRetries) {
+                    // 生成强调 prompt 并重新生成
+                    currentEmphasisPrompt = keywordCheck.getEmphasisPrompt();
+                    try {
+                        result = storytellerAgent.generateManuscriptWithTitles(story, chapters, keywords, characters, currentEmphasisPrompt);
+                        continue; // 重新进入安全检测循环
+                    } catch (Exception e) {
+                        log.warn("[KeywordChecker] 关键词融入重试失败: {}", e.getMessage());
+                    }
+                } else {
+                    log.warn("[KeywordChecker] 关键词融入重试已达上限，使用当前手稿（可能缺失关键词）");
                 }
             }
+
+            // 内容安全和关键词检测都通过
+            if (attempt > 1) {
+                log.info("[ContentSafety+Keyword] 手稿（含标题）第{}次检测通过", attempt);
+            }
+            String filteredInscription = filterInscriptionWithZhangyan(result.inscription(), story, keywords);
+            return new ManuscriptResult(result.manuscriptText(), result.candidateTitles(), filteredInscription);
         }
 
         log.error("[ContentSafety] 手稿内容安全检测{}次均不通过，使用兜底文案", maxRetries);
