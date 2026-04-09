@@ -488,6 +488,13 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
 
         log.info("故事创建成功: storyId={}, storyNo={}", story.getId(), story.getStoryNo());
 
+        // E-07: 提取关键词落位（仅第一章有值）
+        List<StoryChapter.KeywordPosition> keywordPositions = null;
+        if (firstChapter != null && firstChapter.getKeywordPositions() != null && !firstChapter.getKeywordPositions().isEmpty()) {
+            keywordPositions = firstChapter.getKeywordPositions();
+            log.info("关键词落位已生成: {}", keywordPositions);
+        }
+
         return StartStoryVO.builder()
                 .storyId(story.getId())
                 .storyNo(story.getStoryNo())
@@ -497,6 +504,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .chapter(firstChapter)
                 .characters(characters)
                 .keywords(keywords)
+                .keywordPositions(keywordPositions)
                 .build();
     }
 
@@ -1094,6 +1102,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private StoryChapter chapter;
         private List<StoryCharacter> characters;
         private List<KeywordCard> keywords;
+        /** E-07 关键词落位：三个关键词的角色归属 */
+        private List<StoryChapter.KeywordPosition> keywordPositions;
     }
 
     @Data @lombok.Builder

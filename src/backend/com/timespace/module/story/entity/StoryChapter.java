@@ -32,6 +32,8 @@ public class StoryChapter {
 
     private List<CharacterAppearance> characterAppearances; // 配角初见印象
 
+    private List<KeywordPosition> keywordPositions; // 关键词落位（仅第一章有值）
+
     private String aiFullText;       // AI生成的完整叙述
 
     private String chapterComment;   // 章节判官判词（用于前端展示）
@@ -57,5 +59,16 @@ public class StoryChapter {
     public static class CharacterAppearance {
         private String name;          // 配角名称
         private String firstImpression; // 初见印象（一句话，不超过30字）
+    }
+
+    /**
+     * E-07 关键词落位
+     * AI 生成开局时标注三个关键词的角色归属
+     */
+    @Data
+    public static class KeywordPosition {
+        private String keyword;      // 关键词名称
+        private String role;        // 角色：核心意象 / 转折道具 / 人物关联
+        private String roleOwner;   // 人物关联时的配角名（可为空）
     }
 }

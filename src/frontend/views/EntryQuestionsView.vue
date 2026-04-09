@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
-import { generateEntryQuestions, submitEntryAnswers } from '@/services/api'
+import { generateEntryQuestions, submitEntryAnswers, type KeywordPosition } from '@/services/api'
 
 // ==================== 类型定义 ====================
 
@@ -69,6 +69,9 @@ const selectedEvent = ref<{ id: number; name: string } | null>(null)
 
 // 风格选择（默认白描）
 const selectedStyle = ref<number>(1)
+
+// E-07: 关键词落位可视化
+const keywordPositions = ref<KeywordPosition[]>([])
 
 // ==================== 计算属性 ====================
 
@@ -185,6 +188,11 @@ async function handleSubmit() {
       style: selectedStyle.value,
     })
 
+    // E-07: 保存关键词落位
+    if (story.keywordPositions && story.keywordPositions.length > 0) {
+      keywordPositions.value = story.keywordPositions
+    }
+
     // 保存到 storyStore
     storyStore.setCurrentStory(story)
     storyStore.entryAnswers = entryAnswers
@@ -207,6 +215,16 @@ function handleSkip() {
   storyStore.startStory({ keywords: keywordIds }).then(story => {
     router.push(`/story/${story.id}`)
   })
+}
+
+/** E-07 根据角色类型返回 CSS 类名 */
+function getRoleClass(role: string): string {
+  switch (role) {
+    case '核心意象': return 'role-core'
+    case '转折道具': return 'role-prop'
+    case '人物关联': return 'role-relation'
+    default: return ''
+  }
 }
 </script>
 
@@ -298,6 +316,34 @@ function handleSkip() {
             />
             <span class="q-char-count">{{ (answers[q.id] || '').length }}/200</span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- E-07 关键词落位可视化 -->
+    <div v-if="keywordPositions.length > 0" class="keyword-position-section">
+      <div class="position-title">命轮落位</div>
+      <!-- 泥金色连线 -->
+      <div class="position-connector">
+        <div class="connector-line" />
+        <div class="connector-line" />
+        <div class="connector-line" />
+      </div>
+      <!-- 三列卡片 -->
+      <div class="position-cards">
+        <div
+          v-for="pos in keywordPositions"
+          :key="pos.keyword"
+          class="position-card"
+        >
+          <span class="card-role-tag" :class="getRoleClass(pos.role)">
+            {{ pos.role }}
+          </span>
+          <p class="card-keyword">{{ pos.keyword }}</p>
+          <span v-if="pos.roleOwner" class="card-role-owner">
+            <span class="owner-icon">⬡</span>
+            {{ pos.roleOwner }}
+          </span>
         </div>
       </div>
     </div>
@@ -733,5 +779,126 @@ function handleSkip() {
 .confirm-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ── E-07 关键词落位可视化 ── */
+.keyword-position-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  margin: 0 1.5rem 0.5rem;
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 6px;
+  background: rgba(201, 168, 76, 0.06);
+}
+
+.position-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  color: rgba(201, 168, 76, 0.6);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* 泥金色连线 */
+.position-connector {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  position: relative;
+}
+
+.connector-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(201, 168, 76, 0.6) 20%,
+    rgba(201, 168, 76, 0.8) 50%,
+    rgba(201, 168, 76, 0.6) 80%,
+    transparent 100%
+  );
+  position: relative;
+}
+
+/* 三列卡片布局 */
+.position-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  width: 100%;
+}
+
+.position-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 0.5rem;
+  background: rgba(245, 239, 224, 0.05);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 4px;
+  position: relative;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.position-card:hover {
+  border-color: rgba(201, 168, 76, 0.6);
+  box-shadow: 0 0 8px rgba(201, 168, 76, 0.15);
+}
+
+/* 角色标签 */
+.card-role-tag {
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.role-core {
+  background: rgba(201, 168, 76, 0.2);
+  border: 1px solid rgba(201, 168, 76, 0.5);
+  color: #c9a84c;
+}
+
+.role-prop {
+  background: rgba(180, 100, 60, 0.2);
+  border: 1px solid rgba(180, 100, 60, 0.5);
+  color: #d4a574;
+}
+
+.role-relation {
+  background: rgba(100, 150, 130, 0.2);
+  border: 1px solid rgba(100, 150, 130, 0.5);
+  color: #8fb8a8;
+}
+
+/* 关键词文字 */
+.card-keyword {
+  font-size: 1rem;
+  color: #e8dcc8;
+  margin: 0;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+/* 角色归属 */
+.card-role-owner {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  color: rgba(201, 168, 76, 0.7);
+  letter-spacing: 0.1em;
+}
+
+.owner-icon {
+  font-size: 0.55rem;
+  color: rgba(201, 168, 76, 0.5);
 }
 </style>

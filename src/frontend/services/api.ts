@@ -117,6 +117,15 @@ export interface Story {
   historyDeviation: number
   createdAt: string
   finishedAt?: string
+  /** E-07 关键词落位 */
+  keywordPositions?: KeywordPosition[]
+}
+
+/** E-07 关键词落位 */
+export interface KeywordPosition {
+  keyword: string
+  role: '核心意象' | '转折道具' | '人物关联'
+  roleOwner?: string | null
 }
 
 export interface Manuscript {
@@ -383,6 +392,143 @@ export async function submitEntryAnswers(
   payload: SubmitAnswersRequest
 ): Promise<Story> {
   return api.post('/story/answers', payload)
+}
+
+// ========== 分享合券 API ==========
+
+export interface CreateShareRequest {
+  storyId: number
+  cardId: number
+}
+
+export interface CreateShareResponse {
+  shareCode: string
+  cardName: string
+  cardCategory: number
+  expiresAt: string
+  storyTitle: string
+}
+
+export interface ShareInfoResponse {
+  shareCode: string
+  cardName: string
+  cardCategory: number
+  storyTitle: string
+  storyId: number
+  status: 'pending' | 'jointed'
+  expiresAt: string
+}
+
+export interface JointShareRequest {
+  cardId: number
+}
+
+export interface JointShareResponse {
+  success: boolean
+  message: string
+  storyTitle: string
+  storyId: number
+  specialCardId: number
+  specialCardName: string
+  grantedReadPermission: boolean
+}
+
+export interface SpecialCard {
+  id: number
+  cardNo: string
+  name: string
+  description: string
+  imageUrl?: string
+  rarity: number
+  sourceStoryId: number
+  sourceShareCode: string
+  acquiredAt: string
+}
+
+/**
+ * POST /api/share/create
+ * 生成分享码
+ */
+export async function createShare(payload: CreateShareRequest): Promise<CreateShareResponse> {
+  return api.post('/share/create', payload)
+}
+
+/**
+ * GET /api/share/{code}
+ * 根据分享码获取分享信息
+ */
+export async function fetchShareInfo(code: string): Promise<ShareInfoResponse> {
+  return api.get(`/share/${code}`)
+}
+
+/**
+ * POST /api/share/{code}/joint
+ * 合券
+ */
+export async function jointShare(code: string, payload: JointShareRequest): Promise<JointShareResponse> {
+  return api.post(`/share/${code}/joint`, payload)
+}
+
+/**
+ * GET /api/share/special-cards
+ * 获取用户的合券纪念卡列表
+ */
+export async function fetchSpecialCards(): Promise<SpecialCard[]> {
+  return api.get('/share/special-cards')
+}
+
+// ========== 墨晶充值 API ==========
+
+export interface WxPayParams {
+  appId: string
+  timeStamp: string
+  nonceStr: string
+  package_: string
+  signType: string
+  paySign: string
+}
+
+export interface CreateOrderResponse {
+  orderNo: string
+  payParams: WxPayParams
+}
+
+/**
+ * POST /api/pay/create-order
+ * 创建墨晶充值订单并获取微信支付参数
+ */
+export async function createPayOrder(request: {
+  packageId: string
+  inkStoneCount: number
+  amount: number
+}): Promise<CreateOrderResponse> {
+  return api.post('/pay/create-order', request)
+}
+
+/**
+ * 调起微信支付
+ * 需要先引入微信 JSSDK: <script src="//res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+ */
+export async function invokeWxPay(payParams: WxPayParams): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof (window as any).wx === 'undefined') {
+      // 微信 JSSDK 未加载，模拟支付成功（开发环境）
+      console.warn('[Pay] 微信 JSSDK 未加载，模拟支付成功')
+      setTimeout(() => resolve(), 500)
+      return
+    }
+    ;(window as any).wx.chooseWXPay({
+      appId: payParams.appId,
+      timestamp: payParams.timeStamp,
+      nonceStr: payParams.nonceStr,
+      package: payParams.package_,
+      signType: payParams.signType,
+      paySign: payParams.paySign,
+      success: () => resolve(),
+      fail: (err: any) => reject(err),
+      cancel: () => reject(new Error('用户取消支付')),
+    })
+  })
 }
 
 export default api

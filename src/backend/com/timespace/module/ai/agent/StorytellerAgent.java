@@ -181,6 +181,17 @@ public class StorytellerAgent {
                 .map(c -> c.getName() + "[" + getCharacterTypeName(c.getCharacterType()) + "，命运值=" + c.getFateValue() + "]")
                 .collect(Collectors.joining("；"));
 
+        boolean isFirstChapter = chapterNo == 1;
+        // E-07: 关键词落位 prompt（仅第一章需要返回）
+        String keywordPositionSection = isFirstChapter ? """
+                9. 【第一章专属】请为三个关键词各自标注角色归属（落位），从以下三种角色中选一个归属：
+                   - 核心意象：该关键词作为故事的核心象征，贯穿始终
+                   - 转折道具：该关键词在故事中将引发关键转折
+                   - 人物关联：该关键词与某位配角命运紧密相连
+                   每个关键词只能归属一种角色，三种角色都要出现。
+                   例如：{"keywordPositions": [{"keyword": "旧船票", "role": "核心意象", "roleOwner": null}, {"keyword": "铜锁芯", "role": "转折道具", "roleOwner": null}, {"keyword": "摆渡人", "role": "人物关联", "roleOwner": "张翁"}]}
+                """ : "";
+
         return String.format("""
                 你是一位温和的中年说书人，擅长用%s风格叙事。
 
@@ -213,12 +224,14 @@ public class StorytellerAgent {
                   "characterAppearances": [
                     {"name": "张翁", "firstImpression": "一句话描述初见印象，不超过30字"}
                   ]
+                  %s
                 }
                 """,
                 styleName, chapterNo, "历史时代", styleName,
                 getIdentityDesc(story.getIdentityType()),
                 keywordsText, charactersText,
-                story.getEntryAnswers()
+                story.getEntryAnswers(),
+                keywordPositionSection
         );
     }
 
@@ -381,6 +394,20 @@ public class StorytellerAgent {
                         appearances.add(appearance);
                     }
                     chapter.setCharacterAppearances(appearances);
+                }
+
+                // E-07: 解析关键词落位
+                List<Map<String, Object>> positionsRaw = (List<Map<String, Object>>) parsed.get("keywordPositions");
+                if (positionsRaw != null && !positionsRaw.isEmpty()) {
+                    List<StoryChapter.KeywordPosition> positions = new ArrayList<>();
+                    for (Map<String, Object> pos : positionsRaw) {
+                        StoryChapter.KeywordPosition kp = new StoryChapter.KeywordPosition();
+                        kp.setKeyword((String) pos.get("keyword"));
+                        kp.setRole((String) pos.get("role"));
+                        kp.setRoleOwner((String) pos.get("roleOwner"));
+                        positions.add(kp);
+                    }
+                    chapter.setKeywordPositions(positions);
                 }
             } else {
                 // 非JSON格式，整段作为场景描写
