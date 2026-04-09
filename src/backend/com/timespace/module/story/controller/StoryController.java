@@ -231,6 +231,25 @@ public class StoryController {
     }
 
     /**
+     * POST /api/story/{id}/title
+     * 选择/更新故事标题
+     *
+     * 请求：
+     * {
+     *   "title": "用户选择的标题"
+     * }
+     */
+    @PostMapping("/{id}/title")
+    public Result<Void> updateStoryTitle(
+            @PathVariable("id") Long storyId,
+            @RequestBody UpdateTitleRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("更新故事标题: userId={}, storyId={}, title={}", userId, storyId, request.getTitle());
+        storyService.updateStoryTitle(storyId, request.getTitle());
+        return Result.ok(null);
+    }
+
+    /**
      * GET /api/story/list
      * 获取用户的故事列表
      */
@@ -306,6 +325,7 @@ public class StoryController {
         private List<Long> keywordIds;
         private Long eventId;
         private List<EntryAnswerItem> entryAnswers;
+        private Integer style; // 1白描 2江湖 3笔记 4话本
     }
 
     @Data
@@ -313,5 +333,10 @@ public class StoryController {
         private Long questionId;
         private String question;
         private String answer;
+    }
+
+    @Data
+    public static class UpdateTitleRequest {
+        private String title;
     }
 }

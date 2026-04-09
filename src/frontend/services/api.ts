@@ -339,6 +339,7 @@ export interface SubmitAnswersRequest {
     question: string
     answer: string
   }>
+  style?: number // 1白描 2江湖 3笔记 4话本
 }
 
 /**

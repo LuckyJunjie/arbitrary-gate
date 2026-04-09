@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.common.exception.BusinessException;
+import com.timespace.common.utils.ContentSafetyChecker;
 import com.timespace.common.utils.IdGenerator;
 import com.timespace.module.ai.agent.BaiguanAgent;
 import com.timespace.module.ai.agent.JudgeAgent;
@@ -87,6 +88,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     private final ZhangyanAgent zhangyanAgent;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
+    private final ContentSafetyChecker contentSafetyChecker;
 
     @Value("${timespace.story.max-chapters:5}")
     private int maxChapters;
@@ -593,16 +595,40 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         manuscriptText = zhangyanAgent.filter(manuscriptText);
         int wordCount = manuscriptText.length();
 
-        // 5. 生成后日谈（稗官）
+        // 5. 生成后日谈（稗官）+ 内容安全检测
         String overallComment = baiguanAgent.generateOverallComment(
                 story, wordCount, story.getHistoryDeviation());
-        characters = baiguanAgent.generateEpilogues(story, characters, story.getHistoryDeviation());
+        ContentSafetyChecker.SafetyResult commentResult =
+                contentSafetyChecker.checkWithRetry(overallComment, 3, null, null);
+        if (!commentResult.isSafe()) {
+            log.warn("[ContentSafety] 稗官总评不通过: {}, 使用兜底文案", commentResult.getReason());
+            overallComment = "（此段故事，因时局所限，未能详述）";
+        }
 
-        // 6. 生成朱批
+        characters = baiguanAgent.generateEpilogues(story, characters, story.getHistoryDeviation());
+        // 对每条后日谈做安全检测
+        for (StoryCharacter character : characters) {
+            if (character.getFinalEpilogue() != null) {
+                ContentSafetyChecker.SafetyResult epResult =
+                        contentSafetyChecker.checkWithRetry(character.getFinalEpilogue(), 3, null, null);
+                if (!epResult.isSafe()) {
+                    log.warn("[ContentSafety] 配角{}后日谈不通过: {}", character.getName(), epResult.getReason());
+                    character.setFinalEpilogue("（此人身世，待后人考证）");
+                }
+            }
+        }
+
+        // 6. 生成朱批 + 内容安全检测
         List<StoryManuscript.Annotation> annotations = new ArrayList<>();
         for (StoryChapter chapter : chapters) {
             String annotation = baiguanAgent.generateAnnotation(
                     chapter.getChapterNo(), chapter.getSceneText());
+            ContentSafetyChecker.SafetyResult annResult =
+                    contentSafetyChecker.checkWithRetry(annotation, 3, null, null);
+            if (!annResult.isSafe()) {
+                log.warn("[ContentSafety] 第{}章朱批不通过: {}", chapter.getChapterNo(), annResult.getReason());
+                annotation = "（此处原文晦涩，暂不批注）";
+            }
             StoryManuscript.Annotation ann = new StoryManuscript.Annotation();
             ann.setChapterNo(chapter.getChapterNo());
             ann.setText(annotation);
@@ -892,6 +918,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         startRequest.setEventCardId(request.getEventId());
         startRequest.setKeywordCardIds(request.getKeywordIds());
         startRequest.setIdentityType(1); // 默认高位视角
+        startRequest.setStyle(request.getStyle() != null ? request.getStyle() : 1);
 
         // 将入局答案转为 Map 格式
         Map<String, String> entryAnswersMap = new java.util.HashMap<>();

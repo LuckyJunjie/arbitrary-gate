@@ -19,6 +19,37 @@ export interface EntryAnswer {
   answer: string
 }
 
+// ==================== 风格选项 ====================
+
+export interface StyleOption {
+  value: number
+  label: string
+  example: string
+}
+
+const styleOptions: StyleOption[] = [
+  {
+    value: 1,
+    label: '白描',
+    example: '"他推门进来，袖口湿了一片，脸上什么表情也没有。"',
+  },
+  {
+    value: 2,
+    label: '江湖',
+    example: '"好一条汉子！虎背熊腰，腰间斜挎一把鬼头刀，一进门就把掌柜的吓得缩进了柜台底下。"',
+  },
+  {
+    value: 3,
+    label: '笔记',
+    example: '"此事说来寻常，然细察之下，颇有可异者。盖因当日天气阴晦，人皆闭户。"',
+  },
+  {
+    value: 4,
+    label: '话本',
+    example: '"看官，你道这故事出在何处？话说大唐天宝年间，京兆府有一处所在，名唤醉仙楼。"',
+  },
+]
+
 // ==================== 状态 ====================
 
 const router = useRouter()
@@ -35,6 +66,9 @@ const answers = ref<Record<number, string>>({})
 // 选中的关键词和事件卡（从 localStorage 读取）
 const selectedKeywords = ref<Array<{ id: number; name: string }>>([])
 const selectedEvent = ref<{ id: number; name: string } | null>(null)
+
+// 风格选择（默认白描）
+const selectedStyle = ref<number>(1)
 
 // ==================== 计算属性 ====================
 
@@ -148,6 +182,7 @@ async function handleSubmit() {
       keywordIds,
       eventId,
       entryAnswers,
+      style: selectedStyle.value,
     })
 
     // 保存到 storyStore
@@ -218,6 +253,25 @@ function handleSkip() {
 
     <!-- 问题区域（卷轴竖排） -->
     <div v-else class="questions-scroll-area">
+      <!-- 风格选择步骤 -->
+      <div class="style-step">
+        <h2 class="style-step-title">请选择文风</h2>
+        <div class="style-tabs">
+          <button
+            v-for="opt in styleOptions"
+            :key="opt.value"
+            class="style-tab"
+            :class="{ active: selectedStyle === opt.value }"
+            @click="selectedStyle = opt.value"
+          >
+            <span class="style-tab-label">{{ opt.label }}</span>
+          </button>
+        </div>
+        <p class="style-example">
+          {{ styleOptions.find(o => o.value === selectedStyle)?.example }}
+        </p>
+      </div>
+
       <div class="questions-vertical">
         <div
           v-for="q in questions"
@@ -397,6 +451,76 @@ function handleSkip() {
   justify-content: center;
   color: #c47c5a;
   font-size: 0.85rem;
+}
+
+/* ── 风格选择步骤 ── */
+.style-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(139, 115, 85, 0.3);
+  border-radius: 6px;
+  background: rgba(245, 239, 224, 0.04);
+}
+
+.style-step-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  color: #c9a84c;
+  margin: 0;
+  text-align: center;
+}
+
+.style-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.style-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 1.2rem;
+  background: rgba(139, 115, 85, 0.1);
+  border: 1px solid rgba(139, 115, 85, 0.4);
+  border-radius: 4px;
+  color: rgba(232, 220, 200, 0.7);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.style-tab:hover {
+  border-color: rgba(201, 168, 76, 0.6);
+  color: #e8dcc8;
+}
+
+.style-tab.active {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: #c9a84c;
+  color: #c9a84c;
+  box-shadow: 0 0 8px rgba(201, 168, 76, 0.2);
+}
+
+.style-tab-label {
+  letter-spacing: 0.15em;
+}
+
+.style-example {
+  font-size: 0.75rem;
+  color: rgba(139, 115, 85, 0.75);
+  font-style: italic;
+  text-align: center;
+  margin: 0;
+  max-width: 360px;
+  line-height: 1.6;
+  min-height: 2.5em;
 }
 
 /* ── 问题区域（竖排卷轴） ── */
