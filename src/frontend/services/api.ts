@@ -257,7 +257,7 @@ async function mockFinishStory(storyId: string): Promise<Manuscript> {
 
   const manuscript = teller.generateManuscript(_chapterHistory.length, totalDeviation)
   // 掌眼 Agent 过滤 AI 腔
-  manuscript.manuscript = filterManuscript(manuscript.manuscript)
+  manuscript.fullText = filterManuscript(manuscript.fullText)
   _chapterHistory.length = 0 // 重置
 
   return {

@@ -9,6 +9,7 @@ import com.timespace.common.exception.BusinessException;
 import com.timespace.common.utils.IdGenerator;
 import com.timespace.module.ai.agent.BaiguanAgent;
 import com.timespace.module.ai.agent.JudgeAgent;
+import com.timespace.module.ai.agent.ZhangyanAgent;
 import com.timespace.module.ai.service.AIGatewayService;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.service.CardService;
@@ -83,6 +84,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     private final CardService cardService;
     private final AIGatewayService aiGatewayService;
     private final BaiguanAgent baiguanAgent;
+    private final ZhangyanAgent zhangyanAgent;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
 
@@ -586,6 +588,9 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
 
         // 4. 生成手稿正文（说书人）
         String manuscriptText = aiGatewayService.generateManuscript(story, chapters, keywords, characters);
+
+        // 4.1 掌眼 Agent 过滤 AI 腔
+        manuscriptText = zhangyanAgent.filter(manuscriptText);
         int wordCount = manuscriptText.length();
 
         // 5. 生成后日谈（稗官）

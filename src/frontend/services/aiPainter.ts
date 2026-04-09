@@ -118,8 +118,8 @@ class AIPainterService {
     const prompt = buildKeywordPrompt(params);
     const cacheKey = `kw:${params.cardName}:${params.cardType}:${params.rarity}`;
 
-    const cached = this.getCached(cacheKey)
-    if (cached) return cached
+    const cached = this.getCached(cacheKey);
+    if (cached) return cached;
 
     try {
       const imageUrl = await this.callTongyiWanxiang(prompt)
@@ -137,11 +137,11 @@ class AIPainterService {
    * 生成场景图（故事卡分享用）
    */
   async generateSceneImage(params: SceneImageParams): Promise<GenerationResult> {
-    const prompt = buildScenePrompt(params)
-    const cacheKey = `scene:${params.storyTitle}:${params.chapterNo}:${params.keywords.join(',')}`
+    const prompt = buildScenePrompt(params);
+    const cacheKey = `scene:${params.storyTitle}:${params.chapterNo}:${params.keywords.join(',')}`;
 
-    const cached = this.getCached(cacheKey)
-    if (cached) return cached
+    const cached = this.getCached(cacheKey);
+    if (cached) return cached;
 
     try {
       const imageUrl = await this.callTongyiWanxiang(prompt)

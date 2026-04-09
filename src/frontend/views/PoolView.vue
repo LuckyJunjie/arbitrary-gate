@@ -19,7 +19,7 @@ const isDrawing = ref(false)
 const drawError = ref<string | null>(null)
 const remainingFreeDraws = ref(0)
 const drawId = ref(0) // 用于取消进行中的抽卡动画
-const revealPhase = ref<'partial' | 'full'>('partial') // 残片拼接阶段
+const cardRevealed = ref(false) // ScratchCard擦墨完成后为 true
 
 // 今日运势预兆文本
 const fortuneText = ref('')
@@ -107,7 +107,7 @@ async function onCardDrawn(card: Record<string, unknown> | null) {
   }
   drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
   hasDrawn.value = true
-  revealPhase.value = 'partial'
+  cardRevealed.value = false
 
   const exists = cardStore.keywordCards.find(c => c.id === cardData.id)
   if (!exists) {
@@ -138,7 +138,7 @@ async function applyMockDraw(currentDrawId = -1) {
   remainingFreeDraws.value = Math.max(0, remainingFreeDraws.value - 1)
   drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
   hasDrawn.value = true
-  revealPhase.value = 'partial'
+  cardRevealed.value = false
 
   const exists = cardStore.keywordCards.find(c => c.id === cardData.id)
   if (!exists) {
@@ -181,7 +181,7 @@ async function handleDraw() {
     if (cardData) {
       drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
       hasDrawn.value = true
-      revealPhase.value = 'partial'
+      cardRevealed.value = false
 
       // 保存到 store 和 localStorage
       const exists = cardStore.keywordCards.find(c => c.id === cardData!.id)
@@ -244,44 +244,29 @@ function revealInk() {
       </div>
 
       <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">
-        <!-- 残片拼接：墨迹遮罩层 -->
-        <div
-          v-if="revealPhase === 'partial'"
-          class="ink-overlay"
-          data-testid="reveal-ink-overlay"
-        >
-          <!-- 中心透明圆孔，只露出卡名首字 -->
-          <div class="ink-hollow">
-            <span class="hint-char">{{ drawnCard.name.charAt(0) }}</span>
-          </div>
+        <!-- ScratchCard: handles ink-wipe reveal interaction -->
+        <ScratchCard
+          v-if="!cardRevealed"
+          :card="drawnCard"
+          @revealed="onCardRevealed"
+        />
+
+        <!-- After scratch-reveal: show plain card + action buttons -->
+        <div v-if="cardRevealed" class="post-reveal">
+          <Card :card="drawnCard" />
+          <button
+            v-if="remainingFreeDraws > 0"
+            class="reset-btn"
+            data-testid="card-modal-close"
+            @click="reset"
+          >关闭</button>
+          <button
+            v-else
+            class="reset-btn"
+            data-testid="draw-again-button"
+            @click="handleDraw"
+          >再抽一张</button>
         </div>
-
-        <Card :card="drawnCard" />
-
-        <!-- 拂去墨迹按钮（残片拼接阶段） -->
-        <button
-          v-if="revealPhase === 'partial'"
-          class="reset-btn brush-ink-btn"
-          data-testid="brush-ink-button"
-          @click="revealInk"
-        >
-          <span class="brush-icon">💧</span>拂去墨迹
-        </button>
-
-        <!-- 免费次数剩余时，点击关闭卡片再点击墨池继续免费抽卡 -->
-        <button
-          v-if="revealPhase === 'full' && remainingFreeDraws > 0"
-          class="reset-btn"
-          data-testid="card-modal-close"
-          @click="reset"
-        >关闭</button>
-        <!-- 免费次数用尽时，点击触发付费抽卡 -->
-        <button
-          v-if="revealPhase === 'full' && remainingFreeDraws <= 0"
-          class="reset-btn"
-          data-testid="draw-again-button"
-          @click="handleDraw"
-        >再抽一张</button>
       </div>
 
       <!-- 抽卡按钮浮层 -->
