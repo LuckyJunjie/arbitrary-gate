@@ -29,6 +29,8 @@ public class Story {
 
     private String title;            // 故事标题
 
+    private String candidateTitles;  // 备选标题 JSON 数组
+
     private Integer style;           // 1白描 2江湖 3笔记 4话本
 
     private Integer totalWords;      // 总字数

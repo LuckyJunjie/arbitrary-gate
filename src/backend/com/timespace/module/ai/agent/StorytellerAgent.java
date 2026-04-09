@@ -2,6 +2,7 @@ package com.timespace.module.ai.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.ai.client.AIClient;
+import com.timespace.module.ai.service.AIGatewayService.ManuscriptResult;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryChapter;

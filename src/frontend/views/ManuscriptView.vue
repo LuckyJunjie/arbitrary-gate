@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import RippleEffect from '@/components/RippleEffect.vue'
+import TitleSelectModal from '@/components/TitleSelectModal.vue'
+import { updateStoryTitle } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +16,46 @@ const storyId = route.params.id as string
 const isLoading = ref(true)
 const loadError = ref<string | null>(null)
 const showRipple = ref(false)
+
+// 标题选择浮层
+const showTitleModal = ref(false)
+
+const candidateTitles = computed<string[]>(() => {
+  // 优先从 finishStory 返回的 manuscript.candidateTitles 获取
+  const fromManuscript = storyStore.manuscript?.candidateTitles
+  if (fromManuscript?.length) return fromManuscript
+  // 其次从 currentStory.candidateTitles 获取
+  const fromStory = (storyStore.currentStory as any)?.candidateTitles
+  if (fromStory?.length) return fromStory
+  return []
+})
+
+const hasTitleSelected = computed(() => {
+  // 用户已选过标题（localStorage 持久化）
+  if (!storyId) return true
+  const selected = localStorage.getItem(`title_selected:${storyId}`)
+  return selected === 'true'
+})
+
+function openTitleModal() {
+  showTitleModal.value = true
+}
+
+async function onTitleSelected(title: string) {
+  showTitleModal.value = false
+  try {
+    await updateStoryTitle(storyId, title)
+    // 更新 store 中的 title
+    if (storyStore.currentStory) {
+      storyStore.currentStory.title = title
+    }
+    // 标记已选
+    localStorage.setItem(`title_selected:${storyId}`, 'true')
+  } catch (err) {
+    console.error('[ManuscriptView] onTitleSelected failed:', err)
+    // 即使失败也关闭浮层，保留默认标题
+  }
+}
 
 // ── 加载手稿数据 ──
 onMounted(async () => {
@@ -36,6 +78,12 @@ onMounted(async () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  // 首次查看时，检查是否需要弹出标题选择浮层
+  // 有备选标题 且 用户尚未选择过标题 → 弹出浮层
+  if (candidateTitles.value.length > 0 && !hasTitleSelected.value) {
+    openTitleModal()
   }
 })
 
@@ -203,6 +251,15 @@ function goBack() {
     <div v-else class="manuscript-empty">
       <p>暂无手稿内容</p>
     </div>
+
+    <!-- 标题选择浮层 -->
+    <TitleSelectModal
+      v-if="showTitleModal && candidateTitles.length > 0"
+      :story-id="storyId"
+      :titles="candidateTitles"
+      @selected="onTitleSelected"
+      @close="showTitleModal = false"
+    />
   </div>
 </template>
 

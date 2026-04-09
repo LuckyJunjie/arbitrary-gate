@@ -168,8 +168,13 @@ export async function startNewStory(payload: { title?: string; keywords?: number
 }
 
 // 提交章节选择
-export async function submitChapterChoice(storyId: string, chapterNo: number, optionId: number): Promise<{ chapter: Chapter; deviation: number }> {
-  return api.post(`/story/${storyId}/chapter/${chapterNo}/choose`, { optionId })
+export async function submitChapterChoice(
+  storyId: string,
+  chapterNo: number,
+  optionId: number,
+  gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
+): Promise<{ chapter: Chapter; deviation: number }> {
+  return api.post(`/story/${storyId}/chapter/${chapterNo}/choose`, { optionId, gestureIntensity })
 }
 
 // 获取故事章节
@@ -288,6 +293,7 @@ async function mockFinishStory(storyId: string): Promise<Manuscript> {
   return {
     ...manuscript,
     baiguanComment: judgment.judgeQuote,
+    candidateTitles: ['旧梦重温', '时光渡口', '一段往事'],
   }
 }
 
@@ -311,10 +317,11 @@ export async function fetchChapterWithMock(storyId: string, chapterNo: number): 
 export async function submitChoiceWithMock(
   storyId: string,
   chapterNo: number,
-  optionId: number
+  optionId: number,
+  gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
 ): Promise<{ chapter: Chapter; deviation: number }> {
   try {
-    return await submitChapterChoice(storyId, chapterNo, optionId)
+    return await submitChapterChoice(storyId, chapterNo, optionId, gestureIntensity)
   } catch {
     return mockSubmitChoice(storyId, chapterNo, optionId)
   }
