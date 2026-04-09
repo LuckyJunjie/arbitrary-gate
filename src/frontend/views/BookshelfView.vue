@@ -57,6 +57,98 @@ interface StoredStory {
   finishedAt?: string
   dynasty?: string
   keywords?: Keyword[]
+  /** 古风地图标记：事件发生地（如"赤壁""玄武门"） */
+  location?: string
+}
+
+// === 古风地图坐标映射 ===
+// viewBox="0 0 800 600"，地图范围约东经73-135°，北纬18-54°
+const LOCATION_COORDS: Record<string, { x: number; y: number; label: string }> = {
+  '洛阳': { x: 580, y: 265, label: '洛' },
+  '长安': { x: 505, y: 280, label: '长' },
+  '赤壁': { x: 668, y: 365, label: '赤' },
+  '汴京': { x: 610, y: 270, label: '汴' },
+  '临安': { x: 680, y: 330, label: '杭' },
+  '金陵': { x: 665, y: 315, label: '金' },
+  '扬州': { x: 655, y: 300, label: '扬' },
+  '成都': { x: 450, y: 350, label: '蜀' },
+  '苏州': { x: 678, y: 310, label: '苏' },
+  '武昌': { x: 640, y: 345, label: '鄂' },
+  '南昌': { x: 660, y: 370, label: '赣' },
+  '福州': { x: 695, y: 385, label: '闽' },
+  '广州': { x: 640, y: 435, label: '粤' },
+  '桂林': { x: 595, y: 430, label: '桂' },
+  '大理': { x: 510, y: 420, label: '理' },
+  '昆明': { x: 520, y: 430, label: '滇' },
+  '拉萨': { x: 370, y: 400, label: '藏' },
+  '敦煌': { x: 340, y: 250, label: '敦' },
+  '碎叶': { x: 200, y: 240, label: '叶' },
+  '幽州': { x: 540, y: 205, label: '幽' },
+  '蓟城': { x: 545, y: 210, label: '蓟' },
+  '辽东': { x: 570, y: 180, label: '辽' },
+  '高句丽': { x: 610, y: 165, label: '丽' },
+  '太原': { x: 545, y: 255, label: '晋' },
+  '雁门关': { x: 530, y: 235, label: '雁' },
+  '马嵬驿': { x: 490, y: 295, label: '骊' },
+  '玄武门': { x: 505, y: 280, label: '玄' },
+  '陈桥驿': { x: 608, y: 268, label: '陈' },
+  '崖山': { x: 640, y: 460, label: '崖' },
+  '钱塘': { x: 678, y: 325, label: '钱' },
+  '泰山': { x: 618, y: 270, label: '岱' },
+  '洞庭': { x: 635, y: 360, label: '洞' },
+  '鄱阳': { x: 658, y: 355, label: '鄱' },
+  '沧州': { x: 570, y: 245, label: '沧' },
+  '青州': { x: 610, y: 255, label: '青' },
+  '登州': { x: 625, y: 248, label: '登' },
+  '宁波': { x: 690, y: 340, label: '甬' },
+  '泉州': { x: 690, y: 405, label: '泉' },
+  '荆州': { x: 625, y: 340, label: '荆' },
+  '襄阳': { x: 618, y: 325, label: '襄' },
+  '汉中': { x: 520, y: 315, label: '汉' },
+  '长安·大明宫': { x: 505, y: 280, label: '明' },
+  '巨鹿': { x: 565, y: 250, label: '巨' },
+  '乌江': { x: 655, y: 295, label: '乌' },
+  '垓下': { x: 630, y: 285, label: '垓' },
+  '山海关': { x: 545, y: 190, label: '关' },
+  '沈阳': { x: 565, y: 170, label: '沈' },
+  '长春': { x: 575, y: 155, label: '春' },
+  '新疆': { x: 240, y: 255, label: '疆' },
+  '西藏': { x: 370, y: 395, label: '藏' },
+  '漠北': { x: 420, y: 180, label: '漠' },
+  '塞外': { x: 450, y: 200, label: '塞' },
+}
+
+// === 地图标记点（从 stories 聚合） ===
+const mapMarkers = computed(() => {
+  const locMap = new Map<string, StoredStory[]>()
+  for (const s of filteredStories.value) {
+    if (s.location) {
+      // 精确匹配
+      if (!locMap.has(s.location)) locMap.set(s.location, [])
+      locMap.get(s.location)!.push(s)
+    }
+  }
+  return Array.from(locMap.entries()).map(([loc, storyList]) => {
+    const coord = LOCATION_COORDS[loc]
+    return {
+      location: loc,
+      stories: storyList,
+      x: coord?.x ?? 600,
+      y: coord?.y ?? 300,
+      label: coord?.label ?? loc.slice(0, 1),
+    }
+  })
+})
+
+// === 当前选中的地图标记（展示故事列表浮层） ===
+const selectedMapMarker = ref<(typeof mapMarkers.value)[0] | null>(null)
+
+function openMapMarker(marker: (typeof mapMarkers.value)[0]) {
+  selectedMapMarker.value = marker
+}
+
+function closeMapMarker() {
+  selectedMapMarker.value = null
 }
 
 const stories = ref<StoredStory[]>([])
@@ -485,41 +577,234 @@ onMounted(() => {
 
     <!-- 山河图视图 -->
     <div v-else class="map-view" data-testid="map-view">
-      <template v-if="Object.keys(groupedByDynasty).length > 0">
-        <div
-          v-for="dynasty in dynastyOrder"
-          :key="dynasty"
-          v-show="groupedByDynasty[dynasty]?.length > 0"
-          class="dynasty-group"
-        >
-          <div class="dynasty-label">{{ dynasty }}</div>
-          <div class="dynasty-stories">
+      <template v-if="sortedStories.length > 0">
+        <div class="shanhe-map-wrapper">
+          <!-- 古风中国地图 SVG -->
+          <svg
+            class="shanhe-map"
+            viewBox="0 0 800 600"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+          >
+            <!-- 底色 -->
+            <rect width="800" height="600" fill="#f0e8d5" />
+
+            <!-- 沙漠/戈壁纹理 -->
+            <ellipse cx="360" cy="220" rx="200" ry="80" fill="rgba(180,140,80,0.08)" />
+            <ellipse cx="260" cy="250" rx="120" ry="50" fill="rgba(180,140,80,0.06)" />
+
+            <!-- 黄河（粗细不均） -->
+            <path
+              d="M 510 190 C 520 210 530 220 535 240 C 540 255 545 260 545 265
+                 C 545 270 550 278 555 290 C 560 300 570 310 580 318"
+              stroke="#c4a35a"
+              stroke-width="4"
+              fill="none"
+              stroke-linecap="round"
+              opacity="0.6"
+            />
+
+            <!-- 长江（粗细不均） -->
+            <path
+              d="M 510 280 C 540 290 580 300 620 310 C 645 316 660 325 675 340
+                 C 685 350 688 360 685 370 C 682 380 675 390 665 400
+                 C 658 408 650 415 640 420"
+              stroke="#7a9e7a"
+              stroke-width="4"
+              fill="none"
+              stroke-linecap="round"
+              opacity="0.5"
+            />
+
+            <!-- 海岸线（中国东部轮廓简化） -->
+            <path
+              d="M 540 190
+                 C 545 195 555 200 560 210
+                 C 565 220 568 230 572 240
+                 C 576 250 578 260 580 270
+                 C 585 280 590 288 595 295
+                 C 605 305 615 312 625 318
+                 C 635 325 645 330 655 335
+                 C 665 340 672 345 678 350
+                 C 682 358 685 368 683 378
+                 C 681 388 676 398 670 408
+                 C 664 418 656 428 648 438
+                 C 644 445 638 452 632 458
+                 C 626 464 620 468 614 472"
+              stroke="#8b7355"
+              stroke-width="1.5"
+              fill="none"
+              opacity="0.5"
+            />
+
+            <!-- 北部边界（长城示意） -->
+            <path
+              d="M 280 180 C 320 175 380 172 440 175 C 490 178 530 183 560 190
+                 C 580 195 595 202 600 210"
+              stroke="#9b7a5a"
+              stroke-width="1.5"
+              fill="none"
+              stroke-dasharray="6,4"
+              opacity="0.4"
+            />
+
+            <!-- 西部高原山脉示意 -->
+            <path
+              d="M 250 260 C 280 245 310 240 340 238 C 370 236 400 240 430 248
+                 C 460 256 480 265 500 275"
+              stroke="#a08060"
+              stroke-width="1"
+              fill="none"
+              opacity="0.3"
+            />
+            <path
+              d="M 300 300 C 330 295 360 295 390 300 C 420 305 450 315 470 325"
+              stroke="#a08060"
+              stroke-width="1"
+              fill="none"
+              opacity="0.25"
+            />
+
+            <!-- 南部海岸 -->
+            <path
+              d="M 614 472 C 610 480 605 488 598 495 C 590 503 580 510 570 515
+                 C 558 520 545 522 535 520 C 525 518 515 514 508 508"
+              stroke="#8b7355"
+              stroke-width="1.5"
+              fill="none"
+              opacity="0.4"
+            />
+
+            <!-- 台湾岛 -->
+            <path
+              d="M 690 410 C 695 405 700 400 700 395 C 700 390 698 385 694 385
+                 C 690 385 686 388 684 393 C 682 398 684 405 690 410"
+              stroke="#8b7355"
+              stroke-width="1"
+              fill="rgba(139,115,85,0.1)"
+              opacity="0.4"
+            />
+
+            <!-- 海南岛 -->
+            <path
+              d="M 635 455 C 640 450 645 447 647 443 C 649 439 648 435 644 435
+                 C 640 435 636 438 634 442 C 632 446 632 452 635 455"
+              stroke="#8b7355"
+              stroke-width="1"
+              fill="rgba(139,115,85,0.1)"
+              opacity="0.4"
+            />
+
+            <!-- 东北轮廓 -->
+            <path
+              d="M 540 190 C 545 175 555 165 565 160 C 575 155 585 158 595 165
+                 C 605 172 610 180 608 190"
+              stroke="#8b7355"
+              stroke-width="1"
+              fill="none"
+              opacity="0.3"
+            />
+
+            <!-- 四大方位标注 -->
+            <text x="760" y="30" font-size="11" fill="#8b7355" opacity="0.5" font-family="serif">东</text>
+            <text x="10" y="30" font-size="11" fill="#8b7355" opacity="0.5" font-family="serif">西</text>
+            <text x="390" y="20" font-size="11" fill="#8b7355" opacity="0.5" font-family="serif">北</text>
+            <text x="390" y="590" font-size="11" fill="#8b7355" opacity="0.5" font-family="serif">南</text>
+
+            <!-- 地图标记点 -->
+            <g v-for="marker in mapMarkers" :key="marker.location">
+              <!-- 外圈晕 -->
+              <circle
+                :cx="marker.x"
+                :cy="marker.y"
+                r="14"
+                :fill="marker.stories.some(s => s.status === 2) ? 'rgba(139,115,85,0.12)' : 'rgba(107,142,107,0.12)'"
+              />
+              <!-- 中圈 -->
+              <circle
+                :cx="marker.x"
+                :cy="marker.y"
+                r="9"
+                :fill="marker.stories.some(s => s.status === 2) ? '#8b7355' : '#6b8e6b'"
+                class="map-marker-dot"
+                :class="{ 'has-completed': marker.stories.some(s => s.status === 2) }"
+                data-testid="map-marker"
+                @click.stop="openMapMarker(marker)"
+              />
+              <!-- 位置简称 -->
+              <text
+                :x="marker.x"
+                :y="marker.y + 4"
+                text-anchor="middle"
+                font-size="8"
+                fill="#f5efe0"
+                font-family="'Ma Shan Zheng', 'STKaiti', serif"
+                style="pointer-events: none; user-select: none;"
+              >{{ marker.label }}</text>
+            </g>
+
+            <!-- 空白状态提示 -->
+            <g v-if="mapMarkers.length === 0">
+              <text
+                x="400" y="300" text-anchor="middle"
+                font-size="14" fill="#8b7355" opacity="0.5"
+                font-family="'Ma Shan Zheng', serif"
+              >山河无言，待风云际会</text>
+            </g>
+          </svg>
+
+          <!-- 故事列表浮层 -->
+          <Transition name="marker-popup">
             <div
-              v-for="story in groupedByDynasty[dynasty]"
-              :key="story.id"
-              class="story-card"
-              data-testid="map-marker"
-              :data-status="story.status === 2 ? 'completed' : 'in_progress'"
-              @click="openDetail(story)"
+              v-if="selectedMapMarker"
+              class="map-popup"
+              @click.stop
             >
-              <div class="story-card-inner">
-                <h3 class="story-title">{{ story.title }}</h3>
-                <div class="story-meta">
-                  <span class="story-status" :class="statusClass[story.status]">
-                    {{ statusLabel[story.status] }}
-                  </span>
+              <div class="map-popup-header">
+                <span class="map-popup-location">{{ selectedMapMarker.location }}</span>
+                <button class="map-popup-close" @click="closeMapMarker">✕</button>
+              </div>
+              <div class="map-popup-stories">
+                <div
+                  v-for="story in selectedMapMarker.stories"
+                  :key="story.id"
+                  class="map-popup-story"
+                  data-testid="map-story-item"
+                  @click="openDetail(story); closeMapMarker()"
+                >
+                  <div class="map-story-title">{{ story.title }}</div>
+                  <div class="map-story-meta">
+                    <span class="story-status" :class="statusClass[story.status]">
+                      {{ statusLabel[story.status] }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </Transition>
         </div>
       </template>
+
       <template v-else-if="isEmpty">
+        <div class="shanhe-map-wrapper">
+          <svg class="shanhe-map" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+            <rect width="800" height="600" fill="#f0e8d5" />
+            <text x="400" y="300" text-anchor="middle" font-size="16" fill="#8b7355" opacity="0.4"
+              font-family="'Ma Shan Zheng', serif">山河无言，待风云际会</text>
+          </svg>
+        </div>
         <p class="empty-hint" data-testid="empty-bookshelf-message">暂无故事记录</p>
         <button class="start-btn" data-testid="start-new-story-button" @click="startNewStory">开始新故事</button>
       </template>
+
       <template v-else>
-        <p class="empty-hint">没有符合筛选条件的记录</p>
+        <div class="shanhe-map-wrapper">
+          <svg class="shanhe-map" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+            <rect width="800" height="600" fill="#f0e8d5" />
+            <text x="400" y="300" text-anchor="middle" font-size="14" fill="#8b7355" opacity="0.4"
+              font-family="'Ma Shan Zheng', serif">无故事于此</text>
+          </svg>
+        </div>
       </template>
     </div>
 
@@ -1226,9 +1511,129 @@ onMounted(() => {
 
 /* Map view (山河图) */
 .map-view {
-  padding: 1rem 1.5rem;
+  padding: 0;
 }
 
+.shanhe-map-wrapper {
+  position: relative;
+  padding: 1rem;
+}
+
+.shanhe-map {
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid rgba(139, 115, 85, 0.2);
+  border-radius: 4px;
+  background: #f0e8d5;
+  box-shadow: inset 0 0 30px rgba(139, 90, 43, 0.08);
+}
+
+/* 地图标记点交互 */
+.map-marker-dot {
+  cursor: pointer;
+  transition: r 0.15s ease, opacity 0.15s ease;
+}
+
+.map-marker-dot:hover {
+  r: 11;
+  filter: drop-shadow(0 0 4px rgba(139, 115, 85, 0.5));
+}
+
+.map-marker-dot.has-completed:hover {
+  filter: drop-shadow(0 0 4px rgba(139, 115, 85, 0.6));
+}
+
+/* 故事列表浮层 */
+.map-popup {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  width: 220px;
+  background: #f5efe0;
+  border: 1px solid rgba(139, 115, 85, 0.3);
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(44, 31, 20, 0.25);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.map-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.15);
+  background: rgba(139, 115, 85, 0.06);
+}
+
+.map-popup-location {
+  font-size: 0.85rem;
+  font-family: 'Ma Shan Zheng', 'STKaiti', serif;
+  color: #2c1f14;
+  font-weight: bold;
+}
+
+.map-popup-close {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  color: #8b7355;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.map-popup-stories {
+  padding: 0.4rem 0;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.map-popup-story {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid rgba(139, 115, 85, 0.06);
+}
+
+.map-popup-story:last-child {
+  border-bottom: none;
+}
+
+.map-popup-story:hover {
+  background: rgba(139, 115, 85, 0.08);
+}
+
+.map-story-title {
+  font-size: 0.8rem;
+  color: #2c1f14;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-story-meta {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* 浮层动画 */
+.marker-popup-enter-active,
+.marker-popup-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.marker-popup-enter-from,
+.marker-popup-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* 空状态提示 */
 .dynasty-group {
   margin-bottom: 1.5rem;
 }
@@ -1250,10 +1655,9 @@ onMounted(() => {
 }
 
 .empty-hint {
-  grid-column: 1 / -1;
   text-align: center;
   color: #8b7355;
-  padding: 3rem;
+  padding: 2rem;
   font-size: 0.9rem;
 }
 
