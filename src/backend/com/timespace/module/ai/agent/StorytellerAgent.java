@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import com.timespace.module.ai.util.AiPhraseFilter;
 
 /**
  * 说书人 Agent
@@ -481,7 +482,8 @@ public class StorytellerAgent {
             if (jsonStart != -1 && jsonEnd != -1) {
                 String jsonStr = response.substring(jsonStart, jsonEnd + 1);
                 Map<String, Object> parsed = objectMapper.readValue(jsonStr, Map.class);
-                String manuscriptText = (String) parsed.get("manuscript");
+                String rawManuscriptText = (String) parsed.get("manuscript");
+                String manuscriptText = AiPhraseFilter.filter(rawManuscriptText);
                 @SuppressWarnings("unchecked")
                 List<String> titles = (List<String>) parsed.get("titles");
                 if (titles == null || titles.size() < 3) {
@@ -495,7 +497,7 @@ public class StorytellerAgent {
         }
         // Fallback
         return new AIGatewayService.ManuscriptResult(
-                response.length() > 100 ? response : "（手稿内容）",
+                response.length() > 100 ? AiPhraseFilter.filter(response) : "（手稿内容）",
                 List.of("时光旅人手记", "旧事新说", "一段往事"),
                 null
         );
@@ -522,7 +524,8 @@ public class StorytellerAgent {
             if (jsonStart != -1 && jsonEnd != -1) {
                 String jsonStr = response.substring(jsonStart, jsonEnd + 1);
                 Map<String, Object> parsed = objectMapper.readValue(jsonStr, Map.class);
-                chapter.setSceneText((String) parsed.get("sceneText"));
+                String rawSceneText = (String) parsed.get("sceneText");
+                chapter.setSceneText(AiPhraseFilter.filter(rawSceneText));
 
                 List<Map<String, Object>> optionsRaw = (List<Map<String, Object>>) parsed.get("options");
                 if (optionsRaw != null) {
@@ -566,11 +569,11 @@ public class StorytellerAgent {
                 }
             } else {
                 // 非JSON格式，整段作为场景描写
-                chapter.setSceneText(response);
+                chapter.setSceneText(AiPhraseFilter.filter(response));
             }
         } catch (Exception e) {
             log.error("解析章节响应失败: {}", e.getMessage());
-            chapter.setSceneText(response);
+            chapter.setSceneText(AiPhraseFilter.filter(response));
         }
 
         return chapter;

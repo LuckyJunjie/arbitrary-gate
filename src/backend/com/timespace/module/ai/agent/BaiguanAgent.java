@@ -1,5 +1,7 @@
 package com.timespace.module.ai.agent;
 
+import com.timespace.module.ai.util.AiPhraseFilter;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.ai.client.AIClient;
 import com.timespace.module.card.entity.KeywordCard;
@@ -90,7 +92,7 @@ public class BaiguanAgent {
                 character.getRelationToUser()
         );
 
-        return aiClient.callSync(systemPrompt, userMessage);
+        return AiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
     }
 
     /**
@@ -206,7 +208,7 @@ public class BaiguanAgent {
                         finalDeviation < 70 ? "在历史与虚构间徘徊" : "完全改写历史"
         );
 
-        return aiClient.callSync(systemPrompt, userMessage);
+        return AiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
     }
 
     private String getCharacterTypeName(Integer type) {

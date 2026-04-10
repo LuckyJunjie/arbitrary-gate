@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### AI 功能
+- [x] AI-06: AI 腔词黑名单过滤 — 新增 AiPhraseFilter 工具类，过滤 StorytellerAgent 场景描写和手稿、BaiguanAgent 后日谈和总评中的 60+ 个高频 AI 腔词（宛如、仿佛、无法言说、此时此刻等）
+
 ## [1.0.0] - 2026-04-10
 
 ### P0 - MVP 核心功能 ✅
