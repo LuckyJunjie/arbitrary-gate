@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted, Ref } from 'vue'
 import { playBrushTap } from '@/composables/useSound'
-import { hapticLight, hapticMedium, hapticForceful } from '@/composables/useHaptic'
+import { hapticMedium, hapticForceful } from '@/composables/useHaptic'
 
 // 手势力度类型
 export type GestureIntensity = 'gentle' | 'urgent' | 'forceful'

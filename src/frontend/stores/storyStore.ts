@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import {
   fetchChapterWithMock,
   submitChoiceWithMock,
-  submitEncounterChoice,
+  submitEncounterChoice as submitEncounterChoiceApi,
   fetchManuscript,
   fetchStoryList,
   finishStoryWithMock,
@@ -13,7 +13,6 @@ import {
   type Story,
   type Chapter,
   type Manuscript,
-  type Encounter,
 } from '@/services/api'
 
 // ===== 断线重连配置 =====
@@ -289,7 +288,7 @@ export const useStoryStore = defineStore('story', () => {
     choice: 'A' | 'B'
   ) {
     try {
-      const res = await submitEncounterChoice(storyId, encounterId, choice)
+      const res = await submitEncounterChoiceApi(storyId, encounterId, choice)
       // 更新命运值
       if (currentStory.value) {
         currentStory.value.historyDeviation = Math.max(

@@ -27,7 +27,7 @@ interface StoryChapterData {
  * 生成散文诗式题记
  * 要求：20-40字，古典、留白、有画面感，暗示故事主题但不说破
  */
-const INSCRIPTION_PROMPT = `你是一个古代文士。请为下面的故事生成一句题记（20-40字）。
+const _INSCRIPTION_PROMPT = `你是一个古代文士。请为下面的故事生成一句题记（20-40字）。
 风格要求：
 - 古典、含蓄、有画面感
 - 暗示故事主题但不说破
@@ -167,7 +167,7 @@ class StoryTellerService {
     }
   }
 
-  submitChoice(chapterNo: number, optionId: number): { chapter: Chapter } {
+  submitChoice(chapterNo: number, _optionId: number): { chapter: Chapter } {
     const nextChapter = chapterNo + 1
     if (nextChapter > 3) {
       // 故事结束，返回空章节作为标记

@@ -12,8 +12,6 @@
  * 目光中满是、心中一动、似乎在诉说
  */
 
-import { finishStory, type Manuscript } from './api'
-
 /** 黑名单词表 */
 export const BLACKLIST = [
   '宛如',

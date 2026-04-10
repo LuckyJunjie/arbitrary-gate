@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useInkValueStore, INK_LEVELS } from '@/stores/inkValueStore'
+import { useInkValueStore } from '@/stores/inkValueStore'
 
 const inkStore = useInkValueStore()
 

@@ -15,7 +15,7 @@ async function handleDraw() {
   hapticLight() // UI-11: 触感反馈
   const card = await drawCard('keyword')
   // 即使 API 失败也 emit，让 PoolView 决定如何处理（使用 fallback 数据）
-  emit('draw', card ?? null)
+  emit('draw', (card ?? {}) as Record<string, unknown>)
 }
 </script>
 

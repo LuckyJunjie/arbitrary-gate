@@ -79,7 +79,7 @@ function buildScenePrompt(params: SceneImageParams): string {
 不要CG感，不要3D渲染，不要厚涂。`
 }
 
-function buildShareCardPrompt(params: ShareCardParams): string {
+function _buildShareCardPrompt(params: ShareCardParams): string {
   const { storyTitle, judgeQuote } = params
   return `水墨淡彩风格，中国古代题材的故事卡片。
 标题：《${storyTitle}》
@@ -205,7 +205,7 @@ class AIPainterService {
     const url = this.cache.get(key)
     const expiry = this.cacheExpiry.get(key)
     if (url && expiry && Date.now() < expiry) {
-      return { imageUrl: url, cached: true }
+      return { imageUrl: url.imageUrl, cached: true }
     }
     return null
   }

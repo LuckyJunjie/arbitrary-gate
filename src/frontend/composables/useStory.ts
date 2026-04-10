@@ -11,7 +11,7 @@ export function useStory() {
   const storyError = ref<string | null>(null)
 
   // SSE reconnect state (保留结构，后续 SSE 流式章节时可扩展)
-  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let _reconnectTimer: ReturnType<typeof setTimeout> | null = null
   const maxReconnectAttempts = 3
   let reconnectAttempts = 0
 
@@ -47,7 +47,7 @@ export function useStory() {
         reconnectAttempts++
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 8000)
         console.warn(`[useStory] reconnecting in ${delay}ms (attempt ${reconnectAttempts})`)
-        reconnectTimer = setTimeout(() => {
+        _reconnectTimer = setTimeout(() => {
           loadChapter(storyId, chapterNo)
         }, delay)
       }

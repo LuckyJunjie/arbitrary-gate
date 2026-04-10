@@ -235,7 +235,7 @@ const sortedStories = computed(() => {
 })
 
 // 按朝代分组（山河图视图）
-const groupedByDynasty = computed(() => {
+const _groupedByDynasty = computed(() => {
   const groups: Record<string, StoredStory[]> = {}
   for (const story of filteredStories.value) {
     const dynasty = story.dynasty ?? '其他'
@@ -246,7 +246,7 @@ const groupedByDynasty = computed(() => {
 })
 
 // 朝代顺序（固定排序）
-const dynastyOrder = ['先秦', '秦汉', '魏晋', '南北朝', '隋唐', '五代', '宋', '元', '明', '清', '近代', '其他']
+const _dynastyOrder = ['先秦', '秦汉', '魏晋', '南北朝', '隋唐', '五代', '宋', '元', '明', '清', '近代', '其他']
 
 // === 是否有激活的筛选 ===
 const hasActiveFilter = computed(
@@ -256,12 +256,12 @@ const hasActiveFilter = computed(
 // === 是否为空书架 ===
 const isEmpty = computed(() => stories.value.length === 0)
 
-function formatDate(iso: string) {
+function _formatDate(iso: string) {
   const d = new Date(iso)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function formatYear(iso: string) {
+function _formatYear(iso: string) {
   return new Date(iso).getFullYear()
 }
 
@@ -270,7 +270,7 @@ function formatTimelineYear(iso: string) {
   return `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`
 }
 
-function formatDeviation(dev: number) {
+function _formatDeviation(dev: number) {
   if (dev === 0) return '±0'
   return `${dev > 0 ? '+' : ''}${dev}`
 }
@@ -317,7 +317,7 @@ function shareStory(story: StoredStory) {
 }
 
 // 删除故事 - 打开卡菜单
-function openCardMenu(story: StoredStory) {
+function _openCardMenu(story: StoredStory) {
   cardMenuStory.value = story
 }
 

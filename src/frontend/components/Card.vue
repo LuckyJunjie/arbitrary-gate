@@ -39,10 +39,10 @@ const categoryConfig: Record<number, string> = {
   5: '称谓',
 }
 
-const rarity = computed(() => (props.card?.rarity as number) ?? 1)
-const category = computed(() => props.card?.category as number)
-const inkFragrance = computed(() => props.card?.inkFragrance ?? 0)
-const resonanceCount = computed(() => props.card?.resonanceCount ?? 0)
+const rarity = computed(() => (props.card as KeywordCard)?.rarity ?? 1)
+const category = computed(() => (props.card as KeywordCard)?.category ?? 0)
+const inkFragrance = computed(() => (props.card as KeywordCard)?.inkFragrance ?? 0)
+const resonanceCount = computed(() => (props.card as KeywordCard)?.resonanceCount ?? 0)
 
 import { computed } from 'vue'
 </script>

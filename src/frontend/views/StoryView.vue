@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { fetchChapter } from '@/services/api'
@@ -78,7 +78,7 @@ function handleTouchEnd(e: TouchEvent) {
   if (!touchStart.value || gestureMode.value !== 'gesture') return
   const t = e.changedTouches[0]
   const dx = t.clientX - touchStart.value.x
-  const dy = t.clientY - touchStart.value.y
+  const _dy = t.clientY - touchStart.value.y
   const duration = Date.now() - touchStartTime.value
 
   // 根据手势速度判定力度
@@ -143,20 +143,20 @@ const typewriterQueue = ref<string[]>([]) // 待渲染段落队列
 // ── SSE / WS 连接 ──
 let eventSource: EventSource | null = null
 let ws: WebSocket | null = null
-let charIndex = 0
-let streamingDone = false
+let _charIndex = 0
+let _streamingDone = false
 
 // ── 逐字渲染引擎 (UI-10) ──
 // 每字间隔 30ms，逐字 fadeIn，queue 缓冲多段文本
 const pendingTextQueue = ref<string[]>([]) // 待渲染段落队列（逐字模式）
 let typewriterTimer: ReturnType<typeof setTimeout> | null = null
-let typewriterParagraphIndex = 0 // 当前渲染段落在 displayedText 中的位置标记
+let _typewriterParagraphIndex = 0 // 当前渲染段落在 displayedText 中的位置标记
 
 function startTypewriterQueue(paragraphs: string[]) {
   typewriterQueue.value = paragraphs
-  streamingDone = false
+  _streamingDone = false
   isStreaming.value = true
-  processTypewriter()
+  processPendingQueue()
 }
 
 // ── S-14 偶遇支线状态 ──
@@ -195,7 +195,7 @@ function processPendingQueue() {
     // 所有段落渲染完毕
     if (typewriterQueue.value.length === 0) {
       isStreaming.value = false
-      streamingDone = true
+      _streamingDone = true
     }
     return
   }
@@ -220,17 +220,6 @@ function processPendingQueue() {
   }
   // 30ms 后渲染下一个字符
   typewriterTimer = setTimeout(processPendingQueue, 30)
-}
-
-// 在非流式段落队列全部渲染完后，检测是否还有 pending 的 SSE/WSS 片段待渲染
-function drainPendingToQueue() {
-  if (pendingTextQueue.value.length > 0) {
-    // 将 pending 片段合并为一个段落加入 typewriterQueue
-    const combined = pendingTextQueue.value.join('')
-    pendingTextQueue.value = []
-    typewriterQueue.value.push(combined)
-    processTypewriter()
-  }
 }
 
 // ── 入局三问弹窗状态 ──
@@ -289,7 +278,7 @@ function connectStoryStream() {
         currentChapter.value.options = opts
       }
       isStreaming.value = false
-      streamingDone = true
+      _streamingDone = true
     },
     onReconnect: (localDraft: string) => {
       // S-16: 断线重连后恢复本地草稿
@@ -336,8 +325,8 @@ async function loadChapter(chapterNo: number) {
   isLoading.value = true
   streamError.value = null
   displayedText.value = ''
-  charIndex = 0
-  streamingDone = false
+  _charIndex = 0
+  _streamingDone = false
   currentChapterNo.value = chapterNo
 
   try {
@@ -367,56 +356,6 @@ async function loadChapter(chapterNo: number) {
   }
 }
 
-// ── SSE 流式连接 ──
-function connectSSE() {
-  closeStream()
-  isStreaming.value = true
-
-  const url = `/api/story/${storyId}/stream`
-  eventSource = new EventSource(url)
-
-  eventSource.addEventListener('open', () => {
-    streamError.value = null
-    console.log('[StoryView] SSE connected')
-  })
-
-  eventSource.addEventListener('scene_text', (e: MessageEvent) => {
-    const text = e.data
-    if (text) {
-      // UI-10: 逐字渲染，每字 30ms fadeIn
-      appendPendingText(text)
-    }
-  })
-
-  eventSource.addEventListener('scene_start', (e: MessageEvent) => {
-    displayedText.value = ''
-    const data = JSON.parse(e.data)
-    currentChapter.value = data.chapter ?? currentChapter.value
-  })
-
-  eventSource.addEventListener('options', (e: MessageEvent) => {
-    const opts: Option[] = JSON.parse(e.data)
-    if (currentChapter.value) {
-      currentChapter.value.options = opts
-    }
-    isStreaming.value = false
-    streamingDone = true
-    closeStream()
-  })
-
-  // S-14: 偶遇事件
-  eventSource.addEventListener('encounter', (e: MessageEvent) => {
-    const enc: Encounter = JSON.parse(e.data)
-    activeEncounter.value = enc
-  })
-
-  eventSource.addEventListener('error', () => {
-    console.warn('[StoryView] SSE error, falling back to WebSocket')
-    closeStream()
-    connectWebSocket()
-  })
-}
-
 // ── WebSocket 降级 ──
 function connectWebSocket() {
   closeStream()
@@ -436,7 +375,7 @@ function connectWebSocket() {
         currentChapter.value.options = msg.options
       }
       isStreaming.value = false
-      streamingDone = true
+      _streamingDone = true
       closeStream()
     }
   })
@@ -466,7 +405,7 @@ function closeStream() {
 }
 
 // ── 选择选项 ──
-async function selectOption(optionId: number, valueOrientation?: string, event?: MouseEvent, intensity?: 'gentle' | 'urgent' | 'forceful') {
+async function selectOption(optionId: number, _valueOrientation?: string, event?: MouseEvent, _intensity?: 'gentle' | 'urgent' | 'forceful') {
   if (!currentChapter.value) return
 
   // 触发涟漪动画

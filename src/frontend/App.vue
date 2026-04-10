@@ -10,7 +10,7 @@ const isGuest = !token
 // ── 全局错误边界 ──
 const globalError = ref<string | null>(null)
 
-onErrorCaptured((err, instance, info) => {
+onErrorCaptured((err, _instance, info) => {
   console.error('[App] Global error captured:', err, info)
   globalError.value = '系统繁忙，请刷新页面重试'
   return false // 阻止错误继续传播

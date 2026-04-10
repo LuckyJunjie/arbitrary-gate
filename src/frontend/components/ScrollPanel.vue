@@ -64,7 +64,7 @@ const BOUNCE_FACTOR = 0.35       // 回弹系数
 const BOUNCE_THRESHOLD = 80      // 开始回弹的溢出阈值
 const FRICTION = 0.92            // 摩擦系数
 const MIN_VELOCITY = 0.1         // 最小速度阈值
-const MAX_BOUNCE = 120           // 最大回弹距离
+const _MAX_BOUNCE = 120           // 最大回弹距离
 
 // ============ 虚拟滚动状态 ============
 const scrollTop = ref(0)
@@ -76,7 +76,7 @@ const buffer = computed(() => props.bufferSize ?? 3)
 const estimatedItemHeight = computed(() => props.itemHeight ?? 60)
 
 // ============ 滚动位置（transform 实现）============
-const transformY = ref(0)
+const _transformY = ref(0)
 
 // ============ 触摸事件处理 ============
 function onTouchStart(e: TouchEvent) {
@@ -123,7 +123,7 @@ function onTouchMove(e: TouchEvent) {
   applyScrollDelta(-deltaY, true)
 }
 
-function onTouchEnd(e: TouchEvent) {
+function onTouchEnd(_e: TouchEvent) {
   if (!isTouching.value) return
   isTouching.value = false
 
@@ -229,7 +229,7 @@ function startInertia(initialVelocity: number) {
 function inertiaFrame(timestamp: number) {
   if (!inertia.value.active) return
 
-  const dt = timestamp - lastFrameTime
+  const _dt = timestamp - lastFrameTime
   lastFrameTime = timestamp
 
   let { velocity, position } = inertia.value
@@ -295,7 +295,7 @@ function startBounceBack(from: number, to: number) {
 function bounceFrame(timestamp: number) {
   if (!inertia.value.active || !inertia.value.bounceBack) return
 
-  const dt = timestamp - lastFrameTime
+  const _dt = timestamp - lastFrameTime
   lastFrameTime = timestamp
 
   let { velocity, position } = inertia.value
@@ -352,7 +352,7 @@ function updateVirtualScroll() {
 }
 
 // Virtual scroll computed visible range
-const visibleRange = computed(() => {
+const _visibleRange = computed(() => {
   const top = scrollTop.value
   const bottom = top + (panelRef.value?.clientHeight ?? 0)
   const itemH = estimatedItemHeight.value

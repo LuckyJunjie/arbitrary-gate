@@ -11,7 +11,6 @@ import type { KeywordCard } from '@/services/api'
 
 const router = useRouter()
 const cardStore = useCardStore()
-const inkValueStore = useInkValueStore()
 const activeTab = ref<'keyword' | 'event'>('keyword')
 const activeRarity = ref<number | null>(null)
 
@@ -170,15 +169,16 @@ const filteredCards = computed(() => {
 
 const isEmpty = computed(() => filteredCards.value.length === 0)
 
-const emptyMessage = computed(() => {
+const _emptyMessage = computed(() => {
   if (cardStore.totalCount === 0) return '卡匣空空如也，去抽一张命运之卡吧'
-  if (activeRarity.value !== null) return `没有 {{ rarity }} 级的卡牌`[
-    activeRarity.value === 1 ? '凡' : activeRarity.value === 2 ? '珍' : activeRarity.value === 3 ? '奇' : '绝'
-  ] ? `没有${['', '凡', '珍', '奇', '绝'][activeRarity.value!]}级卡牌` : `没有${['', '凡', '珍', '奇', '绝'][activeRarity.value!]}级卡牌`
+  if (activeRarity.value !== null) {
+    const rarityLabel = activeRarity.value === 1 ? '凡' : activeRarity.value === 2 ? '珍' : activeRarity.value === 3 ? '奇' : '绝'
+    return `没有${rarityLabel}级卡牌`
+  }
   return '此类中暂无卡牌'
 })
 
-function handleCardFlip(card: KeywordCard | Record<string, unknown> | null) {
+function handleCardFlip(_card: KeywordCard | Record<string, unknown> | null) {
   // 翻转时不做额外处理，Card 组件自行管理
 }
 
