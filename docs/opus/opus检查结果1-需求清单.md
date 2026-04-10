@@ -30,7 +30,7 @@
 | C-06 | 保底机制：30 抽必出绝品 | P0 | ✅ 已有 | 同上 |
 | C-07 | 手牌上限（9 关键词 + 3 事件） | P1 | ✅ 已有 | CardService 检查上限，超限抛出 BusinessException |
 | C-08 | 墨迹占卜（今日运势提示） | P1 | ✅ 已有 | CardService.getFortune() + PoolView localStorage 缓存 |
-| C-09 | 残片拼接交互（擦墨动画） | P1 | ⚠️ 部分 | InkPool 有涟漪动画，但无"擦墨显卡"交互 |
+| C-09 | 残片拼接交互（擦墨动画） | P1 | ✅ 已有 | ScratchCard 组件完整实现：Canvas 墨迹擦除、擦墨进度条、墨滴回落动画、音效 |
 | C-10 | 墨香标记系统 | P1 | ✅ 已有 | inkValueStore 计算墨香值（base + rarity + streak） |
 | C-11 | 墨香渐淡（时间衰减） | P1 | ❌ 未做 | ink_fragrance 字段存在，但无定时衰减逻辑 |
 | C-12 | 陈卡回炉（回墨池换重抽） | P2 | ❌ 未做 | 每日限 1 次 |
@@ -48,7 +48,7 @@
 | K-03 | 卡牌分类筛选（器物/职人/风物/情绪/称谓） | P0 | ✅ 已有 | CardsView tab 筛选 |
 | K-04 | 稀有度筛选（凡/珍/奇/绝） | P0 | ✅ 已有 | 同上 |
 | K-05 | 墨香值显示 | P1 | ✅ 已有 | InkLevelBadge 组件 |
-| K-06 | 累计共鸣次数显示 | P1 | ⚠️ 部分 | 字段存在（resonance_count），展示不确定 |
+| K-06 | 累计共鸣次数显示 | P1 | ✅ 已有 | Card.vue 显示"共鸣 ×{resonanceCount}"徽章（赭石色小字），K-06 已完成 |
 | K-07 | 卡片边缘墨迹晕染效果（按墨香值） | P2 | ❌ 未做 | UI 规范要求，新卡墨迹浓 → 渐淡 |
 
 ---
@@ -73,8 +73,8 @@
 | E-03 | 提交三问答案并开始故事 | P0 | ✅ 已有 | submitEntryAnswers API |
 | E-04 | 配角群像生成（6-8 人） | P0 | ✅ 已有 | StoryOrchestrationService 初始化配角 |
 | E-05 | 配角分类：命运羁绊/历史节点/市井过客 | P0 | ✅ 已有 | character_type 1/2/3 |
-| E-06 | 配角初见·一句话印象（非上帝视角） | P1 | ❌ 未做 | 用主角眼睛看配角"此刻的样子" |
-| E-07 | 关键词落位（核心意象/转折道具/人物关联） | P1 | ⚠️ 部分 | AI 分配关键词，但落位可视化未做 |
+| E-06 | 配角初见·一句话印象（非上帝视角） | P1 | ✅ 已有 | StorytellerAgent 在首章生成 characterAppearances（含 firstImpression），StoryView.vue 展示 |
+| E-07 | 关键词落位（核心意象/转折道具/人物关联） | P1 | ✅ 已有 | startStory 返回 keywordPositions，EntryQuestionsView.vue 三栏"命轮落位"UI，roleOwner 显示关联人物 |
 | E-08 | 风格选项（白描/江湖/笔记/话本） | P1 | ✅ 已有 | EntryQuestionsView 选择卡 + StorytellerAgent.getStyleGuidance() |
 
 ---
