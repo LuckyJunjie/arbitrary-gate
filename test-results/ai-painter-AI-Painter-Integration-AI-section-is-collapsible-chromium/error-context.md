@@ -12,10 +12,105 @@
 # Error details
 
 ```
-Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/cards
-Call log:
-  - navigating to "http://localhost:5175/cards", waiting until "load"
+Error: expect(locator).toBeVisible() failed
 
+Locator:  locator('.ai-painter-body')
+Expected: visible
+Received: hidden
+Timeout:  5000ms
+
+Call log:
+  - Expect "toBeVisible" with timeout 5000ms
+  - waiting for locator('.ai-painter-body')
+    9 × locator resolved to <div data-v-498173d0="" class="ai-painter-body">…</div>
+      - unexpected value "hidden"
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 游客模式 ·
+    - button "获取关键词" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - generic [ref=e9]:
+        - heading "卡匣" [level=2] [ref=e10]
+        - paragraph [ref=e11]: 共 4 张
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]: 墨香
+          - generic [ref=e16]: 初墨
+          - generic [ref=e17]: Lv.1
+        - generic [ref=e19]:
+          - generic [ref=e20]: "0"
+          - generic [ref=e21]: 距 入墨 还差 100 点
+    - navigation [ref=e22]:
+      - button "关键词" [ref=e23] [cursor=pointer]
+      - button "事件" [ref=e24] [cursor=pointer]
+    - generic [ref=e25]:
+      - button "全部" [ref=e26] [cursor=pointer]
+      - button "凡" [ref=e27] [cursor=pointer]
+      - button "珍" [ref=e28] [cursor=pointer]
+      - button "奇" [ref=e29] [cursor=pointer]
+      - button "绝" [ref=e30] [cursor=pointer]
+    - generic [ref=e31]:
+      - generic [ref=e32] [cursor=pointer]:
+        - button "🅾️" [ref=e33]
+        - button "笺 时光笺 旧 旧船票 珍 器物 墨香 点击卡面翻转" [active] [ref=e34]:
+          - generic [ref=e36]:
+            - generic [ref=e37]: 笺
+            - generic [ref=e38]: 时光笺
+          - generic [ref=e39]:
+            - generic [ref=e41]: 旧
+            - generic [ref=e42]: 旧船票
+            - generic [ref=e43]:
+              - generic [ref=e44]: 珍
+              - generic [ref=e45]: 器物
+            - generic [ref=e47]: 墨香
+            - generic [ref=e56]: 点击卡面翻转
+        - generic [ref=e57]: ✓
+      - generic [ref=e58] [cursor=pointer]:
+        - button "🅾️" [ref=e59]
+        - button "笺 时光笺 说 说书匠 奇 职人 墨香 点击卡面翻转" [ref=e60]:
+          - generic [ref=e62]:
+            - generic [ref=e63]: 笺
+            - generic [ref=e64]: 时光笺
+          - generic [ref=e65]:
+            - generic [ref=e67]: 说
+            - generic [ref=e68]: 说书匠
+            - generic [ref=e69]:
+              - generic [ref=e70]: 奇
+              - generic [ref=e71]: 职人
+            - generic [ref=e73]: 墨香
+            - generic [ref=e82]: 点击卡面翻转
+      - generic [ref=e83] [cursor=pointer]:
+        - button "🅾️" [ref=e84]
+        - button "笺 时光笺 青 青石板 凡 风物 墨香 点击卡面翻转" [ref=e85]:
+          - generic [ref=e87]:
+            - generic [ref=e88]: 笺
+            - generic [ref=e89]: 时光笺
+          - generic [ref=e90]:
+            - generic [ref=e92]: 青
+            - generic [ref=e93]: 青石板
+            - generic [ref=e94]:
+              - generic [ref=e95]: 凡
+              - generic [ref=e96]: 风物
+            - generic [ref=e98]: 墨香
+            - generic [ref=e107]: 点击卡面翻转
+    - generic [ref=e109] [cursor=pointer]:
+      - generic [ref=e110]: 🖌️ AI 画师
+      - generic [ref=e111]: ▶
+    - generic [ref=e112]:
+      - generic [ref=e113]:
+        - generic [ref=e114]: 已选关键词
+        - generic [ref=e115]: 1/3
+        - generic [ref=e116]: "|"
+        - generic [ref=e117]: 事件
+        - generic [ref=e118]: 未选
+      - button "还需选2个" [disabled] [ref=e119]
 ```
 
 # Test source
@@ -44,8 +139,7 @@ Call log:
   21 |       localStorage.setItem('arbitrary_gate_event_cards', JSON.stringify(eventCards))
   22 |       localStorage.setItem('arbitrary_gate_ink_stone', JSON.stringify(500))
   23 |     }, SEED_DATA)
-> 24 |     await page.goto(`${BASE_URL}/cards`)
-     |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/cards
+  24 |     await page.goto(`${BASE_URL}/cards`)
   25 |     // Wait for card grid to render
   26 |     await page.waitForSelector('.card-slot', { timeout: 15000 })
   27 |   })
@@ -77,7 +171,8 @@ Call log:
   53 |     await page.locator('.card-slot').first().click()
   54 |     await expect(page.locator('.ai-painter-section')).toBeVisible()
   55 |     // Section body should be visible by default
-  56 |     await expect(page.locator('.ai-painter-body')).toBeVisible()
+> 56 |     await expect(page.locator('.ai-painter-body')).toBeVisible()
+     |                                                    ^ Error: expect(locator).toBeVisible() failed
   57 |     // Click header to collapse
   58 |     await page.locator('.ai-painter-header').click()
   59 |     // Body should be hidden (v-show)

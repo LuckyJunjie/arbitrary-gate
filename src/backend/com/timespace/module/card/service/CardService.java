@@ -14,6 +14,7 @@ import com.timespace.module.card.mapper.UserEventCardMapper;
 import com.timespace.module.card.mapper.UserKeywordCardMapper;
 import com.timespace.module.ai.client.AIClient;
 import com.timespace.module.user.service.UserService;
+import org.springframework.scheduling.annotation.Scheduled;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -696,4 +697,25 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
      * 组合判词预览结果
      */
     public record PreviewResult(String judgment) {}
+
+    // ========== C-11 墨香渐淡（时间衰减）每日零点执行 ==========
+
+    /**
+     * C-11 墨香渐淡（时间衰减）
+     * 每日零点（0:00）执行，扫描所有用户关键词卡的墨香值，
+     * 将 ink_fragrance = MAX(0, ink_fragrance - 1)
+     * 模拟"墨香随时间流逝而渐淡"的游戏体验。
+     */
+    @Scheduled(cron = "0 0 0 * * ?")
+    public void decayInkFragranceDaily() {
+        log.info("[C-11] 墨香渐淡定时任务开始执行");
+
+        // 墨香值最小为0，衰减后不低于0
+        int updated = baseMapper.update(null,
+                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<UserKeywordCard>()
+                        .setSql("ink_fragrance = GREATEST(0, ink_fragrance - 1)")
+                        .gt(UserKeywordCard::getInkFragrance, 0)  // 只更新 > 0 的记录
+        );
+        log.info("[C-11] 墨香渐淡定时任务完成，共衰减 {} 张卡牌的墨香值", updated);
+    }
 }

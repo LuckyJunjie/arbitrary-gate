@@ -12,55 +12,52 @@
 # Error details
 
 ```
-Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
-Call log:
-  - navigating to "http://localhost:5175/bookshelf", waiting until "load"
+Error: expect(locator).toBeVisible() failed
 
+Locator: locator('[data-testid="map-marker"]').first()
+Expected: visible
+Timeout: 5000ms
+Error: element(s) not found
+
+Call log:
+  - Expect "toBeVisible" with timeout 5000ms
+  - waiting for locator('[data-testid="map-marker"]').first()
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 游客模式 ·
+    - button "获取关键词" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - heading "书架" [level=2] [ref=e9]
+      - generic [ref=e10]:
+        - button "按时间" [ref=e12] [cursor=pointer]
+        - generic [ref=e13]:
+          - button "格子" [ref=e14] [cursor=pointer]
+          - button "时光轴" [ref=e15] [cursor=pointer]
+          - button "山河图" [active] [ref=e16] [cursor=pointer]
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - button "全部" [ref=e19] [cursor=pointer]
+        - button "已完成" [ref=e20] [cursor=pointer]
+        - button "进行中" [ref=e21] [cursor=pointer]
+      - button "全部关键词" [ref=e23] [cursor=pointer]
+    - img [ref=e26]:
+      - generic [ref=e40]: 东
+      - generic [ref=e41]: 西
+      - generic [ref=e42]: 北
+      - generic [ref=e43]: 南
+      - generic [ref=e45]: 山河无言，待风云际会
 ```
 
 # Test source
 
 ```ts
-  39  |       {
-  40  |         id: 2,
-  41  |         storyNo: 'SN002',
-  42  |         title: '马嵬月下',
-  43  |         eventName: '马嵬驿·杨贵妃缢死',
-  44  |         status: 'completed',
-  45  |         historyDeviation: 72,
-  46  |         wordCount: 5200,
-  47  |         createdAt: '2024-01-16T14:00:00Z',
-  48  |         finishedAt: '2024-01-16T16:00:00Z',
-  49  |         keywords: [
-  50  |           { id: 3, name: '意难平', rarity: 4 },
-  51  |           { id: 4, name: '青石板', rarity: 1 },
-  52  |         ],
-  53  |       },
-  54  |       {
-  55  |         id: 3,
-  56  |         storyNo: 'SN003',
-  57  |         title: '待续...',
-  58  |         eventName: '玄武门·李世民射兄',
-  59  |         status: 'in_progress',
-  60  |         historyDeviation: 50,
-  61  |         wordCount: 0,
-  62  |         createdAt: '2024-01-17T09:00:00Z',
-  63  |         finishedAt: null,
-  64  |         keywords: [
-  65  |           { id: 5, name: '铜锁芯', rarity: 2 },
-  66  |         ],
-  67  |         currentChapter: 2,
-  68  |         totalChapters: 5,
-  69  |       },
-  70  |     ]
-  71  | 
-  72  |     localStorage.setItem('bookshelf_stories', JSON.stringify(mockStories))
-  73  |     localStorage.setItem('currentUserId', '1')
-  74  |   })
-  75  | }
-  76  | 
-  77  | // ==================== E2E 测试用例 ====================
-  78  | 
   79  | test.describe('书架管理模块', () => {
   80  | 
   81  |   test.beforeEach(async ({ page }) => {
@@ -121,8 +118,7 @@ Call log:
   136 | test.describe('书架视图切换', () => {
   137 | 
   138 |   test.beforeEach(async ({ page }) => {
-> 139 |     await page.goto(`${BASE_URL}/bookshelf`)
-      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
+  139 |     await page.goto(`${BASE_URL}/bookshelf`)
   140 |     await setupMockData(page)
   141 |     await page.reload()
   142 |   })
@@ -162,7 +158,8 @@ Call log:
   176 | 
   177 |     // 检查地图标记点
   178 |     const mapMarkers = page.locator('[data-testid="map-marker"]')
-  179 |     await expect(mapMarkers.first()).toBeVisible()
+> 179 |     await expect(mapMarkers.first()).toBeVisible()
+      |                                      ^ Error: expect(locator).toBeVisible() failed
   180 |   })
   181 | })
   182 | 
@@ -223,4 +220,44 @@ Call log:
   237 |   })
   238 | })
   239 | 
+  240 | test.describe('书架排序功能', () => {
+  241 | 
+  242 |   test.beforeEach(async ({ page }) => {
+  243 |     await page.goto(`${BASE_URL}/bookshelf`)
+  244 |     await setupMockData(page)
+  245 |     await page.reload()
+  246 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
+  247 |   })
+  248 | 
+  249 |   test('应该支持按时间排序', async ({ page }) => {
+  250 |     await page.locator('[data-testid="sort-select"]').click()
+  251 |     await page.locator('[data-testid="sort-option-date"]').click()
+  252 |     await page.waitForTimeout(500)
+  253 | 
+  254 |     // 验证排序（最新在前）
+  255 |     const dates = page.locator('[data-testid="story-date"]')
+  256 |     const firstDate = await dates.first().textContent()
+  257 | 
+  258 |     expect(firstDate).toBeTruthy()
+  259 |   })
+  260 | 
+  261 |   test('应该支持按偏离度排序', async ({ page }) => {
+  262 |     await page.locator('[data-testid="sort-select"]').click()
+  263 |     await page.locator('[data-testid="sort-option-deviation"]').click()
+  264 |     await page.waitForTimeout(500)
+  265 | 
+  266 |     // 验证偏离度指示器显示
+  267 |     await expect(page.locator('[data-testid="deviation-badge"]').first()).toBeVisible()
+  268 |   })
+  269 | 
+  270 |   test('应该支持按字数排序', async ({ page }) => {
+  271 |     await page.locator('[data-testid="sort-select"]').click()
+  272 |     await page.locator('[data-testid="sort-option-words"]').click()
+  273 |     await page.waitForTimeout(500)
+  274 | 
+  275 |     // 验证字数显示
+  276 |     await expect(page.locator('[data-testid="word-count-badge"]').first()).toBeVisible()
+  277 |   })
+  278 | })
+  279 | 
 ```

@@ -12,36 +12,63 @@
 # Error details
 
 ```
-Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
-Call log:
-  - navigating to "http://localhost:5175/bookshelf", waiting until "load"
+Test timeout of 30000ms exceeded.
+```
 
+```
+Error: locator.textContent: Test timeout of 30000ms exceeded.
+Call log:
+  - waiting for locator('[data-testid="story-card"][data-status="completed"]').first().locator('[data-testid="story-status"]')
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 游客模式 ·
+    - button "获取关键词" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - heading "书架" [level=2] [ref=e9]
+      - generic [ref=e10]:
+        - button "按时间" [ref=e12] [cursor=pointer]
+        - generic [ref=e13]:
+          - button "格子" [ref=e14] [cursor=pointer]
+          - button "时光轴" [ref=e15] [cursor=pointer]
+          - button "山河图" [ref=e16] [cursor=pointer]
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - button "全部" [ref=e19] [cursor=pointer]
+        - button "已完成" [ref=e20] [cursor=pointer]
+        - button "进行中" [ref=e21] [cursor=pointer]
+      - button "全部关键词" [ref=e23] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e28] [cursor=pointer]:
+        - generic [ref=e31]: 待续...
+        - generic [ref=e34]: 玄武门·李世民射兄
+      - generic [ref=e35] [cursor=pointer]:
+        - generic [ref=e37]:
+          - generic: 马嵬月下
+        - generic [ref=e39]:
+          - generic [ref=e40]: 马嵬驿·杨贵妃缢死
+          - generic "已完成" [ref=e41]:
+            - img [ref=e42]:
+              - generic [ref=e45]: 完
+      - generic [ref=e46] [cursor=pointer]:
+        - generic [ref=e48]:
+          - generic: 赤壁往事
+        - generic [ref=e50]:
+          - generic [ref=e51]: 赤壁·东风骤起
+          - generic "已完成" [ref=e52]:
+            - img [ref=e53]:
+              - generic [ref=e56]: 完
 ```
 
 # Test source
 
 ```ts
-  1   | /**
-  2   |  * 书架管理 E2E 测试
-  3   |  *
-  4   |  * 测试覆盖：
-  5   |  * - 书架页面加载
-  6   |  * - 时光轴视图
-  7   |  * - 山河图视图
-  8   |  * - 故事卡管理
-  9   |  * - 筛选和排序
-  10  |  */
-  11  | 
-  12  | import { test, expect } from '@playwright/test'
-  13  | 
-  14  | // ==================== 测试配置 ====================
-  15  | 
-  16  | const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5175'
-  17  | 
-  18  | // ==================== 辅助函数 ====================
-  19  | 
-  20  | async function setupMockData(page: any): Promise<void> {
-  21  |   await page.evaluate(() => {
   22  |     // 模拟书架数据
   23  |     const mockStories = [
   24  |       {
@@ -102,8 +129,7 @@ Call log:
   79  | test.describe('书架管理模块', () => {
   80  | 
   81  |   test.beforeEach(async ({ page }) => {
-> 82  |     await page.goto(`${BASE_URL}/bookshelf`)
-      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
+  82  |     await page.goto(`${BASE_URL}/bookshelf`)
   83  |     await setupMockData(page)
   84  |     await page.reload()
   85  |   })
@@ -143,7 +169,8 @@ Call log:
   119 |     const completedCards = page.locator('[data-testid="story-card"][data-status="completed"]')
   120 |     await expect(completedCards.first()).toBeVisible()
   121 | 
-  122 |     const status = await completedCards.first().locator('[data-testid="story-status"]').textContent()
+> 122 |     const status = await completedCards.first().locator('[data-testid="story-status"]').textContent()
+      |                                                                                         ^ Error: locator.textContent: Test timeout of 30000ms exceeded.
   123 |     expect(status).toContain('已完成')
   124 |   })
   125 | 
@@ -204,4 +231,44 @@ Call log:
   180 |   })
   181 | })
   182 | 
+  183 | test.describe('书架筛选功能', () => {
+  184 | 
+  185 |   test.beforeEach(async ({ page }) => {
+  186 |     await page.goto(`${BASE_URL}/bookshelf`)
+  187 |     await setupMockData(page)
+  188 |     await page.reload()
+  189 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
+  190 |   })
+  191 | 
+  192 |   test('应该支持按状态筛选', async ({ page }) => {
+  193 |     // 点击"已完成"筛选
+  194 |     await page.locator('[data-testid="filter-status-completed"]').click()
+  195 |     await page.waitForTimeout(500)
+  196 | 
+  197 |     // 验证只显示已完成的故事
+  198 |     const visibleCards = page.locator('[data-testid="story-card"]:visible')
+  199 |     const count = await visibleCards.count()
+  200 | 
+  201 |     for (let i = 0; i < count; i++) {
+  202 |       const status = await visibleCards.nth(i).getAttribute('data-status')
+  203 |       expect(status).toBe('completed')
+  204 |     }
+  205 |   })
+  206 | 
+  207 |   test('应该支持按关键词筛选', async ({ page }) => {
+  208 |     // 点击关键词筛选
+  209 |     await page.locator('[data-testid="filter-keyword"]').click()
+  210 |     await page.waitForTimeout(500)
+  211 | 
+  212 |     // 选择一个关键词
+  213 |     await page.locator('[data-testid="keyword-option-旧船票"]').click()
+  214 |     await page.waitForTimeout(500)
+  215 | 
+  216 |     // 验证筛选结果
+  217 |     const visibleCards = page.locator('[data-testid="story-card"]:visible')
+  218 |     const count = await visibleCards.count()
+  219 | 
+  220 |     expect(count).toBeGreaterThan(0)
+  221 |   })
+  222 | 
 ```

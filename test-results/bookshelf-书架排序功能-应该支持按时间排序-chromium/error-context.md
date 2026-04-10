@@ -12,28 +12,63 @@
 # Error details
 
 ```
-Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
-Call log:
-  - navigating to "http://localhost:5175/bookshelf", waiting until "load"
+Test timeout of 30000ms exceeded.
+```
 
+```
+Error: locator.textContent: Test timeout of 30000ms exceeded.
+Call log:
+  - waiting for locator('[data-testid="story-date"]').first()
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: 游客模式 ·
+    - button "获取关键词" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - banner [ref=e8]:
+      - heading "书架" [level=2] [ref=e9]
+      - generic [ref=e10]:
+        - button "按时间" [ref=e12] [cursor=pointer]
+        - generic [ref=e13]:
+          - button "格子" [ref=e14] [cursor=pointer]
+          - button "时光轴" [ref=e15] [cursor=pointer]
+          - button "山河图" [ref=e16] [cursor=pointer]
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - button "全部" [ref=e19] [cursor=pointer]
+        - button "已完成" [ref=e20] [cursor=pointer]
+        - button "进行中" [ref=e21] [cursor=pointer]
+      - button "全部关键词" [ref=e23] [cursor=pointer]
+    - generic [ref=e27]:
+      - generic [ref=e28] [cursor=pointer]:
+        - generic [ref=e31]: 待续...
+        - generic [ref=e34]: 玄武门·李世民射兄
+      - generic [ref=e35] [cursor=pointer]:
+        - generic [ref=e37]:
+          - generic: 马嵬月下
+        - generic [ref=e39]:
+          - generic [ref=e40]: 马嵬驿·杨贵妃缢死
+          - generic "已完成" [ref=e41]:
+            - img [ref=e42]:
+              - generic [ref=e45]: 完
+      - generic [ref=e46] [cursor=pointer]:
+        - generic [ref=e48]:
+          - generic: 赤壁往事
+        - generic [ref=e50]:
+          - generic [ref=e51]: 赤壁·东风骤起
+          - generic "已完成" [ref=e52]:
+            - img [ref=e53]:
+              - generic [ref=e56]: 完
 ```
 
 # Test source
 
 ```ts
-  143 | 
-  144 |   test('应该支持时光轴视图切换', async ({ page }) => {
-  145 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
-  146 | 
-  147 |     // 点击时光轴视图按钮
-  148 |     await page.locator('[data-testid="view-toggle-timeline"]').click()
-  149 | 
-  150 |     // 验证时光轴视图显示
-  151 |     await expect(page.locator('[data-testid="timeline-view"]')).toBeVisible({ timeout: 5000 })
-  152 |   })
-  153 | 
-  154 |   test('应该支持山河图视图切换', async ({ page }) => {
-  155 |     await page.waitForSelector('[data-testid="view-toggle"]', { timeout: 10000 })
   156 | 
   157 |     // 点击山河图视图按钮
   158 |     await page.locator('[data-testid="view-toggle-map"]').click()
@@ -121,8 +156,7 @@ Call log:
   240 | test.describe('书架排序功能', () => {
   241 | 
   242 |   test.beforeEach(async ({ page }) => {
-> 243 |     await page.goto(`${BASE_URL}/bookshelf`)
-      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:5175/bookshelf
+  243 |     await page.goto(`${BASE_URL}/bookshelf`)
   244 |     await setupMockData(page)
   245 |     await page.reload()
   246 |     await page.waitForSelector('[data-testid="story-card"]', { timeout: 10000 })
@@ -135,7 +169,8 @@ Call log:
   253 | 
   254 |     // 验证排序（最新在前）
   255 |     const dates = page.locator('[data-testid="story-date"]')
-  256 |     const firstDate = await dates.first().textContent()
+> 256 |     const firstDate = await dates.first().textContent()
+      |                                           ^ Error: locator.textContent: Test timeout of 30000ms exceeded.
   257 | 
   258 |     expect(firstDate).toBeTruthy()
   259 |   })
@@ -223,4 +258,17 @@ Call log:
   341 |       localStorage.setItem('bookshelf_stories', JSON.stringify([]))
   342 |     })
   343 |     await page.reload()
+  344 |     await page.waitForTimeout(1000)
+  345 | 
+  346 |     // 验证空状态提示
+  347 |     await expect(page.locator('[data-testid="empty-bookshelf-message"]')).toBeVisible()
+  348 |     await expect(page.locator('[data-testid="empty-bookshelf-message"]')).toContainText('暂无故事')
+  349 |   })
+  350 | 
+  351 |   test('空书架应该显示开始按钮', async ({ page }) => {
+  352 |     await page.goto(`${BASE_URL}/bookshelf`)
+  353 |     await page.evaluate(() => {
+  354 |       localStorage.setItem('bookshelf_stories', JSON.stringify([]))
+  355 |     })
+  356 |     await page.reload()
 ```
