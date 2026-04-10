@@ -38,6 +38,15 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
+// Service Worker 注册（PWA 离线缓存 I-09）
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[SW] registered', reg.scope))
+      .catch(err => console.warn('[SW] registration failed', err))
+  })
+}
+
 // app 挂载后静默初始化 card store（从 localStorage 恢复 + 异步拉取后端）
 app.mount('#app')
 initCardStore()
