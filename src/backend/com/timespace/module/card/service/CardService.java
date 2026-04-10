@@ -737,16 +737,18 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
      * 每日零点（0:00）执行，扫描所有用户关键词卡的墨香值，
      * 将 ink_fragrance = MAX(0, ink_fragrance - 1)
      * 模拟"墨香随时间流逝而渐淡"的游戏体验。
+     *
+     * 注意：墨香值存储在 user_keyword_card 表，使用 userKeywordCardMapper。
      */
     @Scheduled(cron = "0 0 0 * * ?")
     public void decayInkFragranceDaily() {
         log.info("[C-11] 墨香渐淡定时任务开始执行");
 
-        // 墨香值最小为0，衰减后不低于0
-        int updated = baseMapper.update(null,
+        // 墨香值最小为0，衰减后不低于0；只更新 ink_fragrance > 0 的记录
+        int updated = userKeywordCardMapper.update(null,
                 new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<UserKeywordCard>()
                         .setSql("ink_fragrance = GREATEST(0, ink_fragrance - 1)")
-                        .gt(UserKeywordCard::getInkFragrance, 0)  // 只更新 > 0 的记录
+                        .gt(UserKeywordCard::getInkFragrance, 0)
         );
         log.info("[C-11] 墨香渐淡定时任务完成，共衰减 {} 张卡牌的墨香值", updated);
     }

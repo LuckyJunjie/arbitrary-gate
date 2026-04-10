@@ -44,6 +44,13 @@ const category = computed(() => (props.card as KeywordCard)?.category ?? 0)
 const inkFragrance = computed(() => (props.card as KeywordCard)?.inkFragrance ?? 0)
 const resonanceCount = computed(() => (props.card as KeywordCard)?.resonanceCount ?? 0)
 
+// K-07 墨迹晕染强度 (0-1)，墨香值越高晕染越浓
+const inkIntensity = computed(() => {
+  const val = inkFragrance.value
+  // inkFragrance 范围 0-7，映射到 0-1
+  return Math.min(1.0, Math.max(0, val / 7))
+})
+
 import { computed } from 'vue'
 </script>
 
@@ -51,6 +58,7 @@ import { computed } from 'vue'
   <div
     class="card"
     :class="[`rarity-${rarity}`, { flipped: isFlipped }]"
+    :style="{ '--ink-intensity': inkIntensity }"
     @click="handleClick"
     role="button"
     tabindex="0"
@@ -373,5 +381,52 @@ import { computed } from 'vue'
   color: rgba(232, 220, 200, 0.25);
   margin-top: 0.3rem;
   letter-spacing: 0.05em;
+}
+
+/* K-07 卡片边缘墨迹晕染效果
+ * 墨香值越高（--ink-intensity 越接近1），晕染越浓
+ * 高墨香（>80%，intensity>0.8）：浓墨晕染
+ * 中墨香（40-80%）：中等晕染
+ * 低墨香（<40%）：几乎无晕染
+ */
+.card {
+  /* 基础晕染：随 intensity 变化的 box-shadow */
+  box-shadow:
+    /* 外层淡晕染（墨迹向外扩散） */
+    calc(var(--ink-intensity) * 12px) calc(var(--ink-intensity) * 8px) calc(var(--ink-intensity) * 16px) rgba(30, 20, 10, calc(var(--ink-intensity) * 0.35)),
+    /* 内层紧密晕染（墨迹聚集在边缘） */
+    calc(var(--ink-intensity) * 3px) calc(var(--ink-intensity) * 3px) 0 rgba(30, 20, 10, calc(var(--ink-intensity) * 0.2)),
+    /* 底部投影（卡面立体感） */
+    0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.6s ease;
+}
+
+/* 高墨香时的浓墨晕染特效（intensity > 0.8） */
+.card[style*="--ink-intensity: 0.8"],
+.card[style*="--ink-intensity: 0.9"],
+.card[style*="--ink-intensity: 1"] {
+  box-shadow:
+    10px 7px 14px rgba(30, 20, 10, 0.4),
+    3px 3px 0 rgba(30, 20, 10, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.45),
+    inset 0 0 12px rgba(30, 20, 10, 0.08);
+}
+
+/* 稀有度 3-4 的特殊墨染（金色光晕叠加） */
+.card.rarity-3,
+.card.rarity-4 {
+  box-shadow:
+    calc(var(--ink-intensity) * 12px) calc(var(--ink-intensity) * 8px) calc(var(--ink-intensity) * 16px) rgba(30, 20, 10, calc(var(--ink-intensity) * 0.35)),
+    calc(var(--ink-intensity) * 3px) calc(var(--ink-intensity) * 3px) 0 rgba(30, 20, 10, calc(var(--ink-intensity) * 0.2)),
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    /* 稀有卡底色光晕（墨香值高时更明显） */
+    0 0 calc(var(--ink-intensity) * 20px) rgba(201, 168, 76, calc(var(--ink-intensity) * 0.2));
+}
+
+/* 低墨香时晕染几乎消失 */
+.card[style*="--ink-intensity: 0"] {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.2);
 }
 </style>
