@@ -15,6 +15,7 @@ import com.timespace.module.ai.agent.EncounterAgent.EncounterResult;
 import com.timespace.module.ai.agent.JudgeAgent;
 import com.timespace.module.ai.agent.ZhangyanAgent;
 import com.timespace.module.ai.service.AIGatewayService;
+import com.timespace.module.ai.util.KeywordInsertionChecker;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.service.CardService;
 import com.timespace.module.story.controller.StoryController.*;
@@ -685,12 +686,41 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
 
         // 4.1 掌眼 Agent 过滤 AI 腔
         manuscriptText = zhangyanAgent.filter(manuscriptText);
+
+        // 4.2 AI-08: 内容安全检测（手稿正文）
+        // AIGatewayService.generateManuscriptWithTitles 已做过一次安全检测，
+        // 但 ZhangyanAgent 过滤可能改变文本内容，在此二次确认
+        ContentSafetyChecker.SafetyResult manuscriptSafety =
+                contentSafetyChecker.check(manuscriptText);
+        if (!manuscriptSafety.isSafe()) {
+            log.warn("[AI-08] 手稿正文内容安全检测不通过: {}, 尝试重新生成...",
+                    manuscriptSafety.getReason());
+            // 重新生成手稿（带关键词强调 prompt）
+            KeywordInsertionChecker.CheckResult kwResult =
+                    KeywordInsertionChecker.check(manuscriptText, keywords);
+            String emphasisPrompt = kwResult.isSufficient() ? "" : kwResult.getWarning();
+            AIGatewayService.ManuscriptResult retryResult =
+                    aiGatewayService.generateManuscriptWithTitles(
+                            story, chapters, keywords, characters, emphasisPrompt);
+            manuscriptText = zhangyanAgent.filter(retryResult.getManuscriptText());
+            // 二次安全检测
+            manuscriptSafety = contentSafetyChecker.check(manuscriptText);
+            if (!manuscriptSafety.isSafe()) {
+                log.error("[AI-08] 手稿正文内容安全二次检测仍不通过，使用兜底文案");
+                manuscriptText = "（此篇故事，因时局所限，暂时无法完整呈现）";
+            }
+        }
+
+        // 4.3 AI-09: 关键词融入率检测（≥3 个关键词）
+        KeywordInsertionChecker.CheckResult kwCheck =
+                KeywordInsertionChecker.check(manuscriptText, keywords);
+
         int wordCount = manuscriptText.length();
 
-        // 4.2 题记（已在 AIGatewayService 中掌眼过滤）
+        // 4.4 题记（已在 AIGatewayService 中掌眼过滤）
         String inscription = manuscriptResult.inscription();
 
-        // 4.3 备选标题
+        // 4.5 备选标题
         List<String> candidateTitles = manuscriptResult.candidateTitles();
 
         // 5. 生成后日谈（稗官）+ 内容安全检测
@@ -798,6 +828,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .inscription(inscription)
                 .historyDeviation(story.getHistoryDeviation())
                 .candidateTitles(candidateTitles)
+                .keywordWarning(kwCheck.isSufficient() ? null : kwCheck.getWarning())
                 .build();
     }
 
@@ -1281,6 +1312,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private String inscription;
         private Integer historyDeviation;
         private List<String> candidateTitles;
+        /** AI-09: 关键词融入率警告（少于3个关键词时非空） */
+        private String keywordWarning;
     }
 
     @Data @lombok.Builder

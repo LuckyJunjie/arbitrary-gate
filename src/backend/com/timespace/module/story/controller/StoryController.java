@@ -3,6 +3,7 @@ package com.timespace.module.story.controller;
 import cn.dev33.satoken.stp.StpUtil;
 import com.timespace.common.exception.BusinessException;
 import com.timespace.common.exception.GlobalExceptionHandler.Result;
+import com.timespace.module.card.service.CardService;
 import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.service.StoryOrchestrationService;
 import com.timespace.module.story.service.StoryOrchestrationService.StartStoryVO;
@@ -28,6 +29,7 @@ import java.util.Map;
 public class StoryController {
 
     private final StoryOrchestrationService storyService;
+    private final CardService cardService;
 
     // ========== SSE 流式端点 ==========
 
@@ -396,5 +398,46 @@ public class StoryController {
     public static class ChapterProgressVO {
         private Integer chapterNo;
         private Integer generatedLength;
+    }
+
+    // ========== P-01 组合判词预览 ==========
+
+    /**
+     * POST /api/story/preview-judgment
+     * P-01: 当用户选定 3 个关键词 + 1 个事件后，生成一句极简判词暗示故事走向
+     *
+     * 请求：
+     * {
+     *   "keywordIds": [1, 2, 3],
+     *   "eventId": 101
+     * }
+     *
+     * 响应：
+     * {
+     *   "judgment": "风云将起，命悬一线。"
+     * }
+     */
+    @PostMapping("/preview-judgment")
+    public Result<PreviewJudgmentVO> previewJudgment(@RequestBody PreviewJudgmentRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("[P-01] 组合判词预览请求: userId={}, keywordIds={}, eventId={}",
+                userId, request.getKeywordIds(), request.getEventId());
+        CardService.PreviewResult result = cardService.generatePreviewJudgment(
+                request.getKeywordIds(), request.getEventId());
+        return Result.ok(new PreviewJudgmentVO(result.judgment()));
+    }
+
+    @Data
+    public static class PreviewJudgmentRequest {
+        /** 3 个关键词卡的 user_keyword_card IDs */
+        private List<Long> keywordIds;
+        /** 历史事件卡 ID */
+        private Long eventId;
+    }
+
+    @Data
+    public static class PreviewJudgmentVO {
+        private String judgment;
+        public PreviewJudgmentVO(String judgment) { this.judgment = judgment; }
     }
 }

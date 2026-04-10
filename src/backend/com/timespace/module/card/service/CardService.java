@@ -95,7 +95,7 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
             // 手牌上限检查：关键词卡最多9张
             int keywordCardCount = userKeywordCardMapper.countByUserId(userId);
             if (keywordCardCount >= KEYWORD_CARD_LIMIT) {
-                throw BusinessException.CARD_LIMIT_REACHED;
+                throw BusinessException.KEYWORD_CARD_LIMIT_REACHED;
             }
 
             // 检查免费次数或墨晶
@@ -175,7 +175,7 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
                             .eq(UserEventCard::getCardType, "event")
             );
             if (eventCardCount >= EVENT_CARD_LIMIT) {
-                throw BusinessException.CARD_LIMIT_REACHED;
+                throw BusinessException.EVENT_CARD_LIMIT_REACHED;
             }
 
             // 获取事件卡保底状态（独立 key）

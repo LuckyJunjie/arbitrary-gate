@@ -474,7 +474,7 @@ onMounted(() => {
     </div>
 
     <!-- 格子视图 - 老式书架 -->
-    <div v-if="viewMode === 'grid'" class="bookshelf-container">
+    <div v-if="viewMode === 'grid'" class="bookshelf-container" data-testid="bookshelf-wooden-frame">
       <template v-if="bookshelfRows.length > 0">
         <div
           v-for="(row, rowIdx) in bookshelfRows"

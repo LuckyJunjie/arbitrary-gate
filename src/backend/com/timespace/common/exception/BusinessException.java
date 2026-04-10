@@ -31,6 +31,8 @@ public class BusinessException extends RuntimeException {
     public static BusinessException STORY_NOT_FINISHED = new BusinessException(400, "故事尚未完成");
     public static BusinessException CHAPTER_NOT_FOUND = new BusinessException(404, "章节不存在");
     public static BusinessException CARD_ALREADY_OWNED = new BusinessException(400, "该卡牌已拥有");
-    public static BusinessException CARD_LIMIT_REACHED = new BusinessException(400, "卡匣已满，请先使用或回炉卡牌");
+    public static BusinessException CARD_LIMIT_REACHED = new BusinessException(400, "手牌已满，关键词卡最多9张，事件卡最多3张，请先使用或回炉卡牌");
+    public static BusinessException KEYWORD_CARD_LIMIT_REACHED = new BusinessException(400, "关键词卡已达上限9张，请先使用或回炉卡牌");
+    public static BusinessException EVENT_CARD_LIMIT_REACHED = new BusinessException(400, "事件卡已达上限3张，请先使用或回炉卡牌");
     public static BusinessException AI_SERVICE_ERROR = new BusinessException(500, "AI服务异常");
 }
