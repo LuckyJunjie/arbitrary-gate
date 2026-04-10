@@ -219,7 +219,21 @@ class AIPainterService {
    * 调用通义万相 API
    * 环境变量: VITE_TONGYI_API_KEY
    */
+  /**
+   * 调用通义万相 API（经后端代理 C-14）
+   * 优先走 /api/image/generate（后端调用 wanx），降级走前端直连
+   */
   private async callTongyiWanxiang(prompt: string): Promise<string> {
+    // C-14: 优先调用后端 API（统一鉴权、缓存）
+    try {
+      const { generateImage } = await import('./api')
+      const result = await generateImage(prompt, '1024*1024')
+      return result.imageUrl
+    } catch (backendErr) {
+      console.warn('[AIPainter] 后端图片生成失败，降级到前端直连:', backendErr)
+    }
+
+    // 降级：前端直连通义万相（需要 VITE_TONGYI_API_KEY）
     const apiKey = import.meta.env.VITE_TONGYI_API_KEY as string | undefined
     if (!apiKey) {
       throw new Error('VITE_TONGYI_API_KEY not set')

@@ -35,7 +35,7 @@
 | C-11 | 墨香渐淡（时间衰减） | P1 | ❌ 未做 | ink_fragrance 字段存在，但无定时衰减逻辑 |
 | C-12 | 陈卡回炉（回墨池换重抽） | P2 | ❌ 未做 | 每日限 1 次 |
 | C-13 | 抽卡概率分布 | P0 | ✅ 已有 | 凡60% / 珍25% / 奇12% / 绝3% |
-| C-14 | 卡面图片生成（AI 画师） | P3 | ⚠️ 部分 | aiPainter.ts 有 prompt 构建器，但实际 AI 接口未对接 |
+| C-14 | 卡面图片生成（AI 画师） | P3 | ✅ 完成 | 后端 /api/image/generate 端点 + 前端 api.generateImage() 已串联 |
 
 ---
 
@@ -115,7 +115,7 @@
 | M-07 | 选择标记（朱红"·"） | P1 | ✅ 已有 | choice_marks JSON |
 | M-08 | 印鉴（"时光笺"篆书印） | P1 | ✅ 已有 | ManuscriptView 含印鉴 |
 | M-09 | 印色随偏离度变化 | P1 | ✅ 已有 | 正史偏朱红，野史偏赭石 |
-| M-10 | 批注彩蛋（打破第四面墙） | P3 | ❌ 未做 | 说书人开玩笑式批注 |
+| M-10 | 批注彩蛋（打破第四面墙） | P3 | ✅ 完成 | 后端 BaiguanAgent.generateAnnotation() 已注入彩蛋 prompt + 前端 annotation-easter-egg 黛青色 CSS |
 | M-11 | 文学风格选项输出差异 | P1 | ⚠️ 部分 | style 字段存在，4 种风格 prompt 差异不确定 |
 | M-12 | 掌眼 Agent 文学质感检查 | P1 | ❌ 未做 | 剔除"宛如""仿佛"等 AI 腔 |
 
@@ -155,7 +155,7 @@
 | UI-03 | 墨池待抽卡呼吸涟漪 | P0 | ✅ 已有 | InkPool 涟漪动画 |
 | UI-04 | 墨池抽卡涟漪大起动画 | P0 | ✅ 已有 | 点击后涟漪扩散 |
 | UI-05 | 卡片从墨中浮出动画 | P0 | ✅ 已有 | InkPool 组件 |
-| UI-06 | 窗格光影（随手机时间变化） | P3 | ❌ 未做 | 早/午/昏/夜 色温+投影变化 |
+| UI-06 | 窗格光影（随手机时间变化） | P3 | ✅ 完成 | useWindowLight.ts composable + HomeView.vue 黛青/赭石/烛光 CSS |
 | UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ❌ 未做 | UI 规范要求 |
 | UI-08 | 进度墨线 | P1 | ❌ 未做 | 故事阅读进度指示 |
 | UI-09 | 缓动曲线统一 ease-out | P1 | ⚠️ 部分 | 部分动画已采用 |
@@ -217,7 +217,7 @@
 | I-06 | 用户输入校验（防注入/XSS） | P0 | ⚠️ 部分 | Validation 依赖存在，全面校验不确定 |
 | I-07 | 分享码不可枚举 | P2 | ⚠️ 部分 | IdGenerator 工具类存在 |
 | I-08 | API Key 环境变量注入 | P0 | ✅ 已有 | DASHSCOPE_API_KEY 等 |
-| I-09 | Service Worker 离线缓存 | P3 | ❌ 未做 | 缓存静态资源+已读章节 |
+| I-09 | Service Worker 离线缓存 | P3 | ✅ 完成 | public/sw.js (CacheFirst/NetworkFirst/StaleWhileRevalidate) + index.html 注册 |
 | I-10 | 图片懒加载 | P2 | ❌ 未做 | IntersectionObserver |
 | I-11 | 微信环境适配（WebView） | P2 | ❌ 未做 | polyfill + 缓存策略 |
 | I-12 | Docker 部署 | P2 | ❌ 未做 | |

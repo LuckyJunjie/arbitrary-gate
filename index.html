@@ -7,6 +7,18 @@
     <meta name="description" content="时光笺 - 穿越者专属的互动叙事游戏" />
     <title>时光笺 · 任意门</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- I-09: 注册 Service Worker 离线缓存 -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(function(registration) {
+            console.log('[SW] Registered, scope:', registration.scope)
+          }).catch(function(err) {
+            console.warn('[SW] Registration failed:', err)
+          })
+        })
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

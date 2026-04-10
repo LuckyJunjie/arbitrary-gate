@@ -5,6 +5,7 @@ import { useStoryStore } from '@/stores/storyStore'
 import { useCardStore } from '@/stores/cardStore'
 import { useAchievementStore } from '@/stores/achievementStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
+import { useWindowLight } from '@/composables/useWindowLight'
 import AchievementBadge from '@/components/AchievementBadge.vue'
 
 const router = useRouter()
@@ -12,6 +13,9 @@ const storyStore = useStoryStore()
 const cardStore = useCardStore()
 const achievementStore = useAchievementStore()
 const inkValueStore = useInkValueStore()
+
+// ── 窗格光影效果（UI-06）──
+const { lightPhase } = useWindowLight()
 
 // ── 最近故事 ──
 const recentStories = ref<Array<{ id: string; title: string; status: number; currentChapter: number }>>([])
@@ -21,17 +25,6 @@ const totalCardCount = computed(() => cardStore.totalCount)
 
 // ── 背景墨迹动画状态 ──
 const inkPulse = ref(false)
-
-// ── 窗格光影效果 ──
-// 6-11点：黛青冷调  |  12-16点：无光影  |  17-19点：赭石暖调  |  20-5点：烛光 flicker
-const lightPhase = ref<'cold' | 'none' | 'warm' | 'candle' | null>(null)
-
-function getLightPhase(hour: number): 'cold' | 'none' | 'warm' | 'candle' | null {
-  if (hour >= 6 && hour <= 11) return 'cold'
-  if (hour >= 12 && hour <= 16) return 'none'
-  if (hour >= 17 && hour <= 19) return 'warm'
-  return 'candle'
-}
 
 onMounted(() => {
   // 墨香值时间衰减检查
@@ -43,9 +36,6 @@ onMounted(() => {
   setInterval(() => {
     inkPulse.value = !inkPulse.value
   }, 8000)
-
-  // 初始化光影
-  lightPhase.value = getLightPhase(new Date().getHours())
 })
 
 function loadRecentStories() {

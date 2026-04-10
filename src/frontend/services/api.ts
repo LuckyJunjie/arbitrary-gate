@@ -547,6 +547,27 @@ export async function fetchSpecialCards(): Promise<SpecialCard[]> {
   return api.get('/share/special-cards')
 }
 
+// ========== C-14 AI画师对接 API ==========
+
+export interface ImageGenerateResult {
+  imageUrl: string
+  cached: boolean
+}
+
+/**
+ * POST /api/image/generate
+ * 调用后端 AI 画师生成图片（通义万相）
+ *
+ * @param prompt 英文 prompt（由 aiPainter.ts 的 prompt builder 构建）
+ * @param size   图片尺寸，默认 "512*768"
+ */
+export async function generateImage(
+  prompt: string,
+  size: string = '512*768'
+): Promise<ImageGenerateResult> {
+  return api.post('/image/generate', { prompt, size })
+}
+
 // ========== 墨晶充值 API ==========
 
 export interface WxPayParams {
