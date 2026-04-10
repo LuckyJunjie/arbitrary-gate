@@ -32,8 +32,8 @@
 | C-08 | 墨迹占卜（今日运势提示） | P1 | ✅ 已有 | CardService.getFortune() + PoolView localStorage 缓存 |
 | C-09 | 残片拼接交互（擦墨动画） | P1 | ✅ 已有 | ScratchCard 组件完整实现：Canvas 墨迹擦除、擦墨进度条、墨滴回落动画、音效 |
 | C-10 | 墨香标记系统 | P1 | ✅ 已有 | inkValueStore 计算墨香值（base + rarity + streak） |
-| C-11 | 墨香渐淡（时间衰减） | P1 | ❌ 未做 | ink_fragrance 字段存在，但无定时衰减逻辑 |
-| C-12 | 陈卡回炉（回墨池换重抽） | P2 | ❌ 未做 | 每日限 1 次 |
+| C-11 | 墨香渐淡（时间衰减） | P1 | ✅ 已有 | @Scheduled cron="0 0 0 * * ?" + userKeywordCardMapper 衰减墨香值每日-1；含单元测试 |
+| C-12 | 陈卡回炉（回墨池换重抽） | P2 | ✅ 已有 | POST /api/card/recycle + CardsView.vue 回炉按钮/对话框/Toast；每日限1次，Redis记录，返还1次免费抽卡机会；含单元测试 |
 | C-13 | 抽卡概率分布 | P0 | ✅ 已有 | 凡60% / 珍25% / 奇12% / 绝3% |
 | C-14 | 卡面图片生成（AI 画师） | P3 | ⚠️ 部分 | aiPainter.ts 有 prompt 构建器，但实际 AI 接口未对接 |
 
@@ -49,7 +49,7 @@
 | K-04 | 稀有度筛选（凡/珍/奇/绝） | P0 | ✅ 已有 | 同上 |
 | K-05 | 墨香值显示 | P1 | ✅ 已有 | InkLevelBadge 组件 |
 | K-06 | 累计共鸣次数显示 | P1 | ✅ 已有 | Card.vue 显示"共鸣 ×{resonanceCount}"徽章（赭石色小字），K-06 已完成 |
-| K-07 | 卡片边缘墨迹晕染效果（按墨香值） | P2 | ❌ 未做 | UI 规范要求，新卡墨迹浓 → 渐淡 |
+| K-07 | 卡片边缘墨迹晕染效果（按墨香值） | P2 | ✅ 已有 | Card.vue --ink-intensity CSS var，box-shadow 晕染强度随墨香值(0-7)动态变化，高墨香浓晕，低墨香几乎无晕 |
 
 ---
 
@@ -156,7 +156,7 @@
 | UI-04 | 墨池抽卡涟漪大起动画 | P0 | ✅ 已有 | 点击后涟漪扩散 |
 | UI-05 | 卡片从墨中浮出动画 | P0 | ✅ 已有 | InkPool 组件 |
 | UI-06 | 窗格光影（随手机时间变化） | P3 | ❌ 未做 | 早/午/昏/夜 色温+投影变化 |
-| UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ❌ 未做 | UI 规范要求 |
+| UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ✅ 已有 | StoryView.vue 含 .top-scroll-bar / .bottom-scroll-bar，多层 CSS 渐变木纹 + 高光/暗边 + 投影 |
 | UI-08 | 进度墨线 | P1 | ❌ 未做 | 故事阅读进度指示 |
 | UI-09 | 缓动曲线统一 ease-out | P1 | ⚠️ 部分 | 部分动画已采用 |
 | UI-10 | 逐字渲染动画 | P1 | ⚠️ 部分 | WebSocket 流式 + v-html，逐字 CSS 不确定 |
