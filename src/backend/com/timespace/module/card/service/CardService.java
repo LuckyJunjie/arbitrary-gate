@@ -427,6 +427,22 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
         increaseInkFragrance(userId, cardId, 1);
     }
 
+    /**
+     * S-13 获取关键词卡的当前共鸣值
+     *
+     * @param userId 用户ID
+     * @param cardId 关键词卡ID（KeywordCard.id）
+     * @return 当前共鸣次数，未找到返回0
+     */
+    public int getResonanceCount(Long userId, Long cardId) {
+        UserKeywordCard userCard = userKeywordCardMapper.selectOne(
+                new LambdaQueryWrapper<UserKeywordCard>()
+                        .eq(UserKeywordCard::getUserId, userId)
+                        .eq(UserKeywordCard::getCardId, cardId)
+        );
+        return userCard != null ? userCard.getResonanceCount() : 0;
+    }
+
     // ========== C-12 陈卡回炉 ========== //
 
     private static final String RECYCLE_DAILY_KEY = "recycle:user:%d:%s";  // recycle:{userId}:{date}

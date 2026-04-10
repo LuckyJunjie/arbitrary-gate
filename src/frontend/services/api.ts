@@ -108,6 +108,13 @@ export interface Chapter {
   characterAppearances?: Array<{ name: string; firstImpression: string }>
 }
 
+/** S-13 关键词显灵数据 */
+export interface KeywordEnlightenment {
+  cardId: number
+  cardName: string
+  enlightenmentText: string
+}
+
 /** S-14 偶遇事件 */
 export interface Encounter {
   encounterId: number
@@ -235,7 +242,7 @@ export async function submitChapterChoice(
   chapterNo: number,
   optionId: number,
   gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
-): Promise<{ chapter: Chapter; deviation: number; encounter?: Encounter }> {
+): Promise<{ chapter: Chapter; deviation: number; encounter?: Encounter; keywordEnlightenment?: KeywordEnlightenment }> {
   return api.post(`/story/${storyId}/chapter/${chapterNo}/choose`, { optionId, gestureIntensity })
 }
 
@@ -399,7 +406,7 @@ export async function submitChoiceWithMock(
   chapterNo: number,
   optionId: number,
   gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
-): Promise<{ chapter: Chapter; deviation: number; encounter?: Encounter }> {
+): Promise<{ chapter: Chapter; deviation: number; encounter?: Encounter; keywordEnlightenment?: KeywordEnlightenment }> {
   try {
     return await submitChapterChoice(storyId, chapterNo, optionId, gestureIntensity)
   } catch {

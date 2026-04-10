@@ -1,5 +1,6 @@
 package com.timespace.module.card.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.timespace.module.card.entity.UserKeywordCard;
 import com.timespace.module.card.mapper.EventCardMapper;
@@ -329,5 +330,63 @@ class CardServiceTest {
                 isNull(),
                 any(LambdaUpdateWrapper.class)
         );
+    }
+
+    // ========== S-13 关键词显灵共鸣查询测试 ==========
+
+    @Test
+    @DisplayName("S-13: getResonanceCount — 返回用户卡牌的实际共鸣值")
+    void getResonanceCount_returnsActualValue() {
+        // GIVEN: 用户卡牌共鸣值为 3
+        Long userId = 1L;
+        Long cardId = 42L;
+        UserKeywordCard userCard = new UserKeywordCard();
+        userCard.setResonanceCount(3);
+
+        when(userKeywordCardMapper.selectOne(any(LambdaQueryWrapper.class)))
+                .thenReturn(userCard);
+
+        // WHEN
+        int resonance = cardService.getResonanceCount(userId, cardId);
+
+        // THEN
+        assertEquals(3, resonance);
+    }
+
+    @Test
+    @DisplayName("S-13: getResonanceCount — 卡牌不存在时返回 0")
+    void getResonanceCount_cardNotFound_returnsZero() {
+        // GIVEN: 用户未拥有该卡牌
+        Long userId = 1L;
+        Long cardId = 99L;
+
+        when(userKeywordCardMapper.selectOne(any(LambdaQueryWrapper.class)))
+                .thenReturn(null);
+
+        // WHEN
+        int resonance = cardService.getResonanceCount(userId, cardId);
+
+        // THEN
+        assertEquals(0, resonance);
+    }
+
+    @Test
+    @DisplayName("S-13: getResonanceCount — 共鸣值达到 5 时应触发显灵（>=5 阈值）")
+    void getResonanceCount_atThreshold_returnsFive() {
+        // GIVEN: 共鸣值正好为 5（显灵阈值）
+        Long userId = 1L;
+        Long cardId = 7L;
+        UserKeywordCard userCard = new UserKeywordCard();
+        userCard.setResonanceCount(5);
+
+        when(userKeywordCardMapper.selectOne(any(LambdaQueryWrapper.class)))
+                .thenReturn(userCard);
+
+        // WHEN
+        int resonance = cardService.getResonanceCount(userId, cardId);
+
+        // THEN: 5 >= 5，满足显灵条件
+        assertEquals(5, resonance);
+        assertTrue(resonance >= 5, "共鸣值 >= 5 应触发显灵");
     }
 }

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { fetchChapter } from '@/services/api'
 import { playBell, playChime } from '@/composables/useSound'
-import type { Chapter, Option, Encounter } from '@/services/api'
+import type { Chapter, Option, Encounter, KeywordEnlightenment } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -162,6 +162,9 @@ function startTypewriterQueue(paragraphs: string[]) {
 // ── S-14 偶遇支线状态 ──
 const activeEncounter = ref<Encounter | null>(null)
 
+// ── S-13 关键词显灵状态 ──
+const activeEnlightenment = ref<KeywordEnlightenment | null>(null)
+
 async function handleEncounterChoice(choice: 'A' | 'B') {
   if (!activeEncounter.value) return
   const enc = activeEncounter.value
@@ -264,6 +267,56 @@ const isEndChapter = computed(() => {
 // ── 价值取向选项标签 ──
 const valueLabels = ['义', '利', '情']
 
+// S-13: 连接 SSE 接收 keyword_enlightenment 等事件
+function connectSSE() {
+  closeSSE()
+  const sseUrl = `/api/story/${storyId}/stream`
+  eventSource = new EventSource(sseUrl)
+
+  eventSource.addEventListener('keyword_enlightenment', (e) => {
+    try {
+      const data = JSON.parse(e.data) as KeywordEnlightenment
+      activeEnlightenment.value = data
+      playChime()
+      // 5秒后自动关闭
+      setTimeout(() => {
+        if (activeEnlightenment.value === data) {
+          activeEnlightenment.value = null
+        }
+      }, 5000)
+    } catch (err) {
+      console.error('[StoryView] keyword_enlightenment parse error:', err)
+    }
+  })
+
+  eventSource.addEventListener('encounter', (e) => {
+    try {
+      const data = JSON.parse(e.data)
+      activeEncounter.value = {
+        encounterId: data.encounterId,
+        encounterText: data.encounterText,
+        optionA: data.optionA,
+        optionB: data.optionB,
+        chapterNo: data.chapterNo,
+      }
+    } catch (err) {
+      console.error('[StoryView] encounter parse error:', err)
+    }
+  })
+
+  eventSource.onerror = () => {
+    console.warn('[StoryView] SSE error, will reconnect...')
+    closeSSE()
+  }
+}
+
+function closeSSE() {
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
+}
+
 // S-16: 使用 storyStore 的断线重连 WebSocket 流式接口
 function connectStoryStream() {
   storyStore.connectStream({
@@ -302,10 +355,13 @@ onMounted(async () => {
   checkFirstVisit()
   // S-16: 连接流式接口，断线自动重连
   connectStoryStream()
+  // S-13: 连接 SSE 接收 keyword_enlightenment 等事件
+  connectSSE()
 })
 
 onUnmounted(() => {
   closeStream()
+  closeSSE()
   storyStore.disconnectStream()
 })
 
@@ -388,10 +444,7 @@ function connectWebSocket() {
 }
 
 function closeStream() {
-  if (eventSource) {
-    eventSource.close()
-    eventSource = null
-  }
+  // 只关闭 WebSocket，SSE 由 closeSSE() 单独管理
   if (ws) {
     ws.close()
     ws = null
@@ -431,6 +484,17 @@ async function selectOption(optionId: number, _valueOrientation?: string, event?
       if (res.chapter.keywordResonance) {
         const hasEnlightenment = Object.values(res.chapter.keywordResonance).some(v => v >= 7)
         if (hasEnlightenment) playChime()
+      }
+      // S-13: 如果有显灵数据，弹出显灵浮层
+      if (res.keywordEnlightenment) {
+        activeEnlightenment.value = res.keywordEnlightenment
+        playChime()
+        // 5秒后自动关闭
+        setTimeout(() => {
+          if (activeEnlightenment.value === res.keywordEnlightenment) {
+            activeEnlightenment.value = null
+          }
+        }, 5000)
       }
       // S-14: 如果有偶遇事件，弹出偶遇浮层
       if (res.encounter) {
@@ -583,6 +647,26 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
               <span class="encounter-btn-text">{{ activeEncounter.optionB }}</span>
               <span class="encounter-btn-hint">命运值 -5</span>
             </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- S-13 关键词显灵全屏浮层 -->
+    <Teleport to="body">
+      <div
+        v-if="activeEnlightenment"
+        class="keyword-enlightenment-overlay"
+        @click="activeEnlightenment = null"
+      >
+        <div class="enlightenment-card">
+          <div class="enlightenment-card-image">
+            <!-- 卡片从灰暗变彩色的 transition -->
+            <div class="card-glow" />
+          </div>
+          <div class="enlightenment-text-container">
+            <p class="enlightenment-card-name">「{{ activeEnlightenment.cardName }}」</p>
+            <p class="enlightenment-text">{{ activeEnlightenment.enlightenmentText }}</p>
           </div>
         </div>
       </div>
@@ -1642,6 +1726,114 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   opacity: 0.6;
   letter-spacing: 0.05em;
   flex-shrink: 0;
+}
+
+/* ── S-13 关键词显灵全屏浮层 ── */
+.keyword-enlightenment-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 5, 0.92);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
+  cursor: pointer;
+  animation: enlightenment-fade-in 0.5s ease;
+  padding-bottom: 15vh;
+}
+
+@keyframes enlightenment-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.enlightenment-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  animation: enlightenment-card-rise 1.5s cubic-bezier(0.22, 1, 0.36, 1);
+  max-width: 600px;
+  width: 100%;
+  padding: 0 2rem;
+}
+
+.enlightenment-card-image {
+  position: relative;
+  width: 180px;
+  height: 260px;
+  border-radius: 8px;
+  overflow: hidden;
+  /* S-13: 卡片从灰暗变彩色，1.5s transition */
+  filter: grayscale(1) brightness(0.4);
+  animation: card-reveal 1.5s ease forwards;
+  box-shadow:
+    0 0 40px rgba(196, 168, 130, 0.3),
+    0 0 80px rgba(196, 168, 130, 0.15),
+    0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes card-reveal {
+  0% {
+    filter: grayscale(1) brightness(0.4);
+    transform: scale(0.95);
+  }
+  100% {
+    filter: grayscale(0) brightness(1);
+    transform: scale(1);
+  }
+}
+
+.card-glow {
+  position: absolute;
+  inset: -50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(212, 175, 120, 0.4) 0%,
+    rgba(180, 140, 80, 0.1) 40%,
+    transparent 70%
+  );
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.enlightenment-text-container {
+  text-align: center;
+  animation: enlightenment-text-rise 1.2s ease 0.5s both;
+}
+
+@keyframes enlightenment-text-rise {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.enlightenment-card-name {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #d4af78;
+  letter-spacing: 0.15em;
+  margin-bottom: 1rem;
+  text-shadow: 0 0 20px rgba(212, 175, 120, 0.5);
+}
+
+.enlightenment-text {
+  font-size: 1.05rem;
+  line-height: 2;
+  color: #e8dcc8;
+  letter-spacing: 0.08em;
+  font-style: italic;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  max-width: 480px;
 }
 
 /* ── 涟漪动画 ── */

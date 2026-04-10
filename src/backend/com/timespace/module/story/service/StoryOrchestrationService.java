@@ -384,6 +384,16 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                         ",\"chapterNo\":" + encounter.getChapterNo() + "}");
             }
 
+            // 5.2 S-13: 检查关键词显灵（共鸣值 >= 5）
+            KeywordEnlightenment enlightenment = checkKeywordEnlightenment(
+                    userId, story.getKeywordCardIds(), keywords);
+            if (enlightenment != null) {
+                pushSseEvent(storyId, "keyword_enlightenment",
+                        "{\"cardId\":" + enlightenment.getCardId() +
+                        ",\"cardName\":\"" + escapeJson(enlightenment.getCardName()) + "\"" +
+                        ",\"enlightenmentText\":\"" + escapeJson(enlightenment.getEnlightenmentText()) + "\"}");
+            }
+
             // 6. 推送章节结束 + 选项
             pushSseEvent(storyId, "chapter_end",
                     "{\"storyId\\\":" + storyId + ",\"chapterNo\":" + nextChapterNo +
@@ -620,6 +630,10 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         // 6.2 S-14: 章节完成后，以30%概率触发偶遇事件
         EncounterVO encounter = triggerEncounterIfNeeded(storyId, newChapterNo, characters);
 
+        // 6.3 S-13: 检查关键词显灵（共鸣值 >= 5）
+        KeywordEnlightenment enlightenment = checkKeywordEnlightenment(
+                userId, story.getKeywordCardIds(), keywords);
+
         // 7. 更新故事状态
         int newChapterNo = chapterNo + 1;
         story.setCurrentChapter(newChapterNo);
@@ -633,10 +647,11 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .deviationChange(0)
                 .judgment(nextChapter.getChapterComment())
                 .isLastChapter(isLastChapter)
+                .keywordEnlightenment(enlightenment)  // S-13
                 .build());
 
-        log.info("选择提交成功: storyId={}, nextChapterNo={}, isLastChapter={}",
-                storyId, newChapterNo, isLastChapter);
+        log.info("选择提交成功: storyId={}, nextChapterNo={}, isLastChapter={}, enlightenment={}",
+                storyId, newChapterNo, isLastChapter, enlightenment != null);
 
         return ChooseResultVO.builder()
                 .storyId(storyId)
@@ -646,6 +661,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                         nextChapter.getChapterComment() : "（判官判词将在下一章节显示）")
                 .isLastChapter(isLastChapter)
                 .encounter(encounter)
+                .keywordEnlightenment(enlightenment)  // S-13
                 .build();
     }
 
@@ -972,6 +988,72 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     /**
+     * S-13: 检查是否有关键词达到显灵条件（共鸣值 >= 5）
+     * 如果有，生成一段 50-80 字的显灵描写
+     *
+     * @param userId 用户ID
+     * @param keywordCardIds 关键词卡ID列表
+     * @param keywords 关键词卡实体列表（用于获取名称和描述）
+     * @return 显灵数据，无显灵时返回 null
+     */
+    private KeywordEnlightenment checkKeywordEnlightenment(Long userId, List<Long> keywordCardIds,
+                                                          List<KeywordCard> keywords) {
+        if (keywordCardIds == null || keywordCardIds.isEmpty()) {
+            return null;
+        }
+
+        // 找出共鸣值 >= 5 的关键词
+        Long enlightenedCardId = null;
+        int maxResonance = 0;
+        for (Long cardId : keywordCardIds) {
+            int resonance = cardService.getResonanceCount(userId, cardId);
+            if (resonance >= 5 && resonance > maxResonance) {
+                maxResonance = resonance;
+                enlightenedCardId = cardId;
+            }
+        }
+
+        if (enlightenedCardId == null) {
+            return null;
+        }
+
+        // 查找关键词名称
+        String cardName = keywords.stream()
+                .filter(k -> k.getId().equals(enlightenedCardId))
+                .map(KeywordCard::getName)
+                .findFirst()
+                .orElse("关键词");
+
+        // 生成显灵描写（50-80字）
+        String enlightenmentText = generateEnlightenmentText(cardName, maxResonance);
+
+        log.info("[S-13] 关键词显灵: cardId={}, cardName={}, resonance={}, text={}",
+                enlightenedCardId, cardName, maxResonance, enlightenmentText);
+
+        return KeywordEnlightenment.builder()
+                .cardId(enlightenedCardId)
+                .cardName(cardName)
+                .enlightenmentText(enlightenmentText)
+                .build();
+    }
+
+    /**
+     * S-13: 生成关键词显灵描写
+     * 基于关键词名称生成一段 50-80 字的诗意显灵描写
+     */
+    private String generateEnlightenmentText(String cardName, int resonance) {
+        // 使用简单的模板生成，后续可替换为 AI 生成
+        String[] templates = {
+                "「" + cardName + "」在时光的深处微微颤动，共鸣的涟漪荡漾开来，仿佛有古老的声音在耳畔低语，提醒着你它的存在。",
+                "墨香汇聚，" + cardName + "的光芒骤然绽放，那是跨越千年的回响，在这一刻与你产生了深深的共鸣。",
+                "「" + cardName + "」的轮廓在虚实之间浮现，共鸣的力量让它从沉寂中苏醒，绽放出耀眼的光华。",
+                "随着最后一次共鸣，" + cardName + "如同一弯新月破云而出，清辉洒落在你的掌心，温暖而神秘。",
+                "「" + cardName + "」的记忆如潮水般涌来，在共鸣达到顶峰的瞬间，你仿佛听见了历史的心跳。"
+        };
+        return templates[(cardName.hashCode() & 0x7FFFFFFF) % templates.length];
+    }
+
+    /**
      * S-14: 提交偶遇选择（搭话/装没看见），影响命运值
      *
      * @param storyId 故事ID
@@ -1060,9 +1142,11 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     private List<KeywordCard> getKeywordCardsDetail(Long userId, List<Long> keywordCardIds) {
-        // TODO: 实际从 CardService 查询
-        // 暂时返回空列表，AI 调用时会使用默认行为
-        return new ArrayList<>();
+        if (keywordCardIds == null || keywordCardIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        // 使用 CardService（继承 ServiceImpl）提供的 listByIds 查询
+        return new ArrayList<>(cardService.listByIds(keywordCardIds));
     }
 
     private String getEventCardName(Long eventCardId) {
@@ -1291,6 +1375,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private boolean isLastChapter;
         /** S-14: 偶遇事件（如果触发了的话） */
         private EncounterVO encounter;
+        /** S-13: 关键词显灵数据（如果有关键词共鸣值达到5） */
+        private KeywordEnlightenment keywordEnlightenment;
     }
 
     /** S-14 偶遇事件 VO */
@@ -1352,12 +1438,23 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private Map<String, Integer> characterChanges;
     }
 
+    /**
+     * S-13 关键词显灵数据
+     */
+    @Data @lombok.Builder
+    public static class KeywordEnlightenment {
+        private Long cardId;
+        private String cardName;
+        private String enlightenmentText; // 50-80字的显灵描写
+    }
+
     @Data @lombok.Builder
     public static class ChoiceResultVO {
         private Long storyId;
         private int deviationChange;
         private String judgment;
         private boolean isLastChapter;
+        private KeywordEnlightenment keywordEnlightenment; // S-13 显灵数据
     }
 
     @Data @lombok.Builder
