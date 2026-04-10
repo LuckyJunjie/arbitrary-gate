@@ -103,6 +103,31 @@ export const ALL_UNLOCKABLES: Achievement[] = [
     icon: '🌈',
     requiredCards: ['全稀有'],
   },
+  // P-02 稀有组合成就
+  {
+    id: 'combo_three_objects',
+    name: '物是人非',
+    description: '收集三张器物类卡牌（category=1），旧物仍在，人事已非',
+    category: 'combination',
+    icon: '🏺',
+    requiredCards: ['三器物'],
+  },
+  {
+    id: 'combo_three_emotions',
+    name: '百感交集',
+    description: '收集三张情绪类卡牌（category=4），悲欢离合，尽集于此',
+    category: 'combination',
+    icon: '💠',
+    requiredCards: ['三情绪'],
+  },
+  {
+    id: 'combo_departing_person',
+    name: '离人',
+    description: '同时拥有"旧船票"与渡口相关卡牌（摆渡人/乌江渡），持票者终须别',
+    category: 'combination',
+    icon: '⛵',
+    requiredCards: ['旧船票', '渡口'],
+  },
 ]
 
 const STORAGE_KEY = 'arbitrary_gate_achievements'
@@ -182,8 +207,8 @@ export const useAchievementStore = defineStore('achievement', () => {
 
   // Check combination achievements
   function checkCombinationAchievements(
-    keywordCards: Array<{ id: number; name: string; rarity: number }>,
-    eventCards: Array<{ id: number; name: string; rarity: number }>
+    keywordCards: Array<{ id: number; name: string; rarity: number; category: number }>,
+    eventCards: Array<{ id: number; name: string; rarity: number; category: number }>
   ): void {
     const allCards = [...keywordCards, ...eventCards]
     const cardNames = new Set(allCards.map(c => c.name))
@@ -199,6 +224,24 @@ export const useAchievementStore = defineStore('achievement', () => {
     const hasAllRarities = [...requiredRarities].every(r => ownedRarities.has(r))
     if (hasAllRarities) {
       unlockAchievement('combo_all_rarity')
+    }
+
+    // P-02 稀有组合成就
+    // 物是人非: 三器物（category 全为 1）— 旧物仍在，人事已非
+    const objectCards = allCards.filter(c => c.category === 1)
+    if (objectCards.length >= 3) {
+      unlockAchievement('combo_three_objects')
+    }
+
+    // 百感交集: 三情绪（category 全为 4）— 悲欢离合，尽集于此
+    const emotionCards = allCards.filter(c => c.category === 4)
+    if (emotionCards.length >= 3) {
+      unlockAchievement('combo_three_emotions')
+    }
+
+    // 离人: 旧船票 + 渡口类事件（摆渡人/乌江渡）
+    if (cardNames.has('旧船票') && (cardNames.has('摆渡人') || cardNames.has('乌江渡'))) {
+      unlockAchievement('combo_departing_person')
     }
   }
 

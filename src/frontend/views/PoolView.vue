@@ -7,12 +7,14 @@ import RippleEffect from '@/components/RippleEffect.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
+import { useAchievementStore } from '@/stores/achievementStore'
 import { drawKeywordCard, fetchKeywordCard, fetchFortune, drawEventCard, type EventDrawResult } from '@/services/api'
 import { playInkDrop } from '@/composables/useSound'
 import type { KeywordCard } from '@/services/api'
 
 const cardStore = useCardStore()
 const inkValueStore = useInkValueStore()
+const achievementStore = useAchievementStore()
 
 const hasDrawn = ref(false)
 const drawnCard = ref<KeywordCard | null>(null)
@@ -127,6 +129,8 @@ async function onCardDrawn(card: Record<string, unknown> | null) {
     cardStore.keywordCards.push(drawnCard.value)
     saveCardsToStorage()
     inkValueStore.awardInkForDraw(cardData.rarity)
+    // P-02: check combination achievements when new card is collected
+    achievementStore.checkCombinationAchievements(cardStore.keywordCards, cardStore.eventCards)
   }
 
   playInkDrop()
@@ -160,6 +164,8 @@ async function applyMockDraw(currentDrawId = -1) {
     cardStore.keywordCards.push(drawnCard.value)
     saveCardsToStorage()
     inkValueStore.awardInkForDraw(cardData.rarity)
+    // P-02: check combination achievements when new card is collected
+    achievementStore.checkCombinationAchievements(cardStore.keywordCards, cardStore.eventCards)
   }
   saveDailyFreeDraws()
   playInkDrop()
@@ -213,6 +219,8 @@ async function handleDraw() {
         saveCardsToStorage()
         // 记录墨香值
         inkValueStore.awardInkForDraw(cardData!.rarity)
+        // P-02: check combination achievements when new card is collected
+        achievementStore.checkCombinationAchievements(cardStore.keywordCards, cardStore.eventCards)
       }
       playInkDrop()
     }

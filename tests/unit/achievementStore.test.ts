@@ -18,12 +18,12 @@ import { useAchievementStore, ALL_UNLOCKABLES } from '@/stores/achievementStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function makeKeywordCard(id: number, name: string, rarity: number) {
-  return { id, name, rarity, category: 1 }
+function makeKeywordCard(id: number, name: string, rarity: number, category = 1) {
+  return { id, name, rarity, category }
 }
 
-function makeEventCard(id: number, name: string, rarity: number) {
-  return { id: id + 1000, name, rarity, category: 2 }
+function makeEventCard(id: number, name: string, rarity: number, category = 2) {
+  return { id: id + 1000, name, rarity, category }
 }
 
 const STORAGE_KEY = 'arbitrary_gate_achievements'
@@ -281,6 +281,100 @@ describe('useAchievementStore — checkCombinationAchievements', () => {
 
     expect(store.hasUnlocked('combo_all_rarity')).toBe(false)
   })
+
+  // P-02: 稀有组合成就
+
+  it('拥有3张器物类卡牌（category=1）解锁 combo_three_objects（物是人非）', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '旧船票', 3, 1),
+      makeKeywordCard(2, '半块玉佩', 3, 1),
+      makeKeywordCard(3, '铜锁芯', 2, 1),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_objects')).toBe(true)
+  })
+
+  it('拥有2张器物类卡牌不解锁 combo_three_objects', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '旧船票', 3, 1),
+      makeKeywordCard(2, '半块玉佩', 3, 1),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_objects')).toBe(false)
+  })
+
+  it('拥有3张情绪类卡牌（category=4）解锁 combo_three_emotions（百感交集）', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '意难平', 3, 4),
+      makeKeywordCard(2, '亡国恨', 4, 4),
+      makeKeywordCard(3, '乡愁', 3, 4),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_emotions')).toBe(true)
+  })
+
+  it('拥有2张情绪类卡牌不解锁 combo_three_emotions', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '意难平', 3, 4),
+      makeKeywordCard(2, '亡国恨', 4, 4),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_emotions')).toBe(false)
+  })
+
+  it('拥有旧船票+摆渡人解锁 combo_departing_person（离人）', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '旧船票', 3, 1),
+      makeKeywordCard(2, '摆渡人', 2, 2),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_departing_person')).toBe(true)
+  })
+
+  it('拥有旧船票+乌江渡解锁 combo_departing_person（离人）', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '旧船票', 3, 1),
+      makeKeywordCard(2, '乌江渡', 3, 3),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_departing_person')).toBe(true)
+  })
+
+  it('只有旧船票不解锁 combo_departing_person', () => {
+    const store = useAchievementStore()
+    const kw = [makeKeywordCard(1, '旧船票', 3, 1)]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_departing_person')).toBe(false)
+  })
+
+  it('拥有摆渡人但无旧船票不解锁 combo_departing_person', () => {
+    const store = useAchievementStore()
+    const kw = [makeKeywordCard(1, '摆渡人', 2, 2)]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_departing_person')).toBe(false)
+  })
 })
 
 // ─── Tests: Storage Persistence ──────────────────────────────────────────────
@@ -344,6 +438,10 @@ describe('useAchievementStore — ALL_UNLOCKABLES 预定义列表', () => {
     expect(ids).toContain('story_5')
     expect(ids).toContain('combo_speaker_lock')
     expect(ids).toContain('combo_all_rarity')
+    // P-02 稀有组合成就
+    expect(ids).toContain('combo_three_objects')
+    expect(ids).toContain('combo_three_emotions')
+    expect(ids).toContain('combo_departing_person')
   })
 
   it('所有 achievements 有 icon', () => {
