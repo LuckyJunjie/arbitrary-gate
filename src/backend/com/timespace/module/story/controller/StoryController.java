@@ -183,9 +183,9 @@ public class StoryController {
             @PathVariable("no") Integer chapterNo,
             @Valid @RequestBody ChooseRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
-        log.info("提交选择请求: userId={}, storyId={}, chapterNo={}, optionId={}",
-                userId, storyId, chapterNo, request.getOptionId());
-        ChooseResultVO vo = storyService.submitChoice(storyId, chapterNo, request.getOptionId());
+        log.info("提交选择请求: userId={}, storyId={}, chapterNo={}, optionId={}, gestureIntensity={}",
+                userId, storyId, chapterNo, request.getOptionId(), request.getGestureIntensity());
+        ChooseResultVO vo = storyService.submitChoice(storyId, chapterNo, request.getOptionId(), request.getGestureIntensity());
         return Result.ok(vo);
     }
 
@@ -203,11 +203,11 @@ public class StoryController {
             @PathVariable("no") Integer chapterNo,
             @Valid @RequestBody ChooseRequest request) {
         long userId = StpUtil.getLoginIdAsLong();
-        log.info("提交选择并流式生成: userId={}, storyId={}, chapterNo={}, optionId={}",
-                userId, storyId, chapterNo, request.getOptionId());
+        log.info("提交选择并流式生成: userId={}, storyId={}, chapterNo={}, optionId={}, gestureIntensity={}",
+                userId, storyId, chapterNo, request.getOptionId(), request.getGestureIntensity());
 
         // 异步执行，通过 SSE 推送结果
-        storyService.submitChoiceAndStream(storyId, chapterNo, request.getOptionId());
+        storyService.submitChoiceAndStream(storyId, chapterNo, request.getOptionId(), request.getGestureIntensity());
         return Result.ok(null);
     }
 
@@ -323,6 +323,8 @@ public class StoryController {
     @Data
     public static class ChooseRequest {
         private Integer optionId;
+        /** S-11 手势轻重缓急: gentle=轻柔, urgent=急促, forceful=用力 */
+        private String gestureIntensity;
     }
 
     @Data

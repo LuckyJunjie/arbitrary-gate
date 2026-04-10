@@ -145,10 +145,11 @@ public class StorytellerAgent {
      */
     public StoryChapter generateChapter(Story story, int chapterNo, StoryChapter.Option lastChoice,
                                         List<KeywordCard> keywords, List<StoryCharacter> characters,
+                                        String gestureIntensity,
                                         java.util.function.Consumer<String> onChunk) {
-        log.info("说书人生成章节: storyId={}, chapterNo={}", story.getId(), chapterNo);
+        log.info("说书人生成章节: storyId={}, chapterNo={}, gestureIntensity={}", story.getId(), chapterNo, gestureIntensity);
 
-        String systemPrompt = buildChapterSystemPrompt(story, chapterNo, keywords, characters);
+        String systemPrompt = buildChapterSystemPrompt(story, chapterNo, keywords, characters, gestureIntensity);
         String userMessage = buildChapterUserMessage(story, chapterNo, lastChoice, keywords);
 
         String response = aiClient.callStream(systemPrompt, userMessage, chunk -> {
@@ -268,7 +269,7 @@ public class StorytellerAgent {
     }
 
     private String buildChapterSystemPrompt(Story story, int chapterNo, List<KeywordCard> keywords,
-                                           List<StoryCharacter> characters) {
+                                           List<StoryCharacter> characters, String gestureIntensity) {
         String styleName = getStyleName(story.getStyle());
         String keywordsText = keywords.stream()
                 .map(k -> k.getName() + "(" + getCategoryName(k.getCategory()) + ")")
@@ -295,6 +296,9 @@ public class StorytellerAgent {
                 ? "\n\n【重要彩蛋】三张关键词卡均有水意象，故事中必须出现一场雨。"
                 : "";
 
+        // S-11: 手势轻重缓急影响叙事口吻
+        String gestureGuidance = buildGestureGuidance(gestureIntensity);
+
         return String.format("""
                 你是一位温和的中年说书人，擅长用%s风格叙事。
 
@@ -310,6 +314,9 @@ public class StorytellerAgent {
                 %s
 
                 【M-11 文学风格差异化要求】
+                %s
+
+                【S-11 手势轻重缓急】
                 %s
 
                 写作要求：
@@ -338,9 +345,23 @@ public class StorytellerAgent {
                 keywordsText, charactersText,
                 story.getEntryAnswers(),
                 getStyleGuidance(story.getStyle()),
+                gestureGuidance,
                 p04RainHint,
                 keywordPositionSection
         );
+    }
+
+    // S-11: 根据手势轻重缓急返回对应的叙事口吻要求
+    private String buildGestureGuidance(String gestureIntensity) {
+        if (gestureIntensity == null || gestureIntensity.isEmpty()) {
+            return "（无特殊手势，按默认节奏叙述）";
+        }
+        return switch (gestureIntensity) {
+            case "gentle" -> "本章节请用轻柔舒缓的节奏叙述，如微风拂面，叙事悠缓从容，让情感在字里行间缓缓流淌。场景描写更偏意境，节奏放慢，给读者留出回味的空间。";
+            case "urgent" -> "本章节请用紧凑急促的节奏叙述，叙事明快紧张，情节推进迅速，不拖泥带水。场景描写更偏动态，字句铿锵有力，让读者感受到时间紧迫与局势紧张。";
+            case "forceful" -> "本章节请用浓烈有力的节奏叙述，戏剧张力强，情感浓烈鲜明，叙事有分量感。场景描写偏大气磅礴或细腻入微的对比，让读者感受到强烈的冲击与震撼。";
+            default -> "（无特殊手势，按默认节奏叙述）";
+        };
     }
 
     // P-04: 检测三水意象彩蛋

@@ -76,6 +76,7 @@ public class AIGatewayService {
      * @param selectedOption 用户选择的选项
      * @param keywords 关键词卡列表
      * @param characters 配角列表
+     * @param gestureIntensity S-11 手势轻重缓急，影响说书人口吻
      * @param onChunk 流式回调（WebSocket推送）
      * @return 下一章节
      */
@@ -84,9 +85,10 @@ public class AIGatewayService {
                                             StoryChapter.Option selectedOption,
                                             List<KeywordCard> keywords,
                                             List<StoryCharacter> characters,
+                                            String gestureIntensity,
                                             Consumer<String> onChunk) {
-        log.info("AI协作生成下一章: storyId={}, chapterNo={}",
-                story.getId(), currentChapter.getChapterNo() + 1);
+        log.info("AI协作生成下一章: storyId={}, chapterNo={}, gestureIntensity={}",
+                story.getId(), currentChapter.getChapterNo() + 1, gestureIntensity);
 
         // ====== 1. 判官评估选择 ======
         JudgeAgent.EvaluationResult evaluation = judgeAgent.evaluate(
@@ -109,6 +111,7 @@ public class AIGatewayService {
                 selectedOption,
                 keywords,
                 characters,
+                gestureIntensity,
                 onChunk  // 流式推送
         );
 
@@ -116,7 +119,7 @@ public class AIGatewayService {
         nextChapter = contentSafetyCheckWithRetry(
                 nextChapter, nextChapterNo,
                 () -> storytellerAgent.generateChapter(
-                        story, nextChapterNo, capturedLastChoice, keywords, characters, null),
+                        story, nextChapterNo, capturedLastChoice, keywords, characters, gestureIntensity, null),
                 "故事内容因技术原因暂时无法生成");
 
         // 将判官判词存入章节（供前端展示）
@@ -160,13 +163,14 @@ public class AIGatewayService {
                 null,
                 keywords,
                 characters,
+                null, // gestureIntensity: 第一章无手势
                 onChunk
         );
 
         // ====== 内容安全检测（说书人输出）======
         return contentSafetyCheckWithRetry(
                 chapter, 1,
-                () -> storytellerAgent.generateChapter(story, 1, null, keywords, characters, null),
+                () -> storytellerAgent.generateChapter(story, 1, null, keywords, characters, null, null),
                 "故事内容因技术原因暂时无法生成");
     }
 

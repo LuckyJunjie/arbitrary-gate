@@ -405,7 +405,7 @@ function closeStream() {
 }
 
 // ── 选择选项 ──
-async function selectOption(optionId: number, _valueOrientation?: string, event?: MouseEvent, _intensity?: 'gentle' | 'urgent' | 'forceful') {
+async function selectOption(optionId: number, _valueOrientation?: string, event?: MouseEvent, intensity?: 'gentle' | 'urgent' | 'forceful') {
   if (!currentChapter.value) return
 
   // 触发涟漪动画
@@ -419,7 +419,7 @@ async function selectOption(optionId: number, _valueOrientation?: string, event?
   try {
     // S-16: 提交选择前断开流式连接
     storyStore.disconnectStream()
-    const res = await storyStore.submitChoice(storyId, currentChapterNo.value, optionId)
+    const res = await storyStore.submitChoice(storyId, currentChapterNo.value, optionId, intensity)
     if (res?.chapter) {
       currentChapter.value = res.chapter
       currentChapterNo.value++

@@ -332,7 +332,8 @@ async function mockFetchChapter(storyId: string, chapterNo: number): Promise<Cha
 async function mockSubmitChoice(
   storyId: string,
   chapterNo: number,
-  optionId: number
+  optionId: number,
+  _gestureIntensity?: string
 ): Promise<{ chapter: Chapter; deviation: number }> {
   const { teller, judge: j } = await getMocks()
   teller.initStory(getStoryContext(storyId))
@@ -402,7 +403,7 @@ export async function submitChoiceWithMock(
   try {
     return await submitChapterChoice(storyId, chapterNo, optionId, gestureIntensity)
   } catch {
-    return mockSubmitChoice(storyId, chapterNo, optionId)
+    return mockSubmitChoice(storyId, chapterNo, optionId, gestureIntensity)
   }
 }
 

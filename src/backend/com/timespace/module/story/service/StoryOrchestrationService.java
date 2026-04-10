@@ -275,12 +275,13 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
      *
      * @param storyId 故事ID
      * @param chapterNo 当前章节号
-     * @param optionId 选择的选项ID
+     *param optionId 选择的选项ID
+     * @param gestureIntensity S-11 手势轻重缓急
      */
-    public void submitChoiceAndStream(Long storyId, Integer chapterNo, Integer optionId) {
+    public void submitChoiceAndStream(Long storyId, Integer chapterNo, Integer optionId, String gestureIntensity) {
         long userId = StpUtil.getLoginIdAsLong();
-        log.info("提交选择并流式生成: userId={}, storyId={}, chapterNo={}, optionId={}",
-                userId, storyId, chapterNo, optionId);
+        log.info("提交选择并流式生成: userId={}, storyId={}, chapterNo={}, optionId={}, gestureIntensity={}",
+                userId, storyId, chapterNo, optionId, gestureIntensity);
 
         try {
             // 1. 验证故事归属
@@ -337,7 +338,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             };
 
             StoryChapter nextChapter = aiGatewayService.generateNextChapter(
-                    story, currentChapter, selectedOption, keywords, characters, onChunk);
+                    story, currentChapter, selectedOption, keywords, characters, gestureIntensity, onChunk);
 
             // 4. 保存下一章节
             nextChapter.setStoryId(storyId);
@@ -533,10 +534,10 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
      * POST /api/story/:id/chapter/:no/choose
      */
     @Transactional
-    public ChooseResultVO submitChoice(Long storyId, Integer chapterNo, Integer optionId) {
+    public ChooseResultVO submitChoice(Long storyId, Integer chapterNo, Integer optionId, String gestureIntensity) {
         long userId = StpUtil.getLoginIdAsLong();
-        log.info("提交选择: userId={}, storyId={}, chapterNo={}, optionId={}",
-                userId, storyId, chapterNo, optionId);
+        log.info("提交选择: userId={}, storyId={}, chapterNo={}, optionId={}, gestureIntensity={}",
+                userId, storyId, chapterNo, optionId, gestureIntensity);
 
         // 1. 验证故事归属
         Story story = storyMapper.selectById(storyId);
@@ -582,6 +583,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 selectedOption,
                 keywords,
                 characters,
+                gestureIntensity,
                 chunk -> {
                     // WebSocket 流式推送
                     pushToUser(userId, "chapter_stream", ChapterStreamVO.builder()

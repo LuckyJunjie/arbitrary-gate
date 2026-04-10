@@ -28,8 +28,8 @@
 | C-04 | 墨晶消耗抽卡 | P0 | ✅ 已有 | 免费次数耗尽后消耗墨晶 |
 | C-05 | 保底机制：10 抽必出奇品 | P0 | ✅ 已有 | GuaranteeState + Redis 7 天 TTL |
 | C-06 | 保底机制：30 抽必出绝品 | P0 | ✅ 已有 | 同上 |
-| C-07 | 手牌上限（9 关键词 + 3 事件） | P1 | ❌ 未做 | 设计文档要求，当前无上限检查 |
-| C-08 | 墨迹占卜（今日运势提示） | P1 | ❌ 未做 | 墨池上方半文半白运势文字 |
+| C-07 | 手牌上限（9 关键词 + 3 事件） | P1 | ✅ 已有 | CardService 检查上限，超限抛出 BusinessException |
+| C-08 | 墨迹占卜（今日运势提示） | P1 | ✅ 已有 | CardService.getFortune() + PoolView localStorage 缓存 |
 | C-09 | 残片拼接交互（擦墨动画） | P1 | ⚠️ 部分 | InkPool 有涟漪动画，但无"擦墨显卡"交互 |
 | C-10 | 墨香标记系统 | P1 | ✅ 已有 | inkValueStore 计算墨香值（base + rarity + streak） |
 | C-11 | 墨香渐淡（时间衰减） | P1 | ❌ 未做 | ink_fragrance 字段存在，但无定时衰减逻辑 |
@@ -57,7 +57,7 @@
 
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
-| P-01 | 选定 3 关键词 + 1 事件后生成判词 | P1 | ❌ 未做 | AI 生成极简判词，暗示故事走向 |
+| P-01 | 选定 3 关键词 + 1 事件后生成判词 | P1 | ✅ 已有 | POST /api/story/preview-judgment + CardService.generatePreviewJudgment() |
 | P-02 | 稀有组合检测 + 成就触发 | P2 | ⚠️ 部分 | achievementStore 有 21+ 成就定义，但组合检测逻辑不确定 |
 | P-03 | 三器物成就【物是人非】 | P2 | ❌ 未做 | 具体成就规则 |
 | P-04 | 三水意象彩蛋（故事必现一场雨） | P3 | ❌ 未做 | 需 AI prompt 动态注入 |
@@ -75,7 +75,7 @@
 | E-05 | 配角分类：命运羁绊/历史节点/市井过客 | P0 | ✅ 已有 | character_type 1/2/3 |
 | E-06 | 配角初见·一句话印象（非上帝视角） | P1 | ❌ 未做 | 用主角眼睛看配角"此刻的样子" |
 | E-07 | 关键词落位（核心意象/转折道具/人物关联） | P1 | ⚠️ 部分 | AI 分配关键词，但落位可视化未做 |
-| E-08 | 风格选项（白描/江湖/笔记/话本） | P1 | ⚠️ 部分 | story.style 字段存在，UI 选择入口不确定 |
+| E-08 | 风格选项（白描/江湖/笔记/话本） | P1 | ✅ 已有 | EntryQuestionsView 选择卡 + StorytellerAgent.getStyleGuidance() |
 
 ---
 
@@ -93,7 +93,7 @@
 | S-08 | 历史偏离度计算（0-100） | P0 | ✅ 已有 | history_deviation 字段 + JudgeAgent 评估 |
 | S-09 | 配角命运值影响 | P0 | ✅ 已有 | fate_value 字段 + 选择影响 |
 | S-10 | 手势代替按钮选项 | P1 | ✅ 已有 | useGesture composable（滑动/画圈） |
-| S-11 | 手势轻重缓急（慢滑+快点+长按） | P1 | ⚠️ 部分 | useGesture 有方向检测，快慢检测不确定 |
+| S-11 | 手势轻重缓急（慢滑+快点+长按） | P1 | ✅ 已有 | gestureIntensity → buildGestureGuidance(gentle/urgent/forceful) 影响叙事口吻 |
 | S-12 | 涟漪波纹可视化动画 | P1 | ✅ 已有 | RippleEffect Canvas 多点扩散物理动画 |
 | S-13 | 关键词"显灵"特写 | P2 | ❌ 未做 | 共鸣值满后叙事层面主题突显 + 卡面变彩色 |
 | S-14 | 配角偶遇支线（章节间随机触发） | P2 | ❌ 未做 | 主角与配角非必要互动，影响后日谈 |
@@ -108,7 +108,7 @@
 |---|--------|--------|----------|------|
 | M-01 | 完整短篇小说生成（3000-8000 字） | P0 | ✅ 已有 | finishStory API + AI 生成 |
 | M-02 | AI 生成标题（3 个备选） | P0 | ⚠️ 部分 | 标题生成逻辑存在，备选机制不确定 |
-| M-03 | 题记生成（散文诗引子） | P1 | ❌ 未做 | 设计文档要求 |
+| M-03 | 题记生成（散文诗引子） | P1 | ✅ 已有 | StorytellerAgent.generateInscription() + manuscript.inscription + ManuscriptView 展示 |
 | M-04 | 后日谈（稗官 Agent） | P0 | ✅ 已有 | BaiguanAgent "稗官曰"口吻 |
 | M-05 | 手稿质感排版 | P0 | ✅ 已有 | ManuscriptView 手写楷书风格 |
 | M-06 | 朱笔批注（说书人批注） | P0 | ✅ 已有 | annotations JSON + 页边朱批 |
@@ -129,7 +129,7 @@
 | B-02 | 故事状态标记（进行中/已完成） | P0 | ✅ 已有 | status 1/2 + 卡片标记 |
 | B-03 | 时光轴视图 | P1 | ✅ 已有 | timeline 视图模式 |
 | B-04 | 山河图视图（古风地图标点） | P2 | ⚠️ 部分 | map 视图模式存在，地图可视化不确定 |
-| B-05 | 书架视觉（老式书架+题签+书脊） | P2 | ❌ 未做 | UI 规范要求的书架质感 |
+| B-05 | 书架视觉（老式书架+题签+书脊） | P2 | ✅ 已有 | BookshelfView 木质背景 + 书脊/题签 + shelf-plank CSS |
 | B-06 | 故事筛选+排序 | P1 | ✅ 已有 | 过滤和排序功能 |
 
 ---
@@ -185,12 +185,12 @@
 | AI-01 | 说书人 Agent（叙事/场景/成文） | P0 | ✅ 已有 | StorytellerAgent |
 | AI-02 | 判官 Agent（选项/评估/偏离度） | P0 | ✅ 已有 | JudgeAgent |
 | AI-03 | 稗官 Agent（后日谈/配角判词） | P0 | ✅ 已有 | BaiguanAgent |
-| AI-04 | 掌眼 Agent（文学质感检查） | P1 | ❌ 未做 | 剔除 AI 腔，黑名单词过滤 |
+| AI-04 | 掌眼 Agent（文学质感检查） | P1 | ✅ 已有 | AiPhraseFilter@Component + JudgeAgent/BaiguanAgent/StorytellerAgent 全部接入 |
 | AI-05 | 画师 Agent（关键词卡图/场景图） | P3 | ⚠️ 部分 | aiPainter.ts prompt 构建器就绪，后端未对接 |
-| AI-06 | AI 腔词黑名单过滤 | P1 | ❌ 未做 | "宛如""仿佛""无法言说"等 |
+| AI-06 | AI 腔词黑名单过滤 | P1 | ✅ 已有 | AiPhraseFilter@Component，黑名单 50+ 词，含"不禁微微一怔"等本轮新增词 |
 | AI-07 | Prompt 热更新（数据库存储） | P1 | ❌ 未做 | 当前硬编码在 Agent 类中 |
-| AI-08 | AI 内容安全检测 | P0 | ❌ 未做 | 防止违规输出 |
-| AI-09 | 关键词融入率检测（≥3 个） | P1 | ❌ 未做 | NLP 关键词匹配 |
+| AI-08 | AI 内容安全检测 | P0 | ✅ 已有 | finishStory 二次检测 + 重试机制 + 兜底文案 |
+| AI-09 | 关键词融入率检测（≥3 个） | P1 | ✅ 已有 | KeywordInsertionChecker + keywordWarning 字段，≥3 才算充分 |
 
 ---
 

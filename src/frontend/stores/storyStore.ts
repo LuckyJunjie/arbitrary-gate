@@ -244,11 +244,11 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
-  async function submitChoice(storyId: string, chapterNo: number, optionId: number) {
+  async function submitChoice(storyId: string, chapterNo: number, optionId: number, intensity?: 'gentle' | 'urgent' | 'forceful') {
     isLoading.value = true
     error.value = null
     try {
-      const res = await submitChoiceWithMock(storyId, chapterNo, optionId)
+      const res = await submitChoiceWithMock(storyId, chapterNo, optionId, intensity)
 
       // 记录选择
       chapters.value.push({
