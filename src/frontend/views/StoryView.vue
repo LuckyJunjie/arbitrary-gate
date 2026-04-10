@@ -237,6 +237,20 @@ function drainPendingToQueue() {
 const showEntryModal = ref(false)
 const entryAnswers = ref({义: '', 利: '', 情: ''})
 
+// ── E-07 关键词落位可视化 ──
+// 三列关键词角色分类
+const keywordColumnRoles = ['核心意象', '转折道具', '人物关联'] as const
+
+// 按角色分组的关键词落位
+const keywordPositionsByRole = computed(() => {
+  const positions = storyStore.currentStory?.keywordPositions ?? []
+  const grouped: Record<string, typeof positions> = {}
+  for (const role of keywordColumnRoles) {
+    grouped[role] = positions.filter(p => p.role === role)
+  }
+  return grouped
+})
+
 // ── 章节导航 ──
 const currentChapterNo = ref(1)
 const hasPrevChapter = computed(() => currentChapterNo.value > 1)
@@ -567,6 +581,39 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
               />
             </div>
           </div>
+
+          <!-- E-07 关键词落位三列可视化 -->
+          <div v-if="keywordPositionsByRole" class="keyword-positions-panel">
+            <p class="keyword-positions-title">关键词落位</p>
+            <div class="keyword-positions-grid">
+              <div
+                v-for="role in keywordColumnRoles"
+                :key="role"
+                class="keyword-column"
+              >
+                <span class="column-role-label">{{ role }}</span>
+                <div class="keyword-items">
+                  <div
+                    v-for="pos in keywordPositionsByRole[role]"
+                    :key="pos.keyword"
+                    class="keyword-chip"
+                  >
+                    <span class="chip-keyword">{{ pos.keyword }}</span>
+                    <!-- 泥金色连线：角色归属 -->
+                    <div v-if="pos.roleOwner" class="role-connector">
+                      <div class="connector-line" />
+                      <span class="connector-owner">{{ pos.roleOwner }}</span>
+                    </div>
+                  </div>
+                  <!-- 空列提示 -->
+                  <div v-if="!keywordPositionsByRole[role]?.length" class="empty-slot">
+                    未分配
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <button class="modal-confirm" @click="submitEntry">确认入局</button>
         </div>
       </div>
@@ -885,10 +932,26 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   top: 0;
   left: 0;
   height: 2px;
-  background-color: #2C2C2A;
+  background: linear-gradient(
+    90deg,
+    #1a1208 0%,
+    #3d2510 20%,
+    #6b4020 40%,
+    #3d2510 60%,
+    #1a1208 80%,
+    #3d2510 100%
+  );
+  background-size: 200% 100%;
+  animation: inkFlow 4s linear infinite;
   transition: width 0.5s ease;
   z-index: 1000;
   pointer-events: none;
+  box-shadow: 0 0 6px rgba(42, 31, 20, 0.5);
+}
+
+@keyframes inkFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
 }
 
 /* ── 入局弹窗 ── */
@@ -959,6 +1022,104 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 .q-input:focus {
   outline: none;
   border-color: #2c1f14;
+}
+
+/* ── E-07 关键词落位三列布局 ── */
+.keyword-positions-panel {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(139, 115, 85, 0.25);
+}
+
+.keyword-positions-title {
+  font-size: 0.7rem;
+  color: #8b7355;
+  letter-spacing: 0.2em;
+  text-align: center;
+  margin: 0 0 0.8rem;
+  text-transform: uppercase;
+}
+
+.keyword-positions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.keyword-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.column-role-label {
+  font-size: 0.62rem;
+  color: rgba(139, 115, 85, 0.6);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.keyword-items {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.keyword-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.3rem 0.5rem;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.25);
+  border-radius: 3px;
+  width: 100%;
+  text-align: center;
+  animation: keyword-chip-in 0.5s ease-out both;
+}
+
+@keyframes keyword-chip-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chip-keyword {
+  font-size: 0.78rem;
+  color: #c9a84c;
+  letter-spacing: 0.08em;
+}
+
+/* 泥金色连线：角色归属 */
+.role-connector {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.connector-line {
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.5), transparent);
+}
+
+.connector-owner {
+  font-size: 0.6rem;
+  color: rgba(201, 168, 76, 0.55);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.empty-slot {
+  font-size: 0.65rem;
+  color: rgba(139, 115, 85, 0.3);
+  padding: 0.3rem;
+  letter-spacing: 0.08em;
 }
 
 .modal-confirm {

@@ -254,16 +254,22 @@ function onMouseLeave() { onPointerUp() }
       <div class="erase-progress-fill" :style="{ width: eraseProgress + '%' }"></div>
     </div>
 
-    <!-- Card (behind canvas) -->
-    <div class="card-layer">
+    <!-- Card (behind canvas) — C-09: clip-path reveals card progressively as ink is erased -->
+    <div
+      class="card-layer"
+      :style="{
+        clipPath: `inset(${Math.round((100 - eraseProgress) * 0.80)}% 0 0 0)`,
+      }"
+    >
       <slot :card="card" />
     </div>
 
-    <!-- Canvas ink overlay -->
+    <!-- Canvas ink overlay — C-09: fades out as eraseProgress increases, revealing clipped card -->
     <canvas
       ref="canvasRef"
       class="ink-canvas"
       :class="{ 'ink-canvas--hidden': phase === 'done' }"
+      :style="{ opacity: 1 - eraseProgress / 100 }"
       @mousedown="onMouseDown"
       @mousemove="onMouseMove"
       @mouseup="onMouseUp"
@@ -288,7 +294,7 @@ function onMouseLeave() { onPointerUp() }
       ></div>
     </div>
 
-    <!-- Hint text -->
+    <!-- Hint text — C-09: 方正清刻本悦宋 font -->
     <p v-if="phase === 'idle' || phase === 'scratching'" class="scratch-hint">
       墨中有物，拂去墨迹
     </p>
@@ -355,7 +361,7 @@ function onMouseLeave() { onPointerUp() }
   transition: width 0.1s linear;
 }
 
-/* Hint text */
+/* Hint text — C-09: 方正清刻本悦宋 font */
 .scratch-hint {
   font-size: 0.8rem;
   color: rgba(232, 220, 200, 0.4);
@@ -365,6 +371,7 @@ function onMouseLeave() { onPointerUp() }
   animation: hintPulse 2.5s ease-in-out infinite;
   z-index: 20;
   position: relative;
+  font-family: '方正清刻本悦宋', 'FZQingKeBenYueSong', 'STKaiti', 'KaiTi', serif;
 }
 
 @keyframes hintPulse {
