@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.timespace.common.exception.BusinessException;
 import com.timespace.common.utils.IdGenerator;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.card.entity.EventCard;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.entity.UserEventCard;
@@ -15,6 +17,7 @@ import com.timespace.module.card.mapper.UserKeywordCardMapper;
 import com.timespace.module.ai.client.AIClient;
 import com.timespace.module.user.service.UserService;
 import org.springframework.scheduling.annotation.Scheduled;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,9 +25,12 @@ import org.redisson.api.RAtomicLong;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -54,6 +60,8 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     private final RedissonClient redissonClient;
     private final DrawAlgorithm drawAlgorithm;
     private final AIClient aiClient;
+    private final ResourceLoader resourceLoader;
+    private final ObjectMapper objectMapper;
 
     @Value("${timespace.card.ink-stone-cost:10}")
     private int inkStoneCost;
@@ -551,45 +559,69 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     // ========== 墨迹占卜（今日运势）========== //
 
     /**
-     * 运势文案库（30+条）
-     * 格式：运势文字 + 暗示类别（器物/职人/风物/情绪/称谓）
+     * 运势文案库（从 classpath:fortune.json 加载，失败时 fallback 到内存）
      */
-    private static final List<FortuneEntry> FORTUNE_LIBRARY = List.of(
-            new FortuneEntry("今日墨色偏青，似有旧物来寻。", "器物"),
-            new FortuneEntry("池中落了一片桂花，或有故人将至。", "职人"),
-            new FortuneEntry("墨浓欲凝，宜静待时机。", "称谓"),
-            new FortuneEntry("池水微漾，珍奇隐于其下。", "器物"),
-            new FortuneEntry("砚中墨浅，然大机缘将至。", "风物"),
-            new FortuneEntry("窗外有风过堂，今日宜得一奇字。", "称谓"),
-            new FortuneEntry("墨迹未干，池底似有微光透出。", "器物"),
-            new FortuneEntry("月色入水，宜候一纸良缘。", "情绪"),
-            new FortuneEntry("落笔之处，香气隐隐似曾相识。", "风物"),
-            new FortuneEntry("墨香四溢，今夜当有巧遇。", "职人"),
-            new FortuneEntry("砚边微尘聚散，缘分暗中牵引。", "情绪"),
-            new FortuneEntry("池面初平，有舟自远处来。", "风物"),
-            new FortuneEntry("墨色渐淡，有人在记忆深处等你。", "称谓"),
-            new FortuneEntry("笔尖微颤，今日宜书写新章。", "器物"),
-            new FortuneEntry("水墨交融时，最宜邂逅故人。", "职人"),
-            new FortuneEntry("砚池无波，心事却起涟漪。", "情绪"),
-            new FortuneEntry("一缕墨烟飘散，暗示远行人将归。", "称谓"),
-            new FortuneEntry("笔搁砚台，今日宜静不宜动。", "风物"),
-            new FortuneEntry("墨汁浓稠如心事，待人解其中味。", "器物"),
-            new FortuneEntry("池畔柳絮飞，今日宜别离亦宜重逢。", "情绪"),
-            new FortuneEntry("砚中墨色温润如玉，宜缓缓书之。", "职人"),
-            new FortuneEntry("落墨无声，却惊动池底游鱼。", "风物"),
-            new FortuneEntry("墨香与茶香相融，今日宜会友。", "称谓"),
-            new FortuneEntry("笔锋一转，暗藏一段未了情。", "器物"),
-            new FortuneEntry("池水映月光，有人倚栏独望。", "情绪"),
-            new FortuneEntry("墨点如星，今日宜思念旧友。", "职人"),
-            new FortuneEntry("砚台微温，暗示前方有暖意。", "风物"),
-            new FortuneEntry("笔走龙蛇处，今日当有奇遇。", "器物"),
-            new FortuneEntry("墨干复又润，缘分几番轮回。", "称谓"),
-            new FortuneEntry("池边独坐，风送故人消息。", "情绪"),
-            new FortuneEntry("墨色如旧年，情绪却已不同。", "风物"),
-            new FortuneEntry("一纸空白，候谁来落笔。", "器物"),
-            new FortuneEntry("砚边寒露起，今日宜收敛心神。", "职人"),
-            new FortuneEntry("墨迹斑驳，似一段被遗忘的往事。", "称谓")
-    );
+    private List<FortuneEntry> fortuneLibrary;
+
+    /**
+     * C-08: 从 fortune.json 加载运势文案，失败时使用硬编码兜底
+     */
+    @PostConstruct
+    public void loadFortuneLibrary() {
+        try {
+            Resource resource = resourceLoader.getResource("classpath:fortune.json");
+            fortuneLibrary = objectMapper.readValue(
+                    resource.getInputStream(),
+                    new TypeReference<List<FortuneEntry>>() {}
+            );
+            log.info("[C-08] 运势文案加载成功，共 {} 条", fortuneLibrary.size());
+        } catch (IOException e) {
+            log.warn("[C-08] 运势文案加载失败，使用硬编码兜底: {}", e.getMessage());
+            fortuneLibrary = getDefaultFortuneLibrary();
+        }
+    }
+
+    /**
+     * 硬编码兜底运势文案（与 fortune.json 保持同步，共34条）
+     */
+    private List<FortuneEntry> getDefaultFortuneLibrary() {
+        return List.of(
+                new FortuneEntry("今日墨色偏青，似有旧物来寻。", "器物"),
+                new FortuneEntry("池中落了一片桂花，或有故人将至。", "职人"),
+                new FortuneEntry("墨浓欲凝，宜静待时机。", "称谓"),
+                new FortuneEntry("池水微漾，珍奇隐于其下。", "器物"),
+                new FortuneEntry("砚中墨浅，然大机缘将至。", "风物"),
+                new FortuneEntry("窗外有风过堂，今日宜得一奇字。", "称谓"),
+                new FortuneEntry("墨迹未干，池底似有微光透出。", "器物"),
+                new FortuneEntry("月色入水，宜候一纸良缘。", "情绪"),
+                new FortuneEntry("落笔之处，香气隐隐似曾相识。", "风物"),
+                new FortuneEntry("墨香四溢，今夜当有巧遇。", "职人"),
+                new FortuneEntry("砚边微尘聚散，缘分暗中牵引。", "情绪"),
+                new FortuneEntry("池面初平，有舟自远处来。", "风物"),
+                new FortuneEntry("墨色渐淡，有人在记忆深处等你。", "称谓"),
+                new FortuneEntry("笔尖微颤，今日宜书写新章。", "器物"),
+                new FortuneEntry("水墨交融时，最宜邂逅故人。", "职人"),
+                new FortuneEntry("砚池无波，心事却起涟漪。", "情绪"),
+                new FortuneEntry("一缕墨烟飘散，暗示远行人将归。", "称谓"),
+                new FortuneEntry("笔搁砚台，今日宜静不宜动。", "风物"),
+                new FortuneEntry("墨汁浓稠如心事，待人解其中味。", "器物"),
+                new FortuneEntry("池畔柳絮飞，今日宜别离亦宜重逢。", "情绪"),
+                new FortuneEntry("砚中墨色温润如玉，宜缓缓书之。", "职人"),
+                new FortuneEntry("落墨无声，却惊动池底游鱼。", "风物"),
+                new FortuneEntry("墨香与茶香相融，今日宜会友。", "称谓"),
+                new FortuneEntry("笔锋一转，暗藏一段未了情。", "器物"),
+                new FortuneEntry("池水映月光，有人倚栏独望。", "情绪"),
+                new FortuneEntry("墨点如星，今日宜思念旧友。", "职人"),
+                new FortuneEntry("砚台微温，暗示前方有暖意。", "风物"),
+                new FortuneEntry("笔走龙蛇处，今日当有奇遇。", "器物"),
+                new FortuneEntry("墨干复又润，缘分几番轮回。", "称谓"),
+                new FortuneEntry("池边独坐，风送故人消息。", "情绪"),
+                new FortuneEntry("墨色如旧年，情绪却已不同。", "风物"),
+                new FortuneEntry("一纸空白，候谁来落笔。", "器物"),
+                new FortuneEntry("砚边寒露起，今日宜收敛心神。", "职人"),
+                new FortuneEntry("墨迹斑驳，似一段被遗忘的往事。", "称谓")
+        );
+    }
 
     /**
      * 根据当天日期 + 用户ID 生成确定性运势
@@ -602,9 +634,9 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
 
         // 用日期 seed + 用户 ID 混合哈希，确保不同用户、不同日期结果不同
         int hash = Integer.hashCode(today) ^ Long.hashCode(userId);
-        int index = Math.abs(hash) % FORTUNE_LIBRARY.size();
+        int index = Math.abs(hash) % fortuneLibrary.size();
 
-        FortuneEntry entry = FORTUNE_LIBRARY.get(index);
+        FortuneEntry entry = fortuneLibrary.get(index);
         return new FortuneResult(entry.fortune, entry.hint);
     }
 

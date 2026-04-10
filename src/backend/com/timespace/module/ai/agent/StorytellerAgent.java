@@ -45,6 +45,7 @@ public class StorytellerAgent {
     private final AIClient aiClient;
     private final ObjectMapper objectMapper;
     private final AiPromptTemplateService promptTemplateService;
+    private final AiPhraseFilter aiPhraseFilter;
 
     // 运行时 prompt 模板（从 DB 加载）
     private String chapterSystemPromptTemplate;
@@ -483,7 +484,7 @@ public class StorytellerAgent {
                 String jsonStr = response.substring(jsonStart, jsonEnd + 1);
                 Map<String, Object> parsed = objectMapper.readValue(jsonStr, Map.class);
                 String rawManuscriptText = (String) parsed.get("manuscript");
-                String manuscriptText = AiPhraseFilter.filter(rawManuscriptText);
+                String manuscriptText = aiPhraseFilter.filter(rawManuscriptText);
                 @SuppressWarnings("unchecked")
                 List<String> titles = (List<String>) parsed.get("titles");
                 if (titles == null || titles.size() < 3) {
@@ -497,7 +498,7 @@ public class StorytellerAgent {
         }
         // Fallback
         return new AIGatewayService.ManuscriptResult(
-                response.length() > 100 ? AiPhraseFilter.filter(response) : "（手稿内容）",
+                response.length() > 100 ? aiPhraseFilter.filter(response) : "（手稿内容）",
                 List.of("时光旅人手记", "旧事新说", "一段往事"),
                 null
         );
@@ -525,7 +526,7 @@ public class StorytellerAgent {
                 String jsonStr = response.substring(jsonStart, jsonEnd + 1);
                 Map<String, Object> parsed = objectMapper.readValue(jsonStr, Map.class);
                 String rawSceneText = (String) parsed.get("sceneText");
-                chapter.setSceneText(AiPhraseFilter.filter(rawSceneText));
+                chapter.setSceneText(aiPhraseFilter.filter(rawSceneText));
 
                 List<Map<String, Object>> optionsRaw = (List<Map<String, Object>>) parsed.get("options");
                 if (optionsRaw != null) {
@@ -569,11 +570,11 @@ public class StorytellerAgent {
                 }
             } else {
                 // 非JSON格式，整段作为场景描写
-                chapter.setSceneText(AiPhraseFilter.filter(response));
+                chapter.setSceneText(aiPhraseFilter.filter(response));
             }
         } catch (Exception e) {
             log.error("解析章节响应失败: {}", e.getMessage());
-            chapter.setSceneText(AiPhraseFilter.filter(response));
+            chapter.setSceneText(aiPhraseFilter.filter(response));
         }
 
         return chapter;

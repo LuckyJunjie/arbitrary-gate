@@ -49,14 +49,33 @@ onMounted(async () => {
   inkValueStore.loadFromStorage()
   loadDailyFreeDraws()
   loadSavedCards()
-  // 调用后端 API 获取今日运势（基于日期+用户ID确定性选取）
-  try {
-    const res = await fetchFortune()
-    fortuneText.value = res.fortune
-    fortuneHint.value = res.hint
-  } catch {
-    // API 不可用时静默降级，不展示运势
-    fortuneText.value = ''
+  // C-08: 今日运势本地缓存，同一天不重复请求
+  const today = new Date().toDateString()
+  const cacheKey = `fortune:${today}`
+  const cached = localStorage.getItem(cacheKey)
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached)
+      fortuneText.value = parsed.fortune || ''
+      fortuneHint.value = parsed.hint || ''
+    } catch {
+      fortuneText.value = ''
+    }
+  } else {
+    // 调用后端 API 获取今日运势（基于日期+用户ID确定性选取）
+    try {
+      const res = await fetchFortune()
+      fortuneText.value = res.fortune
+      fortuneHint.value = res.hint
+      // 缓存到 localStorage
+      localStorage.setItem(cacheKey, JSON.stringify({
+        fortune: res.fortune,
+        hint: res.hint,
+      }))
+    } catch {
+      // API 不可用时静默降级，不展示运势
+      fortuneText.value = ''
+    }
   }
 })
 

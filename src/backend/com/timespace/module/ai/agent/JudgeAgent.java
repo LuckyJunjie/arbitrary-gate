@@ -2,6 +2,7 @@ package com.timespace.module.ai.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.ai.client.AIClient;
+import com.timespace.module.ai.util.AiPhraseFilter;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryChapter;
@@ -37,6 +38,7 @@ public class JudgeAgent {
 
     private final AIClient aiClient;
     private final ObjectMapper objectMapper;
+    private final AiPhraseFilter aiPhraseFilter;
 
     /**
      * 评估用户选择
@@ -202,7 +204,7 @@ public class JudgeAgent {
                     }
                 }
 
-                result.setJudgment((String) parsed.get("judgment"));
+                result.setJudgment(aiPhraseFilter.filter((String) parsed.get("judgment")));
             }
         } catch (Exception e) {
             log.error("解析判官评估结果失败: {}", e.getMessage());

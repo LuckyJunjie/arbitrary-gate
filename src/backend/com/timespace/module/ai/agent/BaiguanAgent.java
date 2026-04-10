@@ -37,6 +37,7 @@ public class BaiguanAgent {
 
     private final AIClient aiClient;
     private final ObjectMapper objectMapper;
+    private final AiPhraseFilter aiPhraseFilter;
 
     /**
      * 生成后日谈（所有配角）
@@ -92,7 +93,7 @@ public class BaiguanAgent {
                 character.getRelationToUser()
         );
 
-        return AiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
+        return aiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
     }
 
     /**
@@ -126,7 +127,7 @@ public class BaiguanAgent {
         String userMessage = String.format("请为第%d章的以下内容写批注（3-5条，含1-2条彩蛋批注），返回严格JSON数组格式：\n\n%s",
                 chapterNo, chapterText);
 
-        return aiClient.callSync(systemPrompt, userMessage);
+        return aiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
     }
 
     /**
@@ -208,7 +209,7 @@ public class BaiguanAgent {
                         finalDeviation < 70 ? "在历史与虚构间徘徊" : "完全改写历史"
         );
 
-        return AiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
+        return aiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
     }
 
     private String getCharacterTypeName(Integer type) {
