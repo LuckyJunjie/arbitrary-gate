@@ -7,6 +7,7 @@ import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.service.StoryOrchestrationService;
 import com.timespace.module.story.service.StoryOrchestrationService.StartStoryVO;
 import com.timespace.module.story.service.StoryOrchestrationService.ChooseResultVO;
+import com.timespace.module.story.service.StoryOrchestrationService.EncounterChoiceResultVO;
 import com.timespace.module.story.service.StoryOrchestrationService.FinishStoryVO;
 import com.timespace.module.story.service.StoryOrchestrationService.StoryDetailVO;
 import jakarta.validation.Valid;
@@ -282,6 +283,30 @@ public class StoryController {
         return Result.ok(List.of());
     }
 
+    // ========== S-14 偶遇支线 ========== //
+
+    /**
+     * POST /api/story/{id}/encounter/choice
+     * 提交偶遇选择（搭话A / 装没看见B），影响命运值
+     *
+     * 请求：
+     * {
+     *   "encounterId": 123,
+     *   "choice": "A"   // A=搭话(+10), B=装没看见(-5)
+     * }
+     */
+    @PostMapping("/{id}/encounter/choice")
+    public Result<EncounterChoiceResultVO> submitEncounterChoice(
+            @PathVariable("id") Long storyId,
+            @RequestBody EncounterChoiceRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("[S-14] 偶遇选择请求: userId={}, storyId={}, encounterId={}, choice={}",
+                userId, storyId, request.getEncounterId(), request.getChoice());
+        EncounterChoiceResultVO vo = storyService.submitEncounterChoice(
+                storyId, request.getEncounterId(), request.getChoice());
+        return Result.ok(vo);
+    }
+
     // ========== 请求/响应 DTO ==========
 
     @Data
@@ -296,6 +321,13 @@ public class StoryController {
     @Data
     public static class ChooseRequest {
         private Integer optionId;
+    }
+
+    @Data
+    public static class EncounterChoiceRequest {
+        private Long encounterId;
+        /** 'A' = 搭话(+10命运值), 'B' = 装作没看见(-5命运值) */
+        private String choice;
     }
 
     @Data

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import {
   fetchChapterWithMock,
   submitChoiceWithMock,
+  submitEncounterChoice,
   fetchManuscript,
   fetchStoryList,
   finishStoryWithMock,
@@ -12,6 +13,7 @@ import {
   type Story,
   type Chapter,
   type Manuscript,
+  type Encounter,
 } from '@/services/api'
 
 // ===== 断线重连配置 =====
@@ -280,6 +282,28 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
+  // S-14 提交偶遇选择
+  async function submitEncounterChoice(
+    storyId: string,
+    encounterId: number,
+    choice: 'A' | 'B'
+  ) {
+    try {
+      const res = await submitEncounterChoice(storyId, encounterId, choice)
+      // 更新命运值
+      if (currentStory.value) {
+        currentStory.value.historyDeviation = Math.max(
+          0,
+          Math.min(100, currentStory.value.historyDeviation + res.fateChange)
+        )
+      }
+      return res
+    } catch (err) {
+      console.error('[storyStore] submitEncounterChoice failed:', err)
+      throw err
+    }
+  }
+
   async function generateManuscript(storyId: string) {
     isLoadingManuscript.value = true
     error.value = null
@@ -413,6 +437,8 @@ export const useStoryStore = defineStore('story', () => {
     setCurrentStory,
     clearCurrentStory,
     updateKeywordResonance,
+    // S-14 Actions
+    submitEncounterChoice,
     // S-16 Actions
     connectStream,
     disconnectStream,

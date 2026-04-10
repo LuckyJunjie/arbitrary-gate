@@ -38,6 +38,8 @@ public class StoryManuscript {
         private String position;     // 位置描述
         private String text;         // 朱批内容
         private String color;        // 朱砂颜色
+        /** M-10 批注彩蛋：'normal' | 'easter_egg' */
+        private String type = "normal";
     }
 
     @Data

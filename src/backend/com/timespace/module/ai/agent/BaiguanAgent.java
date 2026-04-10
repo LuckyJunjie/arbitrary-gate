@@ -95,8 +95,12 @@ public class BaiguanAgent {
 
     /**
      * 生成朱批（文学批注）
+     * M-10: 返回带 type 字段的批注列表，其中1-2条可以是打破第四面墙的彩蛋批注
+     *
+     * @return JSON数组格式的批注列表，每条包含 text, type ('normal'|'easter_egg')
      */
     public String generateAnnotation(int chapterNo, String chapterText) {
+        // M-10: 增加打破第四面墙的彩蛋批注说明
         String systemPrompt = String.format("""
                 你是一位古典文学批注家，擅长在原文旁添加精妙的朱砂批注。
 
@@ -106,16 +110,65 @@ public class BaiguanAgent {
                 - 用朱砂红色标注
                 - 可以点评用词、情节、结构
 
+                【M-10 批注彩蛋】
+                其中1-2条批注可以打破第四面墙，对读者说话，或暗示"如果当时选了别的选项会怎样"。
+                在返回的 JSON 中，彩蛋批注标记 type 为 'easter_egg'，普通批注为 'normal'。
+
                 格式：
                 - 单条批注不超过20字
-                - 标注在关键句旁
-                - 通常1-3条批注即可
+                - 通常3-5条批注，其中1-2条为彩蛋批注
+                - 必须返回严格JSON数组格式，如：
+                  [{"text":"此处用字极妙","type":"normal"},{"text":"若选B，结局或不相同","type":"easter_egg"},{"text":"埋伏笔于此","type":"normal"}]
                 """);
 
-        String userMessage = String.format("请为第%d章的以下内容写批注（1-3条）：\n\n%s",
+        String userMessage = String.format("请为第%d章的以下内容写批注（3-5条，含1-2条彩蛋批注），返回严格JSON数组格式：\n\n%s",
                 chapterNo, chapterText);
 
         return aiClient.callSync(systemPrompt, userMessage);
+    }
+
+    /**
+     * 解析批注响应文本，返回带 type 的 Annotation 列表
+     */
+    public List<AnnotationWithType> parseAnnotationResponse(String response) {
+        List<AnnotationWithType> annotations = new ArrayList<>();
+        try {
+            // 清理可能的 markdown 代码块
+            String jsonStr = response.trim();
+            if (jsonStr.startsWith("```")) {
+                int firstNewline = jsonStr.indexOf('\n');
+                int lastBacktick = jsonStr.lastIndexOf("```");
+                if (firstNewline < lastBacktick && lastBacktick > 0) {
+                    jsonStr = jsonStr.substring(firstNewline, lastBacktick).trim();
+                }
+            }
+            // 去掉可能的 "json" 前缀
+            jsonStr = jsonStr.replaceFirst("^json\\s*", "").trim();
+
+            List<Map<String, Object>> rawList = objectMapper.readValue(jsonStr,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
+            for (Map<String, Object> item : rawList) {
+                AnnotationWithType a = new AnnotationWithType();
+                a.setText((String) item.get("text"));
+                String type = (String) item.getOrDefault("type", "normal");
+                a.setType(type);
+                annotations.add(a);
+            }
+        } catch (Exception e) {
+            log.warn("解析批注响应失败，使用兜底: error={}, response={}", e.getMessage(), response);
+            // 兜底：返回一条普通批注
+            AnnotationWithType fallback = new AnnotationWithType();
+            fallback.setText(response.length() > 20 ? response.substring(0, 20) : response);
+            fallback.setType("normal");
+            annotations.add(fallback);
+        }
+        return annotations;
+    }
+
+    @Data
+    public static class AnnotationWithType {
+        private String text;
+        private String type = "normal"; // 'normal' | 'easter_egg'
     }
 
     /**

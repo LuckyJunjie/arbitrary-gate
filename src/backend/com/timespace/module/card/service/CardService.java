@@ -17,6 +17,7 @@ import com.timespace.module.user.service.UserService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RAtomicLong;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -416,6 +417,79 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     public void increaseResonance(Long userId, Long cardId) {
         increaseInkFragrance(userId, cardId, 1);
     }
+
+    // ========== C-12 陈卡回炉 ========== //
+
+    private static final String RECYCLE_DAILY_KEY = "recycle:user:%d:%s";  // recycle:{userId}:{date}
+    private static final String FREE_DRAW_REDIS_KEY = "free_draw:user:%d:%s"; // free_draw:{userId}:{date}
+
+    /**
+     * C-12 陈卡回炉
+     * 将关键词卡投入墨池，返还1次免费抽卡机会，每日限1次
+     *
+     * @param userId 用户ID
+     * @param cardId 关键词卡ID（user_keyword_card.id）
+     * @return 回收结果，包含剩余免费抽卡次数
+     */
+    @Transactional
+    public RecycleResult recycleCard(Long userId, Long cardId) {
+        // 1. 校验卡牌归属：必须属于当前用户
+        UserKeywordCard userCard = userKeywordCardMapper.selectOne(
+                new LambdaQueryWrapper<UserKeywordCard>()
+                        .eq(UserKeywordCard::getUserId, userId)
+                        .eq(UserKeywordCard::getId, cardId)
+        );
+        if (userCard == null) {
+            throw BusinessException.CARD_NOT_FOUND;
+        }
+
+        // 2. 每日限制1次：Redis key = recycle:{userId}:{date}
+        String today = java.time.LocalDate.now().toString();
+        String recycleKey = String.format(RECYCLE_DAILY_KEY, userId, today);
+        Boolean alreadyRecycled = redissonClient.getBucket(recycleKey).get() != null;
+        if (alreadyRecycled) {
+            throw new BusinessException(400, "今日已回炉过一张卡，明日再来吧");
+        }
+
+        // 3. 删除用户卡牌记录（软删除）
+        userKeywordCardMapper.deleteById(userCard.getId());
+        log.info("[C-12] 用户回炉卡牌: userId={}, cardId={}", userId, cardId);
+
+        // 4. 设置今日回炉标记（TTL 86400秒 = 24小时）
+        redissonClient.getBucket(recycleKey).set("1",
+                java.time.Duration.ofSeconds(86400));
+
+        // 5. Redis incr free_draw:{userId}:{date}（返还1次免费抽卡机会）
+        String freeDrawKey = String.format(FREE_DRAW_REDIS_KEY, userId, today);
+        RAtomicLong freeDrawAtomic = redissonClient.getAtomicLong(freeDrawKey);
+        long newFreeDraws = freeDrawAtomic.incrementAndGet();
+        // 设置 TTL（次日自动失效）
+        freeDrawAtomic.expire(java.time.Duration.ofSeconds(86400));
+
+        // 6. 计算总可用免费次数 = DB剩余 + Redis额外
+        int dbFreeDraws = userService.getDailyFreeDraws(userId);
+        int totalFreeDraws = dbFreeDraws + (int) newFreeDraws;
+
+        log.info("[C-12] 回炉成功: userId={}, cardId={}, newFreeDraws={}, total={}",
+                userId, cardId, newFreeDraws, totalFreeDraws);
+
+        return new RecycleResult(true, totalFreeDraws);
+    }
+
+    /**
+     * 获取用户今日额外免费抽卡次数（来自陈卡回炉）
+     */
+    public int getExtraFreeDrawsFromRedis(Long userId) {
+        String today = java.time.LocalDate.now().toString();
+        String freeDrawKey = String.format(FREE_DRAW_REDIS_KEY, userId, today);
+        Long val = redissonClient.getAtomicLong(freeDrawKey).get();
+        return val != null ? val.intValue() : 0;
+    }
+
+    /**
+     * C-12 回收结果
+     */
+    public record RecycleResult(boolean success, int freeDrawsRemaining) {}
 
     private UserKeywordCard grantCardToUser(Long userId, KeywordCard card) {
         // 检查是否已拥有

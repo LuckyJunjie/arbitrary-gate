@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
-import { aiPainter, previewJudgment } from '@/services/api'
+import { aiPainter, previewJudgment, recycleCard } from '@/services/api'
 import Card from '@/components/Card.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import JudgmentPreview from '@/components/JudgmentPreview.vue'
@@ -24,6 +24,65 @@ const MAX_KEYWORD_SELECT = 3
 const showJudgmentPreview = ref(false)
 const judgmentText = ref('')
 const isLoadingJudgment = ref(false)
+
+// ── C-12 陈卡回炉 ──
+const showRecycleDialog = ref(false)
+const recycleTargetCard = ref<{ id: number; name: string; inkFragrance?: number } | null>(null)
+const isRecycling = ref(false)
+const recycleSuccessMsg = ref('')
+
+/** 长按计时器（500ms触发回炉确认） */
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+const LONG_PRESS_DURATION = 500
+
+function handleCardTouchStart(card: typeof recycleTargetCard.value) {
+  if (activeTab.value !== 'keyword') return
+  longPressTimer = setTimeout(() => {
+    recycleTargetCard.value = card
+    showRecycleDialog.value = true
+  }, LONG_PRESS_DURATION)
+}
+
+function handleCardTouchEnd() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+}
+
+async function confirmRecycle() {
+  if (!recycleTargetCard.value) return
+  isRecycling.value = true
+  try {
+    const res = await recycleCard(recycleTargetCard.value.id)
+    // 从列表中移除该卡（淡出动画）
+    const idx = cardStore.keywordCards.findIndex(c => c.id === recycleTargetCard.value!.id)
+    if (idx !== -1) {
+      cardStore.keywordCards.splice(idx, 1)
+      cardStore.syncToStorage()
+    }
+    showRecycleDialog.value = false
+    recycleSuccessMsg.value = `墨已回归墨池，今日获得${res.freeDrawsRemaining}次免费抽卡机会`
+    setTimeout(() => { recycleSuccessMsg.value = '' }, 4000)
+  } catch (err) {
+    console.error('[CardsView] recycle failed:', err)
+    alert('回炉失败：' + (err instanceof Error ? err.message : String(err)))
+  } finally {
+    isRecycling.value = false
+    recycleTargetCard.value = null
+  }
+}
+
+function cancelRecycle() {
+  showRecycleDialog.value = false
+  recycleTargetCard.value = null
+  handleCardTouchEnd()
+}
+
+function openRecycleDialog(card: typeof recycleTargetCard.value) {
+  recycleTargetCard.value = card
+  showRecycleDialog.value = true
+}
 
 const canStartStory = computed(() =>
   selectedKeywordCards.value.length === MAX_KEYWORD_SELECT && selectedEventCard.value !== null
@@ -200,7 +259,17 @@ async function generateAICardImage() {
           'event-selected': activeTab === 'event' && isEventSelected(card.id),
         }"
         @click="activeTab === 'keyword' ? toggleKeywordCard(card) : toggleEventCard(card)"
+        @touchstart.passive="handleCardTouchStart(card as any)"
+        @touchend="handleCardTouchEnd"
+        @contextmenu.prevent="activeTab === 'keyword' ? openRecycleDialog(card as any) : null"
       >
+        <!-- C-12 回炉按钮（关键词卡显示） -->
+        <button
+          v-if="activeTab === 'keyword'"
+          class="recycle-btn"
+          title="投入墨池回炉"
+          @click.stop="openRecycleDialog(card as any)"
+        >🅾️</button>
         <Card :card="card" @flip="handleCardFlip(card)" />
         <div
           v-if="(activeTab === 'keyword' && isKeywordSelected(card.id)) || (activeTab === 'event' && isEventSelected(card.id))"
@@ -275,6 +344,32 @@ async function generateAICardImage() {
       @confirm="onJudgmentConfirm"
       @cancel="onJudgmentCancel"
     />
+
+    <!-- C-12 陈卡回炉确认对话框 -->
+    <Teleport to="body">
+      <div v-if="showRecycleDialog && recycleTargetCard" class="recycle-overlay" @click.self="cancelRecycle">
+        <div class="recycle-dialog">
+          <h3 class="recycle-title">投入墨池</h3>
+          <p class="recycle-desc">
+            确定要将「<strong>{{ recycleTargetCard.name }}</strong>」投入墨池回炉吗？
+          </p>
+          <p class="recycle-hint">回炉后可获得1次免费抽卡机会，今日限1次。</p>
+          <div class="recycle-actions">
+            <button class="recycle-confirm-btn" @click="confirmRecycle" :disabled="isRecycling">
+              {{ isRecycling ? '回炉中…' : '确认回炉' }}
+            </button>
+            <button class="recycle-cancel-btn" @click="cancelRecycle">取消</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- C-12 回炉成功提示 -->
+    <Teleport to="body">
+      <div v-if="recycleSuccessMsg" class="recycle-toast">
+        {{ recycleSuccessMsg }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -656,5 +751,164 @@ async function generateAICardImage() {
 .ai-result-source {
   font-size: 0.75rem;
   color: #8b7355;
+}
+
+/* ── C-12 回炉按钮 ── */
+.recycle-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(139, 115, 85, 0.4);
+  background: rgba(245, 239, 224, 0.85);
+  backdrop-filter: blur(4px);
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-slot:hover .recycle-btn,
+.card-slot:active .recycle-btn {
+  opacity: 1;
+}
+
+.recycle-btn:hover {
+  transform: scale(1.1);
+  background: rgba(196, 124, 90, 0.2);
+}
+
+/* ── C-12 回炉确认对话框 ── */
+.recycle-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 21, 16, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.recycle-dialog {
+  background: #f5efe0;
+  border: 1px solid #8b7355;
+  border-radius: 8px;
+  padding: 1.8rem 2rem;
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+  color: #2c1f14;
+  animation: dialog-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dialog-in {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.recycle-title {
+  font-size: 1.2rem;
+  margin: 0 0 1rem;
+  letter-spacing: 0.1em;
+  color: #2c1f14;
+}
+
+.recycle-desc {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+  color: #4a3520;
+}
+
+.recycle-hint {
+  font-size: 0.8rem;
+  color: #8b7355;
+  margin-bottom: 1.5rem;
+}
+
+.recycle-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.recycle-confirm-btn {
+  flex: 1;
+  padding: 0.65rem;
+  background: #2c1f14;
+  color: #f5efe0;
+  border: none;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.recycle-confirm-btn:hover:not(:disabled) {
+  background: #4a3520;
+}
+
+.recycle-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recycle-cancel-btn {
+  flex: 1;
+  padding: 0.65rem;
+  background: transparent;
+  color: #8b7355;
+  border: 1px solid #8b7355;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.recycle-cancel-btn:hover {
+  background: rgba(139, 115, 85, 0.1);
+  color: #2c1f14;
+}
+
+/* ── C-12 回炉成功 Toast ── */
+.recycle-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2c1f14;
+  color: #c4a882;
+  padding: 0.7rem 1.5rem;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  z-index: 300;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  animation: toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1), toast-out 0.3s ease 3.7s forwards;
+}
+
+@keyframes toast-in {
+  from { transform: translateX(-50%) translateY(16px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 </style>

@@ -286,6 +286,13 @@ public class StorytellerAgent {
                    例如：{"keywordPositions": [{"keyword": "旧船票", "role": "核心意象", "roleOwner": null}, {"keyword": "铜锁芯", "role": "转折道具", "roleOwner": null}, {"keyword": "摆渡人", "role": "人物关联", "roleOwner": "张翁"}]}
                 """ : "";
 
+        // P-04: 三水意象彩蛋检测
+        // 水相关意象词：渡口/船/江/河/雨/水/舟/帆/潮/浪
+        // 如果三张关键词卡的tag字段都包含水相关意象，则在prompt中注入"必须出现一场雨"
+        String p04RainHint = isThreeWaterImagery(keywords)
+                ? "\n\n【重要彩蛋】三张关键词卡均有水意象，故事中必须出现一场雨。"
+                : "";
+
         return String.format("""
                 你是一位温和的中年说书人，擅长用%s风格叙事。
 
@@ -309,7 +316,7 @@ public class StorytellerAgent {
                 3. 关键词必须自然融入场景描写中
                 4. 每段话不超过3句
                 5. 结尾必须给出一个两难选择，让读者有代入感
-                6. 每个配角出场时，不要用上帝视角介绍身份。用主角的眼睛，描述此人"此刻的样子"，一句话，不超过30字。例如："瘦高个子，鞋上有泥，走路时右手一直攥着什么。"
+                6. 每个配角出场时，不要用上帝视角介绍身份。用主角的眼睛，描述此人"此刻的样子"，一句话，不超过30字。例如："瘦高个子，鞋上有泥，走路时右手一直攥着什么。"%s
                 7. 最后用JSON格式返回章节内容，格式如下：
                 {
                   "sceneText": "场景描写正文（自然地融入关键词和配角出场描写）...",
@@ -329,8 +336,46 @@ public class StorytellerAgent {
                 keywordsText, charactersText,
                 story.getEntryAnswers(),
                 getStyleGuidance(story.getStyle()),
+                p04RainHint,
                 keywordPositionSection
         );
+    }
+
+    // P-04: 检测三水意象彩蛋
+    // 水相关意象词：渡口/船/江/河/雨/水/舟/帆/潮/浪
+    private static final List<String> WATER_KEYWORDS = List.of(
+            "渡口", "船", "江", "河", "雨", "水", "舟", "帆", "潮", "浪"
+    );
+
+    private boolean isThreeWaterImagery(List<KeywordCard> keywords) {
+        if (keywords == null || keywords.size() < 3) return false;
+        // 至少需要3张关键词卡才能触发三水彩蛋
+        if (keywords.size() < 3) return false;
+        // 取前3张（通常是故事使用的3张关键词卡）
+        List<KeywordCard> storyKeywords = keywords.size() > 3
+                ? keywords.subList(0, 3)
+                : keywords;
+        // 检测：每张卡的 tag 或 name 中是否包含水相关意象词
+        for (KeywordCard k : storyKeywords) {
+            String tag = k.getTag();
+            String name = k.getName() != null ? k.getName() : "";
+            boolean hasWater = false;
+            if (tag != null && !tag.isBlank()) {
+                for (String w : WATER_KEYWORDS) {
+                    if (tag.contains(w)) { hasWater = true; break; }
+                }
+            }
+            if (!hasWater) {
+                // fallback: 检查卡牌名称
+                for (String w : WATER_KEYWORDS) {
+                    if (name.contains(w)) { hasWater = true; break; }
+                }
+            }
+            if (!hasWater) return false;
+        }
+        log.info("[P-04] 三水意象彩蛋触发！关键词: {}", storyKeywords.stream().map(KeywordCard::getName).toList());
+        return true;
+    }
     }
 
     private String buildChapterUserMessage(Story story, int chapterNo, StoryChapter.Option lastChoice,

@@ -106,13 +106,14 @@ const paragraphs = computed(() => {
 const epilogue = computed(() => manuscript.value?.epilogue)
 
 // 朱批注释（按段落索引分组）
+// M-10: 每个批注包含 text 和 type ('normal' | 'easter_egg')
 const annotationsByPara = computed(() => {
   if (!manuscript.value?.annotations?.length) return {}
-  const grouped: Record<number, string[]> = {}
+  const grouped: Record<number, Array<{ text: string; type: string }>> = {}
   manuscript.value.annotations.forEach(ann => {
     const idx = ann.chapterNo ?? 0
     if (!grouped[idx]) grouped[idx] = []
-    grouped[idx].push(ann.text)
+    grouped[idx].push({ text: ann.text, type: ann.type ?? 'normal' })
   })
   return grouped
 })
@@ -216,7 +217,8 @@ function goBack() {
                   v-for="(ann, ai) in annotationsByPara[idx]"
                   :key="ai"
                   class="zhub-text"
-                >{{ ann }}</p>
+                  :class="{ 'annotation-easter-egg': ann.type === 'easter_egg' }"
+                >{{ ann.text }}</p>
               </div>
             </div>
           </div>
@@ -512,6 +514,12 @@ function goBack() {
   color: #8b3e3c;
   margin: 0;
   letter-spacing: 0.05em;
+}
+
+/* M-10 批注彩蛋：黛青色区分 */
+.annotation-easter-egg {
+  color: #4A6B6B !important;
+  font-style: italic;
 }
 
 /* ── 后日谈 ── */

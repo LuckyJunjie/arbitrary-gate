@@ -107,6 +107,21 @@ export interface Chapter {
   characterAppearances?: Array<{ name: string; firstImpression: string }>
 }
 
+/** S-14 偶遇事件 */
+export interface Encounter {
+  encounterId: number
+  encounterText: string
+  optionA: string
+  optionB: string
+  chapterNo: number
+}
+
+/** S-14 偶遇选择响应 */
+export interface EncounterChoiceResult {
+  encounterId: number
+  fateChange: number
+}
+
 export interface Story {
   id: string
   storyNo: string
@@ -156,6 +171,24 @@ export async function drawEventCard(): Promise<EventDrawResult> {
   return api.post('/card/draw/event')
 }
 
+// ========== C-12 陈卡回炉 ==========
+
+export interface RecycleResult {
+  success: boolean
+  freeDrawsRemaining: number
+}
+
+/**
+ * C-12 陈卡回炉
+ * POST /api/card/recycle
+ * 将关键词卡投入墨池回炉，每日限1次，返还1次免费抽卡机会
+ *
+ * @param userCardId user_keyword_card.id（不是 keyword_card.id）
+ */
+export async function recycleCard(userCardId: number): Promise<RecycleResult> {
+  return api.post('/card/recycle', { cardId: userCardId })
+}
+
 // 墨迹占卜（今日运势）
 export interface FortuneResult {
   fortune: string
@@ -201,8 +234,17 @@ export async function submitChapterChoice(
   chapterNo: number,
   optionId: number,
   gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
-): Promise<{ chapter: Chapter; deviation: number }> {
+): Promise<{ chapter: Chapter; deviation: number; encounter?: Encounter }> {
   return api.post(`/story/${storyId}/chapter/${chapterNo}/choose`, { optionId, gestureIntensity })
+}
+
+/** S-14 提交偶遇选择（'A'=搭话, 'B'=装作没看见） */
+export async function submitEncounterChoice(
+  storyId: string,
+  encounterId: number,
+  choice: 'A' | 'B'
+): Promise<EncounterChoiceResult> {
+  return api.post(`/story/${storyId}/encounter/choice`, { encounterId, choice })
 }
 
 // 获取故事章节

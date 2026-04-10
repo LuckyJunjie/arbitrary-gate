@@ -4,6 +4,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.timespace.common.exception.GlobalExceptionHandler.Result;
 import com.timespace.module.card.service.CardService;
 import com.timespace.module.card.service.CardService.DrawResult;
+import com.timespace.module.card.service.CardService.RecycleResult;
 import com.timespace.module.card.service.CardService.UserCardVO;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -190,6 +191,40 @@ public class CardController {
         log.info("抽事件卡请求: userId={}", userId);
         CardService.DrawEventResult result = cardService.drawEventCard(userId);
         return Result.ok(result);
+    }
+
+    // ========== C-12 陈卡回炉 ========== //
+
+    /**
+     * POST /api/card/recycle
+     * 将关键词卡投入墨池回炉，每日限1次，返还1次免费抽卡机会
+     *
+     * 请求：
+     * {
+     *   "cardId": 123   // user_keyword_card.id（非 keyword_card.id）
+     * }
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "data": {
+     *     "success": true,
+     *     "freeDrawsRemaining": 2
+     *   }
+     * }
+     */
+    @PostMapping("/recycle")
+    public Result<RecycleResult> recycleCard(@RequestBody RecycleRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("[C-12] 陈卡回炉请求: userId={}, cardId={}", userId, request.getCardId());
+        CardService.RecycleResult result = cardService.recycleCard(userId, request.getCardId());
+        return Result.ok(result);
+    }
+
+    @Data
+    public static class RecycleRequest {
+        /** user_keyword_card.id，而非 keyword_card.id */
+        private Long cardId;
     }
 
     @Data

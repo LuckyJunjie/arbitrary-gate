@@ -94,6 +94,16 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         return user.getDailyFreeDraws() != null && user.getDailyFreeDraws() > 0;
     }
 
+    /**
+     * 获取用户今日免费抽卡次数（来自DB，不含Redis额外次数）
+     */
+    public int getDailyFreeDraws(Long userId) {
+        User user = getById(userId);
+        if (user == null) return 0;
+        resetDailyFreeDrawsIfNeeded(user);
+        return user.getDailyFreeDraws() != null ? user.getDailyFreeDraws() : 0;
+    }
+
     public void useDailyFreeDraw(Long userId) {
         User user = getById(userId);
         if (user == null) throw new BusinessException(404, "用户不存在");

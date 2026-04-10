@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { fetchChapter } from '@/services/api'
 import { playBell, playChime } from '@/composables/useSound'
-import type { Chapter, Option } from '@/services/api'
+import type { Chapter, Option, Encounter } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -157,6 +157,20 @@ function startTypewriterQueue(paragraphs: string[]) {
   streamingDone = false
   isStreaming.value = true
   processTypewriter()
+}
+
+// ── S-14 偶遇支线状态 ──
+const activeEncounter = ref<Encounter | null>(null)
+
+async function handleEncounterChoice(choice: 'A' | 'B') {
+  if (!activeEncounter.value) return
+  const enc = activeEncounter.value
+  activeEncounter.value = null // 立即关闭浮层
+  try {
+    await storyStore.submitEncounterChoice(storyId, enc.encounterId, choice)
+  } catch (err) {
+    console.error('[StoryView] encounter choice failed:', err)
+  }
 }
 
 // ── 逐字渲染引擎 (UI-10) ──
@@ -376,6 +390,12 @@ function connectSSE() {
     closeStream()
   })
 
+  // S-14: 偶遇事件
+  eventSource.addEventListener('encounter', (e: MessageEvent) => {
+    const enc: Encounter = JSON.parse(e.data)
+    activeEncounter.value = enc
+  })
+
   eventSource.addEventListener('error', () => {
     console.warn('[StoryView] SSE error, falling back to WebSocket')
     closeStream()
@@ -458,6 +478,10 @@ async function selectOption(optionId: number, valueOrientation?: string, event?:
       if (res.chapter.keywordResonance) {
         const hasEnlightenment = Object.values(res.chapter.keywordResonance).some(v => v >= 7)
         if (hasEnlightenment) playChime()
+      }
+      // S-14: 如果有偶遇事件，弹出偶遇浮层
+      if (res.encounter) {
+        activeEncounter.value = res.encounter
       }
       // S-16: 连接新章节的流式接口
       connectStoryStream()
@@ -544,6 +568,36 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
             </div>
           </div>
           <button class="modal-confirm" @click="submitEntry">确认入局</button>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- S-14 偶遇浮层（半屏卡片） -->
+    <Teleport to="body">
+      <div v-if="activeEncounter" class="encounter-overlay" @click.self="() => {}">
+        <div class="encounter-card">
+          <div class="encounter-header">
+            <span class="encounter-label">偶遇</span>
+          </div>
+          <p class="encounter-text">{{ activeEncounter.encounterText }}</p>
+          <div class="encounter-choices">
+            <button
+              class="encounter-btn encounter-btn-a"
+              @click="handleEncounterChoice('A')"
+            >
+              <span class="encounter-btn-icon">✋</span>
+              <span class="encounter-btn-text">{{ activeEncounter.optionA }}</span>
+              <span class="encounter-btn-hint">命运值 +10</span>
+            </button>
+            <button
+              class="encounter-btn encounter-btn-b"
+              @click="handleEncounterChoice('B')"
+            >
+              <span class="encounter-btn-icon">🚶</span>
+              <span class="encounter-btn-text">{{ activeEncounter.optionB }}</span>
+              <span class="encounter-btn-hint">命运值 -5</span>
+            </button>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -1367,6 +1421,127 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 @keyframes dot-pulse {
   0%, 100% { transform: scale(1); opacity: 0.5; }
   50% { transform: scale(1.4); opacity: 1; }
+}
+
+/* ── S-14 偶遇浮层 ── */
+.encounter-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 21, 16, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 150;
+  animation: encounter-fade-in 0.4s ease;
+}
+
+@keyframes encounter-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.encounter-card {
+  background: linear-gradient(145deg, #2a2018, #1e1810);
+  border: 1px solid rgba(196, 168, 130, 0.4);
+  border-radius: 8px;
+  padding: 1.5rem 2rem;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(196, 168, 130, 0.1);
+  animation: encounter-card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes encounter-card-in {
+  from { transform: translateY(20px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.encounter-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.encounter-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  color: #c4a882;
+  text-transform: uppercase;
+  background: rgba(196, 168, 130, 0.15);
+  padding: 0.2rem 0.6rem;
+  border-radius: 3px;
+  border: 1px solid rgba(196, 168, 130, 0.3);
+}
+
+.encounter-text {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #e8dcc8;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.05em;
+  font-style: italic;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.encounter-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.encounter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.2rem;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: left;
+}
+
+.encounter-btn-a {
+  background: rgba(122, 158, 122, 0.15);
+  border: 1px solid rgba(122, 158, 122, 0.4);
+  color: #a8c8a8;
+}
+
+.encounter-btn-a:hover {
+  background: rgba(122, 158, 122, 0.25);
+  border-color: rgba(122, 158, 122, 0.6);
+  transform: translateX(4px);
+}
+
+.encounter-btn-b {
+  background: rgba(139, 115, 85, 0.1);
+  border: 1px solid rgba(139, 115, 85, 0.35);
+  color: #c4a882;
+}
+
+.encounter-btn-b:hover {
+  background: rgba(139, 115, 85, 0.2);
+  border-color: rgba(196, 168, 130, 0.5);
+  transform: translateX(4px);
+}
+
+.encounter-btn-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.encounter-btn-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.encounter-btn-hint {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 /* ── 涟漪动画 ── */

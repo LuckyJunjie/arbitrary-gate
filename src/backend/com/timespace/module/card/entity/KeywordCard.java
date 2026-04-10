@@ -26,6 +26,9 @@ public class KeywordCard {
 
     private String imageUrl;        // 卡面图URL
 
+    /** P-04 意象标签：如"水"表示水相关意象，用于三水彩蛋检测。渡口/船/江/河/雨/水/舟/帆/潮/浪 */
+    private String tag;
+
     private Integer weight;         // 抽中权重
 
     private LocalDateTime createdAt;

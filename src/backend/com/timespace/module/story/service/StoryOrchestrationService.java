@@ -9,6 +9,9 @@ import com.timespace.common.exception.BusinessException;
 import com.timespace.common.utils.ContentSafetyChecker;
 import com.timespace.common.utils.IdGenerator;
 import com.timespace.module.ai.agent.BaiguanAgent;
+import com.timespace.module.ai.agent.BaiguanAgent.AnnotationWithType;
+import com.timespace.module.ai.agent.EncounterAgent;
+import com.timespace.module.ai.agent.EncounterAgent.EncounterResult;
 import com.timespace.module.ai.agent.JudgeAgent;
 import com.timespace.module.ai.agent.ZhangyanAgent;
 import com.timespace.module.ai.service.AIGatewayService;
@@ -18,6 +21,7 @@ import com.timespace.module.story.controller.StoryController.*;
 import com.timespace.module.story.entity.*;
 import com.timespace.module.story.mapper.StoryChapterMapper;
 import com.timespace.module.story.mapper.StoryCharacterMapper;
+import com.timespace.module.story.mapper.StoryEncounterMapper;
 import com.timespace.module.story.mapper.StoryMapper;
 import com.timespace.module.story.mapper.StoryManuscriptMapper;
 import com.timespace.module.user.entity.User;
@@ -81,11 +85,13 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     private final StoryChapterMapper chapterMapper;
     private final StoryCharacterMapper characterMapper;
     private final StoryManuscriptMapper manuscriptMapper;
+    private final StoryEncounterMapper encounterMapper;
     private final UserMapper userMapper;
     private final CardService cardService;
     private final AIGatewayService aiGatewayService;
     private final BaiguanAgent baiguanAgent;
     private final ZhangyanAgent zhangyanAgent;
+    private final EncounterAgent encounterAgent;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private final ContentSafetyChecker contentSafetyChecker;
@@ -364,6 +370,18 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             }
             storyMapper.updateById(story);
 
+            // 5.1 S-14: 章节完成后，以30%概率触发偶遇事件
+            EncounterVO encounter = triggerEncounterIfNeeded(storyId, nextChapterNo, characters);
+            if (encounter != null) {
+                // 推送偶遇事件（半屏浮层），前端应先显示偶遇，用户选择后再显示选项
+                pushSseEvent(storyId, "encounter",
+                        "{\"encounterId\":" + encounter.getEncounterId() +
+                        ",\"encounterText\":\"" + escapeJson(encounter.getEncounterText()) + "\"" +
+                        ",\"optionA\":\"" + escapeJson(encounter.getOptionA()) + "\"" +
+                        ",\"optionB\":\"" + escapeJson(encounter.getOptionB()) + "\"" +
+                        ",\"chapterNo\":" + encounter.getChapterNo() + "}");
+            }
+
             // 6. 推送章节结束 + 选项
             pushSseEvent(storyId, "chapter_end",
                     "{\"storyId\\\":" + storyId + ",\"chapterNo\":" + nextChapterNo +
@@ -596,6 +614,9 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             }
         }
 
+        // 6.2 S-14: 章节完成后，以30%概率触发偶遇事件
+        EncounterVO encounter = triggerEncounterIfNeeded(storyId, newChapterNo, characters);
+
         // 7. 更新故事状态
         int newChapterNo = chapterNo + 1;
         story.setCurrentChapter(newChapterNo);
@@ -621,6 +642,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .judgment(nextChapter.getChapterComment() != null ?
                         nextChapter.getChapterComment() : "（判官判词将在下一章节显示）")
                 .isLastChapter(isLastChapter)
+                .encounter(encounter)
                 .build();
     }
 
@@ -695,21 +717,29 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         }
 
         // 6. 生成朱批 + 内容安全检测
+        // M-10: 批注支持 normal/easter_egg 两种类型，前端黛青色区分彩蛋批注
         List<StoryManuscript.Annotation> annotations = new ArrayList<>();
         for (StoryChapter chapter : chapters) {
-            String annotation = baiguanAgent.generateAnnotation(
+            String annotationRaw = baiguanAgent.generateAnnotation(
                     chapter.getChapterNo(), chapter.getSceneText());
             ContentSafetyChecker.SafetyResult annResult =
-                    contentSafetyChecker.checkWithRetry(annotation, 3, null, null);
+                    contentSafetyChecker.checkWithRetry(annotationRaw, 3, null, null);
             if (!annResult.isSafe()) {
                 log.warn("[ContentSafety] 第{}章朱批不通过: {}", chapter.getChapterNo(), annResult.getReason());
-                annotation = "（此处原文晦涩，暂不批注）";
+                annotationRaw = "[{\"text\":\"（此处原文晦涩，暂不批注）\",\"type\":\"normal\"}]";
             }
-            StoryManuscript.Annotation ann = new StoryManuscript.Annotation();
-            ann.setChapterNo(chapter.getChapterNo());
-            ann.setText(annotation);
-            ann.setColor("#C0392B"); // 朱砂红
-            annotations.add(ann);
+            // M-10: 解析带类型的批注列表
+            List<AnnotationWithType> parsed = baiguanAgent.parseAnnotationResponse(annotationRaw);
+            for (AnnotationWithType item : parsed) {
+                StoryManuscript.Annotation ann = new StoryManuscript.Annotation();
+                ann.setChapterNo(chapter.getChapterNo());
+                ann.setText(item.getText());
+                // M-10: easter_egg 批注标记 type 字段，前端用黛青色 (#4A6B6B) 渲染
+                ann.setType(item.getType());
+                // 普通批注用赭石色，彩蛋批注由前端根据 type 渲染为黛青色
+                ann.setColor("normal".equals(item.getType()) ? "#8B5E3C" : "#4A6B6B");
+                annotations.add(ann);
+            }
         }
 
         // 7. 构建选择标记
@@ -858,6 +888,107 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .chapterNo(chapterNo)
                 .generatedLength(generatedLength)
                 .build();
+    }
+
+    // ========== S-14 偶遇支线 ========== //
+
+    /**
+     * S-14: 章节完成后，以30%概率触发偶遇事件
+     *
+     * @return EncounterVO 如果触发了偶遇；null 如果未触发
+     */
+    private EncounterVO triggerEncounterIfNeeded(Long storyId, int currentChapterNo,
+                                               List<StoryCharacter> characters) {
+        // 30% 概率触发
+        if (Math.random() > 0.30) {
+            return null;
+        }
+
+        Story story = storyMapper.selectById(storyId);
+        if (story == null) return null;
+
+        try {
+            // 调用偶遇 Agent 生成偶遇场景
+            EncounterResult result = encounterAgent.generateEncounter(story, currentChapterNo, characters);
+            if (result == null || result.getEncounterText() == null) return null;
+
+            // 写入数据库
+            StoryEncounter encounter = new StoryEncounter();
+            encounter.setStoryId(storyId);
+            encounter.setChapterNo(currentChapterNo);
+            encounter.setEncounterText(result.getEncounterText());
+            encounter.setOptionA(result.getOptionA());
+            encounter.setOptionB(result.getOptionB());
+            encounter.setFateChange(0); // 等待用户选择后再更新
+            encounterMapper.insert(encounter);
+
+            log.info("[S-14] 偶遇触发: storyId={}, chapterNo={}, encounterId={}",
+                    storyId, currentChapterNo, encounter.getId());
+
+            return EncounterVO.builder()
+                    .encounterId(encounter.getId())
+                    .encounterText(result.getEncounterText())
+                    .optionA(result.getOptionA())
+                    .optionB(result.getOptionB())
+                    .chapterNo(currentChapterNo)
+                    .build();
+        } catch (Exception e) {
+            log.warn("[S-14] 偶遇生成异常: storyId={}, error={}", storyId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * S-14: 提交偶遇选择（搭话/装没看见），影响命运值
+     *
+     * @param storyId 故事ID
+     * @param encounterId 偶遇记录ID
+     * @param choice 'A' 或 'B'
+     * @return 更新后的命运值变化
+     */
+    @Transactional
+    public EncounterChoiceResultVO submitEncounterChoice(Long storyId, Long encounterId, String choice) {
+        long userId = StpUtil.getLoginIdAsLong();
+
+        StoryEncounter encounter = encounterMapper.selectById(encounterId);
+        if (encounter == null || !encounter.getStoryId().equals(storyId)) {
+            throw new BusinessException(404, "偶遇记录不存在");
+        }
+        if (encounter.getChoiceResult() != null) {
+            throw new BusinessException(400, "该偶遇已做出选择");
+        }
+
+        // 解析选择
+        boolean isChoiceA = "A".equalsIgnoreCase(choice);
+        int fateChange = isChoiceA ? 10 : -5;
+
+        // 更新偶遇记录
+        encounter.setChoiceResult(isChoiceA ? "A" : "B");
+        encounter.setFateChange(fateChange);
+        encounterMapper.updateById(encounter);
+
+        // 更新主角命运值（故事表）
+        Story story = storyMapper.selectById(storyId);
+        if (story != null) {
+            int newFate = Math.max(0, Math.min(100, (story.getHistoryDeviation() != null ? story.getHistoryDeviation() : 50) + fateChange));
+            story.setHistoryDeviation(newFate);
+            storyMapper.updateById(story);
+        }
+
+        log.info("[S-14] 偶遇选择: storyId={}, encounterId={}, choice={}, fateChange={}",
+                storyId, encounterId, choice, fateChange);
+
+        return EncounterChoiceResultVO.builder()
+                .encounterId(encounterId)
+                .fateChange(fateChange)
+                .build();
+    }
+
+    /** S-14 偶遇选择结果 */
+    @Data @lombok.Builder
+    public static class EncounterChoiceResultVO {
+        private Long encounterId;
+        private Integer fateChange;
     }
 
     // ========== 私有辅助方法 ==========
@@ -1032,6 +1163,18 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         }
     }
 
+    /**
+     * 简单JSON字符串转义（用于SSE事件中的字符串字段）
+     */
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
+
     // ========== 入局三问方法 ==========
 
     /**
@@ -1113,6 +1256,18 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private StoryChapter chapter;
         private String judgment;
         private boolean isLastChapter;
+        /** S-14: 偶遇事件（如果触发了的话） */
+        private EncounterVO encounter;
+    }
+
+    /** S-14 偶遇事件 VO */
+    @Data @lombok.Builder
+    public static class EncounterVO {
+        private Long encounterId;      // story_encounter.id
+        private String encounterText; // 偶遇场景描述
+        private String optionA;       // 搭话
+        private String optionB;       // 装作没看见
+        private Integer chapterNo;     // 触发章节号（选择后将进入 chapterNo+1）
     }
 
     @Data @lombok.Builder
