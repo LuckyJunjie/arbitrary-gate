@@ -210,7 +210,6 @@ async function handleSubmit() {
 function handleSkip() {
   // 用户选择跳过，直接开始故事
   const keywordIds = selectedKeywords.value.map(c => c.id)
-  const eventId = selectedEvent.value?.id
 
   storyStore.startStory({ keywords: keywordIds }).then(story => {
     router.push(`/story/${story.id}`)

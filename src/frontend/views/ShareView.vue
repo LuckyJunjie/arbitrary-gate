@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchShareInfo, jointShare, fetchSpecialCards, type ShareInfoResponse, type SpecialCard } from '../services/api'
 import { playJadeClick } from '@/composables/useSound'
@@ -23,7 +23,7 @@ const userCards = ref<Array<{ cardId: number; name: string; category: number }>>
 const selectedCardId = ref<number | null>(null)
 const isVerifying = ref(false)
 const verifyResult = ref<'success' | 'fail' | null>(null)
-const jointResultData = ref<{ storyTitle: string; specialCardName: string } | null>(null)
+const jointResultData = ref<{ message: string; storyTitle: string; specialCardName: string } | null>(null)
 
 // 匹配动画状态
 const showMergeAnimation = ref(false)
@@ -76,12 +76,13 @@ async function loadUserCards() {
     // 筛选同类卡或高稀有度卡
     if (shareInfo.value) {
       userCards.value = cards
-        .filter((c: any) => {
+        .filter((_: SpecialCard) => {
           // 这里应该用用户拥有的关键词卡，但目前接口是 special-cards
           // 暂时显示所有纪念卡，实际应调用户关键词卡接口
           return true
         })
         .slice(0, 5)
+        .map(c => ({ cardId: c.id, name: c.name, category: c.rarity }))
     }
   } catch {
     // 无卡时忽略
@@ -297,6 +298,7 @@ async function handleJoint() {
     const result = await jointShare(shareCode, { cardId: selectedCardId.value })
     verifyResult.value = 'success'
     jointResultData.value = {
+      message: result.message,
       storyTitle: result.storyTitle,
       specialCardName: result.specialCardName
     }

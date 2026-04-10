@@ -8,7 +8,7 @@ import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { useAchievementStore } from '@/stores/achievementStore'
-import { drawKeywordCard, fetchKeywordCard, fetchFortune, drawEventCard, type EventDrawResult } from '@/services/api'
+import { drawKeywordCard, fetchFortune, drawEventCard, type EventDrawResult } from '@/services/api'
 import { playInkDrop } from '@/composables/useSound'
 import type { KeywordCard } from '@/services/api'
 
@@ -31,8 +31,6 @@ const currentFortune = computed(() => fortuneText.value)
 
 // 每日免费次数上限
 const DAILY_FREE_LIMIT = 3
-
-const dailyFreeLeft = computed(() => remainingFreeDraws.value)
 
 // ========== 事件卡池 ========== //
 type PoolTab = 'keyword' | 'event'
@@ -103,37 +101,6 @@ function loadSavedCards() {
 
 function saveCardsToStorage() {
   localStorage.setItem('ownedKeywordCards', JSON.stringify(cardStore.keywordCards))
-}
-
-async function onCardDrawn(card: Record<string, unknown> | null) {
-  // card 从 InkPool emit 传来
-  // 若 card 为 null（InkPool API 调用失败），使用 fallback 数据
-  if (!card) {
-    await applyMockDraw()
-    return
-  }
-  // 正常卡片数据处理
-  const cardData: KeywordCard = {
-    id: card.id as number,
-    name: card.name as string,
-    rarity: card.rarity as number,
-    category: card.category as number,
-    inkFragrance: (card.inkFragrance as number) ?? 7,
-  }
-  drawnCard.value = { ...cardData, drawnAt: new Date().toISOString() }
-  hasDrawn.value = true
-  cardRevealed.value = false
-
-  const exists = cardStore.keywordCards.find(c => c.id === cardData.id)
-  if (!exists) {
-    cardStore.keywordCards.push(drawnCard.value)
-    saveCardsToStorage()
-    inkValueStore.awardInkForDraw(cardData.rarity)
-    // P-02: check combination achievements when new card is collected
-    achievementStore.checkCombinationAchievements(cardStore.keywordCards, cardStore.eventCards)
-  }
-
-  playInkDrop()
 }
 
 async function applyMockDraw(currentDrawId = -1) {
@@ -258,22 +225,6 @@ async function handleEventDraw() {
   } finally {
     isDrawingEvent.value = false
   }
-}
-
-async function applyMockEventDraw(currentId = -1) {
-  await new Promise(resolve => setTimeout(resolve, 1500))
-  if (eventDrawId.value !== currentId) return
-  const mockEvents = [
-    { cardId: 1, cardNo: 'EV001', title: '巨鹿·破釜沉舟', dynasty: '秦', location: '巨鹿', description: '项羽率楚军渡河，凿沉船只，粉碎秦军主力', era: '秦末', isGuaranteedRare: true },
-    { cardId: 10, cardNo: 'EV010', title: '赤壁·东风骤起', dynasty: '三国', location: '赤壁', description: '周瑜黄盖火攻曹营，东风相助，三国鼎立', era: '三国', isGuaranteedRare: true },
-    { cardId: 17, cardNo: 'EV017', title: '玄武门·秦王射兄', dynasty: '隋唐', location: '玄武门', description: '李世民伏兵玄武门，射杀建成元吉，夺嫡即位', era: '唐初', isGuaranteedRare: true },
-    { cardId: 21, cardNo: 'EV021', title: '崖山·十万投海', dynasty: '五代', location: '崖山', description: '南宋末帝跳海，十万军民追随，崖山之后无中国', era: '南宋', isGuaranteedRare: true },
-    { cardId: 3, cardNo: 'EV003', title: '骊山·秦俑悲歌', dynasty: '秦', location: '骊山', description: '万千陶俑沉默伫立，诉说帝国余威与万民血泪', era: '秦', isGuaranteedRare: false },
-    { cardId: 14, cardNo: 'EV014', title: '淝水·风声鹤唳', dynasty: '南北朝', location: '淝水', description: '苻坚百万南征，东晋八万胜之，前秦土崩', era: '南北朝', isGuaranteedRare: false },
-  ]
-  drawnEventCard.value = mockEvents[Math.floor(Math.random() * mockEvents.length)]
-  hasDrawnEvent.value = true
-  eventCardRevealed.value = false
 }
 
 function resetEventDraw() {

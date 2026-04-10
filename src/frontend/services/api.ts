@@ -89,11 +89,12 @@ export interface HistoryEvent {
 export interface Option {
   id: number
   text: string
+  valueTag?: string
 }
 
 export interface EntryQuestion {
   id: number
-  category: string
+  category: '角色背景' | '当下处境' | '内心渴望'
   question: string
   hint: string
 }
@@ -147,7 +148,7 @@ export interface Manuscript {
   fullText: string
   wordCount: number
   inscription?: string
-  annotations?: Array<{ chapterNo?: number; x: number; y: number; text: string; color?: string }>
+  annotations?: Array<{ chapterNo?: number; x: number; y: number; text: string; color?: string; type?: string }>
   choiceMarks?: Array<{ chapterNo?: number; optionId?: number; text?: string }>
   epilogue?: string
   baiguanComment?: string
@@ -397,7 +398,7 @@ export async function submitChoiceWithMock(
   chapterNo: number,
   optionId: number,
   gestureIntensity?: 'gentle' | 'urgent' | 'forceful'
-): Promise<{ chapter: Chapter; deviation: number }> {
+): Promise<{ chapter: Chapter; deviation: number; encounter?: Encounter }> {
   try {
     return await submitChapterChoice(storyId, chapterNo, optionId, gestureIntensity)
   } catch {
