@@ -2,11 +2,13 @@ package com.timespace.module.ai.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.ai.client.AIClient;
+import com.timespace.module.ai.service.AiPromptTemplateService;
 import com.timespace.module.ai.util.AiPhraseFilter;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.entity.StoryCharacter;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +41,46 @@ public class JudgeAgent {
     private final AIClient aiClient;
     private final ObjectMapper objectMapper;
     private final AiPhraseFilter aiPhraseFilter;
+    private final AiPromptTemplateService promptTemplateService;
+
+    // AI-07: 默认评估系统 Prompt（fallback 用）
+    private static final String DEFAULT_EVALUATION_SYSTEM_PROMPT = """
+            你是一位公正的判官，负责评估故事中每个选择的后果。
+
+            当前故事状态：
+            - 历史偏离度：%d/100（0=完全遵从历史，100=完全偏离历史）
+            - 指定关键词：%s
+            - 配角命运：%s
+
+            评估原则：
+            1. 每个选择都有代价，没有完美选项
+            2. 命运与关键词共鸣：选择与关键词契合度高时，共鸣+1
+            3. 历史偏离度：根据选择与真实历史的差异计算（0-15分/次）
+            4. 配角命运：根据选择对配角命运的影响计算（-20 ~ +20）
+            5. 生成涟漪效果：选择对世界造成的后续影响
+
+            输出格式（JSON）：
+            {
+              "deviationChange": 5,          // 偏离度变化（正数=偏离，负数=回归）
+              "newDeviation": 55,           // 新的偏离度
+              "characterFateChanges": {     // 配角命运变化
+                "配角名1": {"change": -10, "newValue": 40, "reason": "因主角选择而受难"},
+                "配角名2": {"change": 5, "newValue": 55, "reason": "借势崛起"}
+              },
+              "keywordResonance": {          // 关键词共鸣
+                "铜锁": 1,                   // 共鸣次数+1
+                "旧伞": 0
+              },
+              "ripples": [                  // 涟漪效果
+                {"target": "铜锁", "status": "锁芯渐凉"},
+                {"target": "旧伞", "status": "被雨打湿"}
+              ],
+              "judgment": "此选择虽保全了XX，却牺牲了XX，命运的齿轮由此转向。"  // 判词
+            }
+            """;
+
+    // AI-07: 运行时 Prompt 模板（从 DB 加载）
+    private String evaluationSystemPromptTemplate;
 
     /**
      * 评估用户选择
@@ -65,6 +107,19 @@ public class JudgeAgent {
         return parseEvaluationResult(response, story, chapter, selectedOption, keywords, characters);
     }
 
+    // AI-07: 启动时从数据库加载 Prompt 模板，失败时 fallback 到硬编码默认值
+    @PostConstruct
+    public void loadPromptsFromDatabase() {
+        log.info("[AI-07] 判官 Agent 正在加载 Prompt 模板...");
+
+        this.evaluationSystemPromptTemplate = promptTemplateService.getPromptTextOrDefault(
+                AiPromptTemplateService.AGENT_JUDGE,
+                AiPromptTemplateService.PROMPT_EVALUATION_SYSTEM,
+                DEFAULT_EVALUATION_SYSTEM_PROMPT
+        );
+        log.info("[AI-07] 评估系统 Prompt 加载完成, length={}", evaluationSystemPromptTemplate.length());
+    }
+
     private String buildEvaluationSystemPrompt(Story story,
                                                List<KeywordCard> keywords,
                                                List<StoryCharacter> characters) {
@@ -75,40 +130,7 @@ public class JudgeAgent {
                 .map(c -> c.getName() + "[命运值=" + c.getFateValue() + "]")
                 .collect(Collectors.joining("；"));
 
-        return String.format("""
-                你是一位公正的判官，负责评估故事中每个选择的后果。
-
-                当前故事状态：
-                - 历史偏离度：%d/100（0=完全遵从历史，100=完全偏离历史）
-                - 指定关键词：%s
-                - 配角命运：%s
-
-                评估原则：
-                1. 每个选择都有代价，没有完美选项
-                2. 命运与关键词共鸣：选择与关键词契合度高时，共鸣+1
-                3. 历史偏离度：根据选择与真实历史的差异计算（0-15分/次）
-                4. 配角命运：根据选择对配角命运的影响计算（-20 ~ +20）
-                5. 生成涟漪效果：选择对世界造成的后续影响
-
-                输出格式（JSON）：
-                {
-                  "deviationChange": 5,          // 偏离度变化（正数=偏离，负数=回归）
-                  "newDeviation": 55,           // 新的偏离度
-                  "characterFateChanges": {     // 配角命运变化
-                    "配角名1": {"change": -10, "newValue": 40, "reason": "因主角选择而受难"},
-                    "配角名2": {"change": 5, "newValue": 55, "reason": "借势崛起"}
-                  },
-                  "keywordResonance": {          // 关键词共鸣
-                    "铜锁": 1,                   // 共鸣次数+1
-                    "旧伞": 0
-                  },
-                  "ripples": [                  // 涟漪效果
-                    {"target": "铜锁", "status": "锁芯渐凉"},
-                    {"target": "旧伞", "status": "被雨打湿"}
-                  ],
-                  "judgment": "此选择虽保全了XX，却牺牲了XX，命运的齿轮由此转向。"  // 判词
-                }
-                """,
+        return String.format(evaluationSystemPromptTemplate,
                 story.getHistoryDeviation(),
                 keywordsText,
                 charactersText

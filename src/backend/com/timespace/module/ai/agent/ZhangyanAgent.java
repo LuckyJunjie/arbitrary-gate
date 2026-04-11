@@ -1,6 +1,8 @@
 package com.timespace.module.ai.agent;
 
 import com.timespace.module.ai.client.AIClient;
+import com.timespace.module.ai.service.AiPromptTemplateService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,6 +30,24 @@ import java.util.regex.Pattern;
 public class ZhangyanAgent {
 
     private final AIClient aiClient;
+    private final AiPromptTemplateService promptTemplateService;
+
+    // AI-07: 默认润色系统 Prompt（fallback 用）
+    private static final String DEFAULT_POLISH_SYSTEM_PROMPT = """
+            你是一位严苛的老编辑，精通中国古典文学。
+
+            你的任务是检查并润色文本，使其更接近人类写作的自然质感。
+
+            润色原则：
+            1. 去除所有AI腔表达（"宛如"、"仿佛"、"缓缓"、"轻轻"等）
+            2. 保留原文的故事线和情感
+            3. 用词要像真实的古典小说，不刻意对仗工整
+            4. 不要过度润色，只改明显AI腔的地方
+            5. 直接返回润色后的完整正文，不要加任何说明
+            """;
+
+    // AI-07: 运行时 Prompt 模板（从 DB 加载）
+    private String polishSystemPromptTemplate;
 
     /**
      * 黑名单词表（静态编译，提升性能）
@@ -59,6 +79,19 @@ public class ZhangyanAgent {
             new Replacement("心中一动", "心头一紧"),
             new Replacement("似乎在诉说", "像是在说")
     );
+
+    // AI-07: 启动时从数据库加载 Prompt 模板，失败时 fallback 到硬编码默认值
+    @PostConstruct
+    public void loadPromptsFromDatabase() {
+        log.info("[AI-07] 掌眼 Agent 正在加载 Prompt 模板...");
+
+        this.polishSystemPromptTemplate = promptTemplateService.getPromptTextOrDefault(
+                AiPromptTemplateService.AGENT_ZHANGYAN,
+                AiPromptTemplateService.PROMPT_AI腔_FILTER,
+                DEFAULT_POLISH_SYSTEM_PROMPT
+        );
+        log.info("[AI-07] 润色系统 Prompt 加载完成, length={}", polishSystemPromptTemplate.length());
+    }
 
     /**
      * 过滤主方法 — 纯正则处理，快速过滤 AI 腔
@@ -111,23 +144,10 @@ public class ZhangyanAgent {
 
         log.info("掌眼 AI 二次润色启动，文本长度={}", text.length());
 
-        String systemPrompt = """
-                你是一位严苛的老编辑，精通中国古典文学。
-
-                你的任务是检查并润色文本，使其更接近人类写作的自然质感。
-
-                润色原则：
-                1. 去除所有AI腔表达（"宛如"、"仿佛"、"缓缓"、"轻轻"等）
-                2. 保留原文的故事线和情感
-                3. 用词要像真实的古典小说，不刻意对仗工整
-                4. 不要过度润色，只改明显AI腔的地方
-                5. 直接返回润色后的完整正文，不要加任何说明
-                """;
-
         String userMessage = "请润色以下文本：\n\n" + text;
 
         try {
-            String polished = aiClient.callSync(systemPrompt, userMessage);
+            String polished = aiClient.callSync(polishSystemPromptTemplate, userMessage);
             log.info("掌眼 AI 润色完成，输出长度={}", polished.length());
             return polished;
         } catch (Exception e) {

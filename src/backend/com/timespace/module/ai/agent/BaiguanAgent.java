@@ -4,14 +4,17 @@ import com.timespace.module.ai.util.AiPhraseFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.ai.client.AIClient;
+import com.timespace.module.ai.service.AiPromptTemplateService;
 import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryCharacter;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +41,31 @@ public class BaiguanAgent {
     private final AIClient aiClient;
     private final ObjectMapper objectMapper;
     private final AiPhraseFilter aiPhraseFilter;
+    private final AiPromptTemplateService promptTemplateService;
+
+    // AI-07: 默认朱批（批注）Prompt（fallback 用）
+    private static final String DEFAULT_MANUSCRIPT_COMMENT_PROMPT = """
+            你是一位古典文学批注家，擅长在原文旁添加精妙的朱砂批注。
+
+            风格：
+            - 类似金圣叹批《水浒》、脂砚斋批《红楼梦》
+            - 简短有力，点到即止
+            - 用朱砂红色标注
+            - 可以点评用词、情节、结构
+
+            【M-10 批注彩蛋】
+            其中1-2条批注可以打破第四面墙，对读者说话，或暗示"如果当时选了别的选项会怎样"。
+            在返回的 JSON 中，彩蛋批注标记 type 为 'easter_egg'，普通批注为 'normal'。
+
+            格式：
+            - 单条批注不超过20字
+            - 通常3-5条批注，其中1-2条为彩蛋批注
+            - 必须返回严格JSON数组格式，如：
+              [{"text":"此处用字极妙","type":"normal"},{"text":"若选B，结局或不相同","type":"easter_egg"},{"text":"埋伏笔于此","type":"normal"}]
+            """;
+
+    // AI-07: 运行时 Prompt 模板（从 DB 加载）
+    private String manuscriptCommentPromptTemplate;
 
     /**
      * 生成后日谈（所有配角）
@@ -52,6 +80,19 @@ public class BaiguanAgent {
         }
 
         return characters;
+    }
+
+    // AI-07: 启动时从数据库加载 Prompt 模板，失败时 fallback 到硬编码默认值
+    @PostConstruct
+    public void loadPromptsFromDatabase() {
+        log.info("[AI-07] 稗官 Agent 正在加载 Prompt 模板...");
+
+        this.manuscriptCommentPromptTemplate = promptTemplateService.getPromptTextOrDefault(
+                AiPromptTemplateService.AGENT_BAIGUAN,
+                AiPromptTemplateService.PROMPT_MANUSCRIPT_COMMENT,
+                DEFAULT_MANUSCRIPT_COMMENT_PROMPT
+        );
+        log.info("[AI-07] 朱批 Prompt 加载完成, length={}", manuscriptCommentPromptTemplate.length());
     }
 
     /**
@@ -103,31 +144,10 @@ public class BaiguanAgent {
      * @return JSON数组格式的批注列表，每条包含 text, type ('normal'|'easter_egg')
      */
     public String generateAnnotation(int chapterNo, String chapterText) {
-        // M-10: 增加打破第四面墙的彩蛋批注说明
-        String systemPrompt = String.format("""
-                你是一位古典文学批注家，擅长在原文旁添加精妙的朱砂批注。
-
-                风格：
-                - 类似金圣叹批《水浒》、脂砚斋批《红楼梦》
-                - 简短有力，点到即止
-                - 用朱砂红色标注
-                - 可以点评用词、情节、结构
-
-                【M-10 批注彩蛋】
-                其中1-2条批注可以打破第四面墙，对读者说话，或暗示"如果当时选了别的选项会怎样"。
-                在返回的 JSON 中，彩蛋批注标记 type 为 'easter_egg'，普通批注为 'normal'。
-
-                格式：
-                - 单条批注不超过20字
-                - 通常3-5条批注，其中1-2条为彩蛋批注
-                - 必须返回严格JSON数组格式，如：
-                  [{"text":"此处用字极妙","type":"normal"},{"text":"若选B，结局或不相同","type":"easter_egg"},{"text":"埋伏笔于此","type":"normal"}]
-                """);
-
         String userMessage = String.format("请为第%d章的以下内容写批注（3-5条，含1-2条彩蛋批注），返回严格JSON数组格式：\n\n%s",
                 chapterNo, chapterText);
 
-        return aiPhraseFilter.filter(aiClient.callSync(systemPrompt, userMessage));
+        return aiPhraseFilter.filter(aiClient.callSync(manuscriptCommentPromptTemplate, userMessage));
     }
 
     /**

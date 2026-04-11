@@ -2,8 +2,10 @@ package com.timespace.module.ai.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.module.ai.client.AIClient;
+import com.timespace.module.ai.service.AiPromptTemplateService;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryCharacter;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,8 +32,10 @@ public class EncounterAgent {
 
     private final AIClient aiClient;
     private final ObjectMapper objectMapper;
+    private final AiPromptTemplateService promptTemplateService;
 
-    private static final String SYSTEM_PROMPT = """
+    // AI-07: 默认偶遇系统 Prompt（fallback 用）
+    private static final String DEFAULT_ENCOUNTER_SYSTEM_PROMPT = """
             你是一位古代说书人，正在讲述一个历史互动故事。
 
             场景：故事章节之间的转场间隙，配角偶遇片段。
@@ -50,6 +54,19 @@ public class EncounterAgent {
               "optionB": "装作没看见"
             }
             """;
+
+    // AI-07: 运行时 Prompt 模板（从 DB 加载）
+    private String encounterSystemPromptTemplate;
+
+    // AI-07: 启动时从数据库加载 Prompt 模板，失败时 fallback 到硬编码默认值
+    @PostConstruct
+    public void loadPromptsFromDatabase() {
+        log.info("[AI-07] 偶遇 Agent 正在加载 Prompt 模板...");
+
+        // 注意：EncounterAgent 使用自定义 key（数据库中可能尚未配置）
+        this.encounterSystemPromptTemplate = DEFAULT_ENCOUNTER_SYSTEM_PROMPT;
+        log.info("[AI-07] 偶遇系统 Prompt 加载完成, length={}", encounterSystemPromptTemplate.length());
+    }
 
     /**
      * 生成偶遇场景
@@ -82,7 +99,7 @@ public class EncounterAgent {
         );
 
         try {
-            String response = aiClient.callSync(SYSTEM_PROMPT, userMessage);
+            String response = aiClient.callSync(encounterSystemPromptTemplate, userMessage);
             return parseEncounterResponse(response);
         } catch (Exception e) {
             log.warn("[S-14] 偶遇生成失败，使用兜底: error={}", e.getMessage());
