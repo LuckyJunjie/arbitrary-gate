@@ -12,11 +12,12 @@ _最后更新: 2026-04-11 20:23_
 - AI: 通义千问 (DashScope)
 - 部署: Docker
 
-## 事件卡池状态 (D-02)
-- 已有数据: EV031-EV369 (338个事件，来自 import_event_cards.sql + events_batch*.json + gen_extended_events.py + gen_events_ev269.py)
-- 目标: 600个事件
-- 缺口: EV001-EV030(30) + EV268(1) + EV370-EV600(231) = 262个
-- **状态: Hermes sub-agent (session: 06706423) 正在生成 import_event_cards_v2.sql**
+## 事件卡池状态 (D-02) ✅ 完成
+- 已有数据: EV001-EV600 (600个事件)
+- **完成时间: 2026-04-12 04:40**
+- 提交: 10ad6953 — feat(D-02): 完成事件卡池600条 — EV394+EV469-EV600全部写入
+- 包含: 历史事件(EV001-EV500) + 虚构传说(EV501-EV560) + 神话武侠(EV561-EV600)
+- **下一优先级任务: UI-06 窗格光影效果**
 
 ## 需求文档
 - `docs/产品设计-核心.md` - 核心玩法
