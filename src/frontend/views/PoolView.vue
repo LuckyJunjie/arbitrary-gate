@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import InkPool from '@/components/InkPool.vue'
 import Card from '@/components/Card.vue'
 import ScratchCard from '@/components/ScratchCard.vue'
@@ -15,6 +16,7 @@ import type { KeywordCard } from '@/services/api'
 const cardStore = useCardStore()
 const inkValueStore = useInkValueStore()
 const achievementStore = useAchievementStore()
+const router = useRouter()
 
 const hasDrawn = ref(false)
 const drawnCard = ref<KeywordCard | null>(null)
@@ -24,9 +26,62 @@ const remainingFreeDraws = ref(0)
 const drawId = ref(0) // 用于取消进行中的抽卡动画
 const cardRevealed = ref(false) // ScratchCard擦墨完成后为 true
 
+// ========== C-08 墨迹占卜：运势库 & 本地计算 ========== //
+
+interface FortuneEntry {
+  fortune: string   // 主文，如 "今日宜·静观其变"
+  hint: string      // 副文，如 "墨香悠远，凡事缓成"
+}
+
+const FORTUNE_LIBRARY: FortuneEntry[] = [
+  { fortune: '今日宜·静观其变', hint: '墨池微澜，谋定后动' },
+  { fortune: '今日宜·顺势而为', hint: '水到渠成，勿逆天行' },
+  { fortune: '今日宜·守拙待时', hint: '藏锋守锐，静待佳音' },
+  { fortune: '今日宜·破旧立新', hint: '墨渍化蝶，宜革新局' },
+  { fortune: '今日宜·沉淀内观', hint: '墨香入定，返照心源' },
+  { fortune: '今日宜·广结善缘', hint: '笔墨结缘，四方来贺' },
+  { fortune: '今日宜·谨慎抉择', hint: '一字落笔，重若千钧' },
+  { fortune: '今日宜·轻装前行', hint: '卸下方寸，天地自宽' },
+  { fortune: '今日忌·急功近利', hint: '墨迹未干，切忌妄动' },
+  { fortune: '今日忌·犹豫徘徊', hint: '池边踌躇，失之交臂' },
+  { fortune: '今日宜·以退为进', hint: '退一步看，海阔天空' },
+  { fortune: '今日宜·独处深思', hint: '一人静坐，灵感自生' },
+  { fortune: '今日宜·坦诚相待', hint: '以诚待人，人亦诚待' },
+  { fortune: '今日宜·见微知著', hint: '一叶知秋，察于未萌' },
+  { fortune: '今日宜·随遇而安', hint: '随缘自在，心静自凉' },
+  { fortune: '今日宜·细水长流', hint: '墨香绵长，久久为功' },
+  { fortune: '今日忌·固执己见', hint: '闭门造车，难得出路' },
+  { fortune: '今日宜·借力前行', hint: '顺势而为，四两拨千斤' },
+  { fortune: '今日宜·韬光养晦', hint: '含蓄内敛，养精蓄锐' },
+  { fortune: '今日宜·蓦然回首', hint: '回首来路，悟已往之谏' },
+  { fortune: '今日宜·活在当下', hint: '此时此刻，最是真实' },
+  { fortune: '今日宜·回归本真', hint: '返璞归真，不忘初心' },
+  { fortune: '今日忌·多言惹事', hint: '言多必失，守口如瓶' },
+  { fortune: '今日宜·静待花开', hint: '耐心守候，终有回响' },
+  { fortune: '今日宜·断舍离', hint: '放下执念，轻装上阵' },
+  { fortune: '今日宜·审时度势', hint: '察言观色，相机而动' },
+  { fortune: '今日宜·蓄势待发', hint: '养精蓄锐，一鸣惊人' },
+  { fortune: '今日宜·以和为贵', hint: '和气生财，友善待人' },
+  { fortune: '今日忌·鲁莽行事', hint: '三思而后行，慎之又慎' },
+]
+
+/** 根据日期 + 用户 ID 生成确定性随机索引（同一天同一用户固定结果） */
+function computeLocalFortune(userId: string): FortuneEntry {
+  const today = new Date()
+  // 年月日拼合为数字 + userId 字符编码和 → 伪随机种子
+  const seedBase = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()
+  let seed = seedBase
+  for (let i = 0; i < userId.length; i++) {
+    seed = (seed * 31 + userId.charCodeAt(i)) & 0xffffffff
+  }
+  const index = Math.abs(seed) % FORTUNE_LIBRARY.length
+  return FORTUNE_LIBRARY[index]
+}
+
 // 今日运势预兆文本
 const fortuneText = ref('')
 const fortuneHint = ref('')
+const fortuneVisible = ref(false) // 淡入动画控制
 const currentFortune = computed(() => fortuneText.value)
 
 // U-03: 从 localStorage 读取用户信息，获取 isGuest 标志
@@ -56,6 +111,10 @@ const eventDrawError = ref<string | null>(null)
 const eventDrawId = ref(0)
 const eventCardRevealed = ref(false)
 const hasDrawnEvent = ref(false)
+
+// C-07: 手牌上限提示弹窗
+const showLimitModal = ref(false)
+const limitErrorMessage = ref('')
 
 // 从 localStorage 读取已有卡牌
 onMounted(async () => {
@@ -91,9 +150,20 @@ onMounted(async () => {
         hint: res.hint,
       }))
     } catch {
-      // API 不可用时静默降级，不展示运势
-      fortuneText.value = ''
+      // API 不可用时，使用本地运势库计算
+      const userId = localStorage.getItem('userId') || localStorage.getItem('token') || 'guest'
+      const local = computeLocalFortune(userId)
+      fortuneText.value = local.fortune
+      fortuneHint.value = local.hint
+      localStorage.setItem(cacheKey, JSON.stringify({
+        fortune: local.fortune,
+        hint: local.hint,
+      }))
     }
+  }
+  // 淡入动画：每日首次进入时触发
+  if (fortuneText.value) {
+    setTimeout(() => { fortuneVisible.value = true }, 300)
   }
 })
 
@@ -201,7 +271,17 @@ async function handleDraw() {
       // 如果后端返回了业务错误码（如卡匣已满），展示错误信息，不走 mock
       const serverMsg = err?.response?.data?.message
       if (serverMsg) {
-        drawError.value = serverMsg
+        // C-07: 手牌上限超限 → 弹窗提示 + 前往卡匣按钮
+        if (
+          serverMsg.includes('关键词卡已达上限') ||
+          serverMsg.includes('事件卡已达上限') ||
+          serverMsg.includes('手牌已满')
+        ) {
+          limitErrorMessage.value = serverMsg
+          showLimitModal.value = true
+        } else {
+          drawError.value = serverMsg
+        }
         isDrawing.value = false
         return
       }
@@ -257,7 +337,17 @@ async function handleEventDraw() {
     eventCardRevealed.value = false
   } catch (err: any) {
     const msg = err?.response?.data?.message
-    eventDrawError.value = msg || '抽卡失败，请稍后再试'
+    // C-07: 手牌上限超限 → 弹窗提示 + 前往卡匣按钮
+    if (
+      msg?.includes('关键词卡已达上限') ||
+      msg?.includes('事件卡已达上限') ||
+      msg?.includes('手牌已满')
+    ) {
+      limitErrorMessage.value = msg
+      showLimitModal.value = true
+    } else {
+      eventDrawError.value = msg || '抽卡失败，请稍后再试'
+    }
     console.error('[PoolView] event draw failed:', err)
   } finally {
     isDrawingEvent.value = false
@@ -294,6 +384,15 @@ function onCardRevealed() {
   cardRevealed.value = true
   playWindChime()
 }
+
+function goToCards() {
+  showLimitModal.value = false
+  router.push('/cards')
+}
+
+function closeLimitModal() {
+  showLimitModal.value = false
+}
 </script>
 
 <template>
@@ -328,13 +427,16 @@ function onCardRevealed() {
       <RippleEffect :active="!hasDrawn" data-testid="ink-ripple-animation" />
       <InkPool v-if="!hasDrawn" @draw="handleDraw" data-testid="ink-pool-surface" />
 
-      <!-- 今日运势预兆文字 -->
+      <!-- 今日运势预兆文字（C-08 墨迹占卜） -->
       <div
         v-if="!hasDrawn && currentFortune"
         class="fortune-wrapper"
+        :class="{ visible: fortuneVisible }"
       >
-        <p class="fortune-text" data-testid="fortune-text">{{ currentFortune }}</p>
-        <p class="fortune-hint" data-testid="fortune-category">{{ fortuneHint }}</p>
+        <div class="fortune-paper">
+          <p class="fortune-text" data-testid="fortune-text">{{ fortuneText }}</p>
+          <p class="fortune-hint" data-testid="fortune-category">{{ fortuneHint }}</p>
+        </div>
       </div>
 
       <div v-if="hasDrawn && drawnCard" class="card-reveal" data-testid="card-reveal-container">
@@ -440,6 +542,20 @@ function onCardRevealed() {
 
     <p v-if="eventDrawError" class="draw-error">{{ eventDrawError }}</p>
   </div>
+
+  <!-- C-07: 手牌上限提示弹窗 -->
+  <Teleport to="body">
+    <div v-if="showLimitModal" class="limit-modal-overlay" @click.self="closeLimitModal">
+      <div class="limit-modal">
+        <div class="limit-modal-icon">⚠</div>
+        <p class="limit-modal-message">{{ limitErrorMessage }}</p>
+        <div class="limit-modal-actions">
+          <button class="limit-modal-btn limit-modal-btn--secondary" @click="closeLimitModal">取消</button>
+          <button class="limit-modal-btn limit-modal-btn--primary" @click="goToCards">前往卡匣</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -726,37 +842,94 @@ function onCardRevealed() {
   letter-spacing: 0.15em;
 }
 
-/* 今日运势预兆文字 */
+/* 今日运势预兆文字（C-08 墨迹占卜） */
 .fortune-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
-  animation: fortuneFadeIn 3s ease-out;
+  /* 初始隐藏，由 .visible 触发淡入 */
+  opacity: 0;
+  transition: opacity 2s ease-out;
+}
+
+.fortune-wrapper.visible {
+  opacity: 1;
+}
+
+/* 宣纸质感背景 */
+.fortune-paper {
+  position: relative;
+  padding: 1rem 2rem;
+  /* 宣纸底色：米黄暖调 */
+  background:
+    /* 墨渍/纤维纹理叠加 */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    /* 纵向纤维纹 */
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 3px,
+      rgba(180, 160, 120, 0.04) 3px,
+      rgba(180, 160, 120, 0.04) 4px
+    ),
+    /* 横向纸纹 */
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 6px,
+      rgba(160, 140, 100, 0.03) 6px,
+      rgba(160, 140, 100, 0.03) 7px
+    ),
+    /* 基础宣纸米色 */
+    linear-gradient(135deg, rgba(245, 238, 220, 0.08) 0%, rgba(235, 228, 210, 0.05) 100%);
+  border: 1px solid rgba(200, 185, 150, 0.18);
+  border-radius: 2px;
+  box-shadow:
+    0 1px 8px rgba(0, 0, 0, 0.25),
+    inset 0 0 12px rgba(0, 0, 0, 0.08);
+}
+
+/* 墨迹边框装饰（左上角） */
+.fortune-paper::before {
+  content: '❖';
+  position: absolute;
+  top: 0.3rem;
+  left: 0.5rem;
+  font-size: 0.5rem;
+  color: rgba(160, 130, 80, 0.3);
+  letter-spacing: 0;
+}
+
+/* 墨迹边框装饰（右下角） */
+.fortune-paper::after {
+  content: '❖';
+  position: absolute;
+  bottom: 0.3rem;
+  right: 0.5rem;
+  font-size: 0.5rem;
+  color: rgba(160, 130, 80, 0.3);
+  letter-spacing: 0;
 }
 
 .fortune-text {
-  font-size: 0.9rem;
-  color: rgba(148, 148, 145, 0.5); /* 烟灰色 */
+  font-size: 0.95rem;
+  color: rgba(148, 148, 145, 0.7); /* 烟灰色，主文稍浓 */
   font-family: '方正清刻本悦宋', 'FZQingKeBenYueSong', 'STKaiti', 'KaiTi', serif;
   letter-spacing: 0.12em;
   text-align: center;
   margin: 0;
-  padding: 0 1rem;
+  padding: 0 0.5rem;
+  text-shadow: 0 0 8px rgba(180, 160, 120, 0.15);
 }
 
 .fortune-hint {
-  font-size: 0.7rem;
-  color: rgba(148, 148, 145, 0.35); /* 烟灰色，更淡 */
+  font-size: 0.72rem;
+  color: rgba(148, 148, 145, 0.45); /* 烟灰色，副文更淡 */
   font-family: '方正清刻本悦宋', 'FZQingKeBenYueSong', 'STKaiti', 'KaiTi', serif;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   text-align: center;
   margin: 0;
-}
-
-@keyframes fortuneFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* 残片拼接墨迹遮罩 */
@@ -768,5 +941,87 @@ function onCardRevealed() {
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+}
+
+/* C-07: 手牌上限提示弹窗 */
+.limit-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.limit-modal {
+  background: linear-gradient(135deg, rgba(44, 38, 30, 0.98), rgba(28, 22, 16, 0.98));
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 6px;
+  padding: 2rem 1.75rem;
+  max-width: 320px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.limit-modal-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.85;
+}
+
+.limit-modal-message {
+  font-size: 0.9rem;
+  color: #e8dcc8;
+  line-height: 1.7;
+  letter-spacing: 0.05em;
+  margin: 0 0 1.5rem;
+}
+
+.limit-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.limit-modal-btn {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.limit-modal-btn--secondary {
+  background: transparent;
+  border: 1px solid rgba(232, 220, 200, 0.3);
+  color: rgba(232, 220, 200, 0.65);
+}
+
+.limit-modal-btn--secondary:hover {
+  border-color: rgba(232, 220, 200, 0.55);
+  color: rgba(232, 220, 200, 0.85);
+}
+
+.limit-modal-btn--primary {
+  background: rgba(201, 168, 76, 0.15);
+  border: 1px solid #c9a84c;
+  color: #c9a84c;
+}
+
+.limit-modal-btn--primary:hover {
+  background: rgba(201, 168, 76, 0.25);
+  box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
 }
 </style>
