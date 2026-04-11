@@ -18,7 +18,7 @@
  *   500ms  - 显灵文字从下方浮入
  *   5000ms - 自动关闭（或用户点击背景）
  */
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type { KeywordEnlightenment } from '@/services/api'
 import { vLazy } from '@/composables/useLazyLoad'
 

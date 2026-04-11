@@ -34,7 +34,7 @@ export function isWeChatBrowser(): boolean {
 }
 
 /** 获取全局 wx 对象（由 index.html CDN 注入） */
-function getWx(): any {
+export function getWx(): any {
   if (typeof window !== 'undefined' && (window as any).wx) {
     return (window as any).wx
   }
