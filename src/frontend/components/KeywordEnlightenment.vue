@@ -21,6 +21,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import type { KeywordEnlightenment } from '@/services/api'
 import { vLazy } from '@/composables/useLazyLoad'
+import RippleEffect from '@/components/RippleEffect.vue'
 
 const props = defineProps<{
   enlightenment: KeywordEnlightenment | null
@@ -29,6 +30,45 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
 }>()
+
+// S-13: 涟漪动画触发状态（显灵时在关键词卡位置生成金色涟漪）
+const rippleActive = ref(false)
+let rippleTimer: ReturnType<typeof setTimeout> | null = null
+
+function triggerEnlightenmentRipple() {
+  // 延迟 200ms 触发，等浮层淡入动画先行
+  rippleTimer = setTimeout(() => {
+    rippleActive.value = true
+    // 涟漪持续 2s 后停止
+    setTimeout(() => {
+      rippleActive.value = false
+    }, 2000)
+  }, 200)
+}
+
+// 监听 enlightenment prop：当显灵时，触发金色涟漪
+watch(
+  () => props.enlightenment,
+  (newVal) => {
+    if (newVal !== null) {
+      triggerEnlightenmentRipple()
+    } else {
+      // 清理待触发计时器
+      if (rippleTimer !== null) {
+        clearTimeout(rippleTimer)
+        rippleTimer = null
+      }
+    }
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  if (rippleTimer !== null) {
+    clearTimeout(rippleTimer)
+    rippleTimer = null
+  }
+})
 
 // I-10: 图片懒加载 — v-lazy 指令自动处理 data-src → src
 const cardImageLoaded = ref(false)
@@ -94,6 +134,9 @@ function handleOverlayClick() {
             :style="{ '--delay': `${(i * 0.15) % 1}s`, '--angle': `${i * 30}deg` }"
           />
         </div>
+
+        <!-- S-13 金色涟漪扩散动画（Canvas） -->
+        <RippleEffect :active="rippleActive" color-scheme="golden" class="enlightenment-ripple" />
 
         <!-- 关键词卡 + 文字卡片 -->
         <div class="enlightenment-card" @click.stop>
@@ -399,5 +442,13 @@ function handleOverlayClick() {
 @keyframes hint-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+/* ── S-13 金色涟漪画布 ──────────────────────────────────────────────────── */
+.enlightenment-ripple {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
 }
 </style>

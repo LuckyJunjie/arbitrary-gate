@@ -9,6 +9,8 @@ const props = defineProps<{
   card: KeywordCard | Record<string, unknown> | null
   /** K-07 墨迹晕染等级（0-3），默认由卡牌 inkFragrance 计算得出 */
   inkBleedLevel?: 0 | 1 | 2 | 3
+  /** S-13 关键词显灵状态：当卡牌共鸣值达到5次以上时为 true，卡面变为彩色+金色光晕 */
+  enlightened?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -71,7 +73,7 @@ const inkFragranceStatus = computed(() => {
 <template>
   <div
     class="card"
-    :class="[`rarity-${rarity}`, `ink-bleed-${inkBleedLevel}`, { flipped: isFlipped }]"
+    :class="[`rarity-${rarity}`, `ink-bleed-${inkBleedLevel}`, { flipped: isFlipped, 'keyword-enlightened': enlightened }]"
     @click="handleClick"
     role="button"
     tabindex="0"
@@ -504,5 +506,65 @@ const inkFragranceStatus = computed(() => {
     2px 2px 0 rgba(30, 20, 10, 0.18),
     0 4px 10px rgba(0, 0, 0, 0.4),
     0 0 12px rgba(201, 168, 76, 0.12);
+}
+
+/* S-13 关键词显灵样式：共鸣值 >= 5 时，卡面从黑白变为彩色+金色光晕 */
+.card.keyword-enlightened {
+  filter: saturate(1.5);
+  animation: enlightened-glow 2s ease-in-out infinite;
+}
+
+.card.keyword-enlightened .card-back {
+  border-color: #d4af78;
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(212, 175, 55, 0.4),
+    0 0 40px rgba(212, 175, 55, 0.2);
+}
+
+.card.keyword-enlightened .card-front {
+  background: radial-gradient(
+    ellipse at 30% 20%,
+    rgba(212, 175, 55, 0.12) 0%,
+    transparent 50%
+  ),
+  linear-gradient(135deg, #2c1f14 0%, #3a2a1a 100%);
+}
+
+/* 显灵时卡面上的金色微光 */
+.card.keyword-enlightened::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 8px;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(212, 175, 55, 0.15) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 10;
+  animation: enlightened-aura 2s ease-in-out infinite;
+}
+
+@keyframes enlightened-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(212, 175, 55, 0.4),
+      0 0 40px rgba(212, 175, 55, 0.2),
+      0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(212, 175, 55, 0.6),
+      0 0 60px rgba(212, 175, 55, 0.3),
+      0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@keyframes enlightened-aura {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 </style>

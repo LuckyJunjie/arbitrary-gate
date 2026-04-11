@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  /** 控制是否显示涟漪动画 */
   active?: boolean
-}>()
+  /** 配色方案：default=暖色墨迹，golden=金色显灵 */
+  colorScheme?: 'default' | 'golden'
+}>(), {
+  active: false,
+  colorScheme: 'default',
+})
 
 // 涟漪扩散动画（独立于墨池，作为背景特效）
 // 由 Canvas 2D 绘制，支持多点同时扩散
@@ -21,20 +27,33 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 let animFrameId: number | null = null
 const ripples: Ripple[] = []
 
-const COLORS = [
+const DEFAULT_COLORS = [
   'rgba(232, 220, 200, 0.15)',
   'rgba(180, 160, 120, 0.1)',
   'rgba(139, 115, 85, 0.12)',
 ]
 
+// S-13 显灵金色涟漪配色（关键词共鸣满5次时使用）
+const GOLDEN_COLORS = [
+  'rgba(212, 175, 55, 0.45)',
+  'rgba(201, 168, 76, 0.35)',
+  'rgba(180, 140, 60, 0.28)',
+  'rgba(232, 220, 180, 0.2)',
+]
+
+function getColorPalette() {
+  return props.colorScheme === 'golden' ? GOLDEN_COLORS : DEFAULT_COLORS
+}
+
 function spawnRipple(x: number, y: number) {
+  const colors = getColorPalette()
   ripples.push({
     x,
     y,
     radius: 0,
     maxRadius: 120 + Math.random() * 60,
     opacity: 1,
-    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    color: colors[Math.floor(Math.random() * colors.length)],
   })
 }
 

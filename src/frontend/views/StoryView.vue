@@ -515,7 +515,7 @@ async function selectOption(optionId: number, _valueOrientation?: string, event?
       }
       // S-13: 关键词显灵 — 若本次返回的 resonance 有 ≥7 的值，播放磬音
       if (res.chapter.keywordResonance) {
-        const hasEnlightenment = Object.values(res.chapter.keywordResonance).some(v => v >= 7)
+        const hasEnlightenment = Object.values(res.chapter.keywordResonance).some(v => v >= 5)
         if (hasEnlightenment) playChime()
       }
       // S-13: 如果有显灵数据，弹出显灵浮层
@@ -761,7 +761,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
         v-for="(val, kid) in currentChapter.keywordResonance"
         :key="kid"
         class="resonance-chip"
-        :class="{ 'resonance-full': val >= 7 }"
+        :class="{ 'resonance-full': val >= 5 }"
         data-testid="keyword-resonance-bar"
         :style="{ opacity: Math.max(0.3, val / 7) }"
       >
@@ -774,7 +774,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
       </div>
       <!-- 共鸣达成特效 -->
       <div
-        v-if="currentChapter && Object.values(currentChapter.keywordResonance).some(v => v >= 7)"
+        v-if="currentChapter && Object.values(currentChapter.keywordResonance).some(v => v >= 5)"
         class="resonance-achieved"
       >
         ✨ 共鸣达成 ✨
