@@ -18,8 +18,9 @@
  *   500ms  - 显灵文字从下方浮入
  *   5000ms - 自动关闭（或用户点击背景）
  */
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted, computed } from 'vue'
 import type { KeywordEnlightenment } from '@/services/api'
+import { useLazyLoad } from '@/composables/useLazyLoad'
 
 const props = defineProps<{
   enlightenment: KeywordEnlightenment | null
@@ -29,7 +30,26 @@ const emit = defineEmits<{
   close: []
 }>()
 
-// 防止重复自动关闭定时器
+// I-10: 图片懒加载 — 显灵时仅当图片进入视口才加载
+const cardImgRef = ref<HTMLElement | null>(null)
+const { isInView, observe: startObserve } = useLazyLoad()
+const cardImageLoaded = ref(false)
+
+// 监听 enlightenment 出现，开始懒加载观察
+watch(
+  () => props.enlightenment,
+  (newVal) => {
+    if (newVal !== null && cardImgRef.value) {
+      // 重置状态
+      cardImageLoaded.value = false
+      // 下帧再观察（等待 DOM 渲染）
+      requestAnimationFrame(() => {
+        if (cardImgRef.value) startObserve(cardImgRef.value)
+      })
+    }
+  },
+  { immediate: true }
+)
 let autoCloseTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleAutoClose() {
@@ -96,15 +116,21 @@ function handleOverlayClick() {
         <!-- 关键词卡 + 文字卡片 -->
         <div class="enlightenment-card" @click.stop>
           <!-- 卡片区域 -->
-          <div class="enlightenment-card-image">
+          <div ref="cardImgRef" class="enlightenment-card-image">
+            <!-- I-10: 懒加载图片（进入视口后才加载 src） -->
             <img
-              v-if="enlightenment.cardImageUrl"
+              v-if="enlightenment.cardImageUrl && isInView"
               :src="enlightenment.cardImageUrl"
               :alt="`「${enlightenment.cardName}」`"
               class="keyword-card-img"
+              :class="{ 'keyword-card-img-loaded': cardImageLoaded }"
+              @load="cardImageLoaded = true"
             />
-            <!-- 无图片时：纯装饰卡片 -->
-            <div v-else class="keyword-card-placeholder">
+            <!-- 占位符：图片未加载或无图片时 -->
+            <div
+              v-if="!enlightenment.cardImageUrl || !isInView || !cardImageLoaded"
+              class="keyword-card-placeholder"
+            >
               <span class="placeholder-kanji">靈</span>
             </div>
             <!-- 外层金色光晕 -->
@@ -265,6 +291,12 @@ function handleOverlayClick() {
   box-shadow:
     0 0 0 rgba(212, 175, 55, 0),
     0 20px 60px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.keyword-card-img.keyword-card-img-loaded {
+  opacity: 1;
 }
 
 @keyframes card-reveal {

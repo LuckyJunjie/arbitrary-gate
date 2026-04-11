@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { KeywordCard } from '@/services/api'
 import { hapticLight } from '@/composables/useHaptic'
 import { getInkBleedLevel } from '@/stores/inkValueStore'
+import { useLazyLoad } from '@/composables/useLazyLoad'
 
 const props = defineProps<{
   card: KeywordCard | Record<string, unknown> | null
@@ -15,6 +16,17 @@ const emit = defineEmits<{
 }>()
 
 const isFlipped = ref(false)
+
+// I-10: 图片懒加载 — 仅当卡片进入视口时才加载 imageUrl
+const cardArtRef = ref<HTMLElement | null>(null)
+const { isInView, observe: startObserve } = useLazyLoad()
+const artImageLoaded = ref(false)
+
+onMounted(() => {
+  if (cardArtRef.value) {
+    startObserve(cardArtRef.value)
+  }
+})
 
 function handleClick() {
   if (!isFlipped.value) {
@@ -88,14 +100,22 @@ const inkFragranceStatus = computed(() => {
       <div class="card-inner-border" :style="{ borderColor: rarityConfig[rarity].borderColor }"></div>
 
       <!-- 卡面图案区 -->
-      <div class="card-art" :style="{ borderColor: rarityConfig[rarity].borderColor }">
+      <div ref="cardArtRef" class="card-art" :style="{ borderColor: rarityConfig[rarity].borderColor }">
+        <!-- I-10: 懒加载图片（进入视口后才加载 src） -->
         <img
-          v-if="(card as any)?.imageUrl"
+          v-if="(card as any)?.imageUrl && isInView"
           :src="(card as any).imageUrl"
           class="art-image"
+          :class="{ 'art-image-loaded': artImageLoaded }"
           alt=""
+          @load="artImageLoaded = true"
         />
-        <div v-else class="art-placeholder" :style="{ color: rarityConfig[rarity].borderColor }">
+        <!-- 占位符：图片未加载时或无 AI 图时显示首字 -->
+        <div
+          v-if="!(card as any)?.imageUrl || !isInView || !artImageLoaded"
+          class="art-placeholder"
+          :style="{ color: rarityConfig[rarity].borderColor }"
+        >
           {{ (card?.name as string)?.charAt(0) ?? '?' }}
         </div>
         <!-- 稀有度光效 -->
@@ -278,6 +298,12 @@ const inkFragranceStatus = computed(() => {
   height: 100%;
   object-fit: cover;
   border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.art-image.art-image-loaded {
+  opacity: 1;
 }
 
 .rarity-glow {
