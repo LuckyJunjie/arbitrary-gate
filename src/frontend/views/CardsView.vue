@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { aiPainter, previewJudgment, recycleCard } from '@/services/api'
+import { playBrushTap } from '@/composables/useSound'
 import Card from '@/components/Card.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import JudgmentPreview from '@/components/JudgmentPreview.vue'
@@ -99,6 +100,7 @@ function toggleKeywordCard(card: KeywordCard | Record<string, unknown>) {
       rarity: (card as any).rarity || 1,
       category: (card as any).category || 1,
     })
+    playBrushTap()
   }
 }
 
@@ -113,6 +115,7 @@ function toggleEventCard(card: KeywordCard | Record<string, unknown>) {
       rarity: (card as any).rarity || 1,
       category: (card as any).category || 1,
     }
+    playBrushTap()
   }
 }
 

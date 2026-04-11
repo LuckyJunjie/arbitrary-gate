@@ -9,7 +9,7 @@ import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { useAchievementStore } from '@/stores/achievementStore'
 import { drawKeywordCard, fetchFortune, drawEventCard, type EventDrawResult } from '@/services/api'
-import { playInkDrop } from '@/composables/useSound'
+import { playInkDrop, playWindChime } from '@/composables/useSound'
 import type { KeywordCard } from '@/services/api'
 
 const cardStore = useCardStore()
@@ -256,6 +256,7 @@ function resetEventDraw() {
 
 function onEventCardRevealed() {
   eventCardRevealed.value = true
+  playWindChime()
 }
 
 function switchTab(tab: PoolTab) {
@@ -273,6 +274,7 @@ function reset() {
 
 function onCardRevealed() {
   cardRevealed.value = true
+  playWindChime()
 }
 </script>
 
