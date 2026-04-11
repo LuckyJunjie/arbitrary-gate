@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import type { KeywordCard } from '@/services/api'
 import { hapticLight } from '@/composables/useHaptic'
 import { getInkBleedLevel } from '@/stores/inkValueStore'
-import { useLazyLoad } from '@/composables/useLazyLoad'
+import { vLazy } from '@/composables/useLazyLoad'
 
 const props = defineProps<{
   card: KeywordCard | Record<string, unknown> | null
@@ -17,16 +17,8 @@ const emit = defineEmits<{
 
 const isFlipped = ref(false)
 
-// I-10: 图片懒加载 — 仅当卡片进入视口时才加载 imageUrl
-const cardArtRef = ref<HTMLElement | null>(null)
-const { isInView, observe: startObserve } = useLazyLoad()
+// I-10: 图片懒加载 — v-lazy 指令自动处理 data-src → src 替换
 const artImageLoaded = ref(false)
-
-onMounted(() => {
-  if (cardArtRef.value) {
-    startObserve(cardArtRef.value)
-  }
-})
 
 function handleClick() {
   if (!isFlipped.value) {
@@ -100,19 +92,19 @@ const inkFragranceStatus = computed(() => {
       <div class="card-inner-border" :style="{ borderColor: rarityConfig[rarity].borderColor }"></div>
 
       <!-- 卡面图案区 -->
-      <div ref="cardArtRef" class="card-art" :style="{ borderColor: rarityConfig[rarity].borderColor }">
-        <!-- I-10: 懒加载图片（进入视口后才加载 src） -->
+      <div class="card-art" :style="{ borderColor: rarityConfig[rarity].borderColor }">
+        <!-- I-10: 懒加载图片（v-lazy 指令自动处理 data-src → src） -->
         <img
-          v-if="(card as any)?.imageUrl && isInView"
-          :src="(card as any).imageUrl"
+          v-if="(card as any)?.imageUrl"
+          v-lazy
+          :data-src="(card as any).imageUrl"
           class="art-image"
-          :class="{ 'art-image-loaded': artImageLoaded }"
           alt=""
           @load="artImageLoaded = true"
         />
         <!-- 占位符：图片未加载时或无 AI 图时显示首字 -->
         <div
-          v-if="!(card as any)?.imageUrl || !isInView || !artImageLoaded"
+          v-if="!(card as any)?.imageUrl || !artImageLoaded"
           class="art-placeholder"
           :style="{ color: rarityConfig[rarity].borderColor }"
         >

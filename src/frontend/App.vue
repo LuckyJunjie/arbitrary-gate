@@ -305,4 +305,16 @@ body {
     filter: blur(0);
   }
 }
+
+/* I-10: 全局图片懒加载样式 */
+/* 懒加载图片：加载前透明，加载后淡入 */
+img[data-src] {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+img.loaded,
+img[class*="loaded"] {
+  opacity: 1;
+}
 </style>

@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import { initCardStore } from './stores/cardStore'
 import { initInkValueStore } from './stores/inkValueStore'
+import { vLazy } from './composables/useLazyLoad'
 
 // Views
 import HomeView from './views/HomeView.vue'
@@ -39,6 +40,9 @@ const app = createApp(App)
 const pinia = createPinia()
 app.use(pinia)
 app.use(router)
+
+// I-10: 注册全局图片懒加载指令
+app.directive('lazy', vLazy)
 
 // Service Worker 注册（PWA 离线缓存 I-09）
 if ('serviceWorker' in navigator) {

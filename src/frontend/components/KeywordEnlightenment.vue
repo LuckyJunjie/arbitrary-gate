@@ -18,9 +18,9 @@
  *   500ms  - 显灵文字从下方浮入
  *   5000ms - 自动关闭（或用户点击背景）
  */
-import { ref, watch, onUnmounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import type { KeywordEnlightenment } from '@/services/api'
-import { useLazyLoad } from '@/composables/useLazyLoad'
+import { vLazy } from '@/composables/useLazyLoad'
 
 const props = defineProps<{
   enlightenment: KeywordEnlightenment | null
@@ -30,26 +30,8 @@ const emit = defineEmits<{
   close: []
 }>()
 
-// I-10: 图片懒加载 — 显灵时仅当图片进入视口才加载
-const cardImgRef = ref<HTMLElement | null>(null)
-const { isInView, observe: startObserve } = useLazyLoad()
+// I-10: 图片懒加载 — v-lazy 指令自动处理 data-src → src
 const cardImageLoaded = ref(false)
-
-// 监听 enlightenment 出现，开始懒加载观察
-watch(
-  () => props.enlightenment,
-  (newVal) => {
-    if (newVal !== null && cardImgRef.value) {
-      // 重置状态
-      cardImageLoaded.value = false
-      // 下帧再观察（等待 DOM 渲染）
-      requestAnimationFrame(() => {
-        if (cardImgRef.value) startObserve(cardImgRef.value)
-      })
-    }
-  },
-  { immediate: true }
-)
 let autoCloseTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleAutoClose() {
@@ -116,19 +98,19 @@ function handleOverlayClick() {
         <!-- 关键词卡 + 文字卡片 -->
         <div class="enlightenment-card" @click.stop>
           <!-- 卡片区域 -->
-          <div ref="cardImgRef" class="enlightenment-card-image">
-            <!-- I-10: 懒加载图片（进入视口后才加载 src） -->
+          <div class="enlightenment-card-image">
+            <!-- I-10: 懒加载图片（v-lazy 指令自动处理 data-src → src） -->
             <img
-              v-if="enlightenment.cardImageUrl && isInView"
-              :src="enlightenment.cardImageUrl"
+              v-if="enlightenment.cardImageUrl"
+              v-lazy
+              :data-src="enlightenment.cardImageUrl"
               :alt="`「${enlightenment.cardName}」`"
               class="keyword-card-img"
-              :class="{ 'keyword-card-img-loaded': cardImageLoaded }"
               @load="cardImageLoaded = true"
             />
             <!-- 占位符：图片未加载或无图片时 -->
             <div
-              v-if="!enlightenment.cardImageUrl || !isInView || !cardImageLoaded"
+              v-if="!enlightenment.cardImageUrl || !cardImageLoaded"
               class="keyword-card-placeholder"
             >
               <span class="placeholder-kanji">靈</span>
