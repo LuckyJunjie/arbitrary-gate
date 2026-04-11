@@ -48,6 +48,21 @@ export const INK_LEVELS = [
   { level: 6, name: '墨魂',   minPoints: 1500, maxPoints: Infinity, color: '#FFD700' },
 ]
 
+/**
+ * K-07 墨迹晕染等级（0-3级）
+ * 基于墨香值（inkValue，范围 0-7 或更高）计算卡片边缘墨迹浓度
+ * - 3级（浓重）：inkValue >= 5（对应 inkFragrance 5-7）
+ * - 2级（中等）：inkValue >= 3
+ * - 1级（淡）：inkValue >= 1
+ * - 0级（无）：其他
+ */
+export function getInkBleedLevel(inkValue: number): 0 | 1 | 2 | 3 {
+  if (inkValue >= 5) return 3  // 浓重（对应 inkFragrance 5-7）
+  if (inkValue >= 3) return 2  // 中等（对应 inkFragrance 3-4）
+  if (inkValue >= 1) return 1  // 淡（对应 inkFragrance 1-2）
+  return 0  // 无
+}
+
 // ─── Interface ─────────────────────────────────────────────────────────────────
 
 export interface InkRecord {

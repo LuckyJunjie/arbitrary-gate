@@ -391,6 +391,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 pushSseEvent(storyId, "keyword_enlightenment",
                         "{\"cardId\":" + enlightenment.getCardId() +
                         ",\"cardName\":\"" + escapeJson(enlightenment.getCardName()) + "\"" +
+                        ",\"cardImageUrl\":\"" + escapeJson(enlightenment.getCardImageUrl() != null ? enlightenment.getCardImageUrl() : "") + "\"" +
                         ",\"enlightenmentText\":\"" + escapeJson(enlightenment.getEnlightenmentText()) + "\"}");
             }
 
@@ -627,6 +628,9 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             }
         }
 
+        // 7. 更新故事状态
+        int newChapterNo = chapterNo + 1;
+
         // 6.2 S-14: 章节完成后，以30%概率触发偶遇事件
         EncounterVO encounter = triggerEncounterIfNeeded(storyId, newChapterNo, characters);
 
@@ -634,8 +638,6 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         KeywordEnlightenment enlightenment = checkKeywordEnlightenment(
                 userId, story.getKeywordCardIds(), keywords);
 
-        // 7. 更新故事状态
-        int newChapterNo = chapterNo + 1;
         story.setCurrentChapter(newChapterNo);
         story.setHistoryDeviation(Math.max(0, Math.min(100, story.getHistoryDeviation())));
         boolean isLastChapter = newChapterNo >= maxChapters;
@@ -942,6 +944,64 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     // ========== S-14 偶遇支线 ========== //
 
     /**
+     * S-14: 手动触发偶遇（POST /api/story/encounter/trigger）
+     * 绕过30%概率，直接调用 EncounterAgent 生成偶遇场景
+     *
+     * @param storyId 故事ID
+     * @param chapterNo 当前章节号
+     * @return EncounterVO 偶遇内容，未触发时返回 null
+     */
+    public EncounterVO maybeTriggerEncounter(Long storyId, Long chapterNo) {
+        long userId = StpUtil.getLoginIdAsLong();
+        Story story = storyMapper.selectById(storyId);
+        if (story == null || !story.getUserId().equals(userId)) {
+            throw BusinessException.STORY_NOT_FOUND;
+        }
+        if (story.getStatus() != 1) {
+            throw new BusinessException(400, "故事已结束，无法触发偶遇");
+        }
+
+        List<StoryCharacter> characters = characterMapper.selectList(
+                new LambdaQueryWrapper<StoryCharacter>()
+                        .eq(StoryCharacter::getStoryId, storyId));
+
+        try {
+            EncounterResult result = encounterAgent.generateEncounter(story, chapterNo.intValue(), characters);
+            if (result == null || result.getEncounterText() == null) return null;
+
+            // 写入数据库
+            StoryEncounter encounter = new StoryEncounter();
+            encounter.setStoryId(storyId);
+            encounter.setChapterNo(chapterNo.intValue());
+            encounter.setEncounterText(result.getEncounterText());
+            encounter.setOptionA(result.getOptionA());
+            encounter.setOptionB(result.getOptionB());
+            encounter.setFateChange(0);
+            encounterMapper.insert(encounter);
+
+            log.info("[S-14] 偶遇手动触发: storyId={}, chapterNo={}, encounterId={}",
+                    storyId, chapterNo, encounter.getId());
+
+            // 随机选择触发偶遇的配角名称
+            String characterName = characters.isEmpty() ? "过客" :
+                    characters.get((int) (Math.random() * characters.size())).getName();
+
+            return EncounterVO.builder()
+                    .encounterId(encounter.getId())
+                    .encounterText(result.getEncounterText())
+                    .optionA(result.getOptionA())
+                    .optionB(result.getOptionB())
+                    .chapterNo(chapterNo.intValue())
+                    .characterName(characterName)
+                    .characterRole("配角")
+                    .build();
+        } catch (Exception e) {
+            log.warn("[S-14] 偶遇生成异常: storyId={}, error={}", storyId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * S-14: 章节完成后，以30%概率触发偶遇事件
      *
      * @return EncounterVO 如果触发了偶遇；null 如果未触发
@@ -988,6 +1048,21 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     /**
+     * S-13: 公开方法 — 判断是否应触发关键词显灵
+     *
+     * 触发条件：
+     * - 共鸣值 >= 5（累计共鸣次数），或
+     * - 特定章节（chapterIndex == 5，即第五章）
+     *
+     * @param resonanceLevel 当前共鸣值（累计次数）
+     * @param chapterIndex 当前章节号（从 1 开始）
+     * @return true=应触发显灵
+     */
+    public boolean shouldTriggerEnlightenment(int resonanceLevel, int chapterIndex) {
+        return resonanceLevel >= 5 || chapterIndex == 5;
+    }
+
+    /**
      * S-13: 检查是否有关键词达到显灵条件（共鸣值 >= 5）
      * 如果有，生成一段 50-80 字的显灵描写
      *
@@ -1017,12 +1092,18 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
             return null;
         }
 
-        // 查找关键词名称
+        // 查找关键词名称和卡面图 URL
         String cardName = keywords.stream()
                 .filter(k -> k.getId().equals(enlightenedCardId))
                 .map(KeywordCard::getName)
                 .findFirst()
                 .orElse("关键词");
+
+        String cardImageUrl = keywords.stream()
+                .filter(k -> k.getId().equals(enlightenedCardId))
+                .map(k -> k.getImageUrl() != null ? k.getImageUrl() : "")
+                .findFirst()
+                .orElse("");
 
         // 生成显灵描写（50-80字）
         String enlightenmentText = generateEnlightenmentText(cardName, maxResonance);
@@ -1033,6 +1114,7 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         return KeywordEnlightenment.builder()
                 .cardId(enlightenedCardId)
                 .cardName(cardName)
+                .cardImageUrl(cardImageUrl)
                 .enlightenmentText(enlightenmentText)
                 .build();
     }
@@ -1387,6 +1469,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
         private String optionA;       // 搭话
         private String optionB;       // 装作没看见
         private Integer chapterNo;     // 触发章节号（选择后将进入 chapterNo+1）
+        private String characterName;  // 偶遇配角名称
+        private String characterRole;  // 配角角色类型
     }
 
     @Data @lombok.Builder
@@ -1445,7 +1529,8 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     public static class KeywordEnlightenment {
         private Long cardId;
         private String cardName;
-        private String enlightenmentText; // 50-80字的显灵描写
+        private String cardImageUrl;          // 关键词卡卡面图 URL（用于显灵时彩色展示）
+        private String enlightenmentText;     // 50-80字的显灵描写
     }
 
     @Data @lombok.Builder

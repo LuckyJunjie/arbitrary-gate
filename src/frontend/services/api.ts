@@ -112,6 +112,7 @@ export interface Chapter {
 export interface KeywordEnlightenment {
   cardId: number
   cardName: string
+  cardImageUrl?: string   // 关键词卡卡面图 URL（显灵时彩色展示）
   enlightenmentText: string
 }
 
@@ -122,6 +123,8 @@ export interface Encounter {
   optionA: string
   optionB: string
   chapterNo: number
+  characterName?: string
+  characterRole?: string
 }
 
 /** S-14 偶遇选择响应 */
@@ -255,6 +258,14 @@ export async function submitEncounterChoice(
   return api.post(`/story/${storyId}/encounter/choice`, { encounterId, choice })
 }
 
+/** S-14 手动触发偶遇（绕过30%概率） */
+export async function triggerEncounter(
+  storyId: string,
+  chapterNo: number
+): Promise<Encounter | null> {
+  return api.post('/story/encounter/trigger', { storyId, chapterNo })
+}
+
 // 获取故事章节
 export async function fetchChapter(storyId: string, chapterNo: number): Promise<Chapter> {
   return api.get(`/story/${storyId}/chapter/${chapterNo}`)
@@ -279,8 +290,8 @@ export async function fetchStoryList(): Promise<Story[]> {
 }
 
 // 完成故事（触发 AI 生成手稿）
-export async function finishStory(storyId: string): Promise<Manuscript> {
-  return api.post(`/story/${storyId}/finish`)
+export async function finishStory(storyId: string, combinationType?: string): Promise<Manuscript> {
+  return api.post(`/story/${storyId}/finish`, { combinationType })
 }
 
 // 更新故事标题
@@ -414,9 +425,9 @@ export async function submitChoiceWithMock(
   }
 }
 
-export async function finishStoryWithMock(storyId: string): Promise<Manuscript> {
+export async function finishStoryWithMock(storyId: string, combinationType?: string): Promise<Manuscript> {
   try {
-    return await finishStory(storyId)
+    return await finishStory(storyId, combinationType)
   } catch {
     return mockFinishStory(storyId)
   }

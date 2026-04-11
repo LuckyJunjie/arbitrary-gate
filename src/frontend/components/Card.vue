@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { KeywordCard } from '@/services/api'
 import { hapticLight } from '@/composables/useHaptic'
+import { getInkBleedLevel } from '@/stores/inkValueStore'
 
 const props = defineProps<{
   card: KeywordCard | Record<string, unknown> | null
+  /** K-07 墨迹晕染等级（0-3），默认由卡牌 inkFragrance 计算得出 */
+  inkBleedLevel?: 0 | 1 | 2 | 3
 }>()
 
 const emit = defineEmits<{
@@ -44,11 +47,11 @@ const category = computed(() => (props.card as KeywordCard)?.category ?? 0)
 const inkFragrance = computed(() => (props.card as KeywordCard)?.inkFragrance ?? 0)
 const resonanceCount = computed(() => (props.card as KeywordCard)?.resonanceCount ?? 0)
 
-// K-07 墨迹晕染强度 (0-1)，墨香值越高晕染越浓
-const inkIntensity = computed(() => {
-  const val = inkFragrance.value
-  // inkFragrance 范围 0-7，映射到 0-1
-  return Math.min(1.0, Math.max(0, val / 7))
+// K-07 墨迹晕染等级（0-3），墨香值越高晕染越浓
+// 优先使用 props.inkBleedLevel，否则由卡牌 inkFragrance 计算
+const inkBleedLevel = computed(() => {
+  if (props.inkBleedLevel !== undefined) return props.inkBleedLevel
+  return getInkBleedLevel(inkFragrance.value)
 })
 
 // C-11 墨香状态（浓/淡/将尽），基于墨香值
@@ -59,14 +62,12 @@ const inkFragranceStatus = computed(() => {
   return '将尽'
 })
 
-import { computed } from 'vue'
 </script>
 
 <template>
   <div
     class="card"
-    :class="[`rarity-${rarity}`, { flipped: isFlipped }]"
-    :style="{ '--ink-intensity': inkIntensity }"
+    :class="[`rarity-${rarity}`, `ink-bleed-${inkBleedLevel}`, { flipped: isFlipped }]"
     @click="handleClick"
     role="button"
     tabindex="0"
@@ -424,50 +425,66 @@ import { computed } from 'vue'
   letter-spacing: 0.05em;
 }
 
-/* K-07 卡片边缘墨迹晕染效果
- * 墨香值越高（--ink-intensity 越接近1），晕染越浓
- * 高墨香（>80%，intensity>0.8）：浓墨晕染
- * 中墨香（40-80%）：中等晕染
- * 低墨香（<40%）：几乎无晕染
+/* K-07 卡片边缘墨迹晕染效果（class-based, 0-3级）
+ * 墨迹浓度由 inkBleedLevel 决定：
+ * - ink-bleed-3：浓重墨迹（inkFragrance 5-7）
+ * - ink-bleed-2：中等墨迹（inkFragrance 3-4）
+ * - ink-bleed-1：淡墨迹（inkFragrance 1-2）
+ * - ink-bleed-0：无墨迹
  */
-.card {
-  /* 基础晕染：随 intensity 变化的 box-shadow */
-  box-shadow:
-    /* 外层淡晕染（墨迹向外扩散） */
-    calc(var(--ink-intensity) * 12px) calc(var(--ink-intensity) * 8px) calc(var(--ink-intensity) * 16px) rgba(30, 20, 10, calc(var(--ink-intensity) * 0.35)),
-    /* 内层紧密晕染（墨迹聚集在边缘） */
-    calc(var(--ink-intensity) * 3px) calc(var(--ink-intensity) * 3px) 0 rgba(30, 20, 10, calc(var(--ink-intensity) * 0.2)),
-    /* 底部投影（卡面立体感） */
-    0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: box-shadow 0.6s ease;
-}
 
-/* 高墨香时的浓墨晕染特效（intensity > 0.8） */
-.card[style*="--ink-intensity: 0.8"],
-.card[style*="--ink-intensity: 0.9"],
-.card[style*="--ink-intensity: 1"] {
+/* 3级：浓重墨迹 */
+.card.ink-bleed-3 {
   box-shadow:
     10px 7px 14px rgba(30, 20, 10, 0.4),
     3px 3px 0 rgba(30, 20, 10, 0.25),
     0 4px 12px rgba(0, 0, 0, 0.45),
     inset 0 0 12px rgba(30, 20, 10, 0.08);
+  transition: box-shadow 0.6s ease;
 }
 
-/* 稀有度 3-4 的特殊墨染（金色光晕叠加） */
-.card.rarity-3,
-.card.rarity-4 {
+/* 2级：中等墨迹 */
+.card.ink-bleed-2 {
   box-shadow:
-    calc(var(--ink-intensity) * 12px) calc(var(--ink-intensity) * 8px) calc(var(--ink-intensity) * 16px) rgba(30, 20, 10, calc(var(--ink-intensity) * 0.35)),
-    calc(var(--ink-intensity) * 3px) calc(var(--ink-intensity) * 3px) 0 rgba(30, 20, 10, calc(var(--ink-intensity) * 0.2)),
-    0 4px 12px rgba(0, 0, 0, 0.4),
-    /* 稀有卡底色光晕（墨香值高时更明显） */
-    0 0 calc(var(--ink-intensity) * 20px) rgba(201, 168, 76, calc(var(--ink-intensity) * 0.2));
+    7px 5px 10px rgba(30, 20, 10, 0.28),
+    2px 2px 0 rgba(30, 20, 10, 0.18),
+    0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: box-shadow 0.6s ease;
 }
 
-/* 低墨香时晕染几乎消失 */
-.card[style*="--ink-intensity: 0"] {
+/* 1级：淡墨迹 */
+.card.ink-bleed-1 {
+  box-shadow:
+    3px 2px 5px rgba(30, 20, 10, 0.15),
+    0 3px 6px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.6s ease;
+}
+
+/* 0级：无墨迹 */
+.card.ink-bleed-0 {
   box-shadow:
     0 2px 6px rgba(0, 0, 0, 0.3),
     0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.6s ease;
+}
+
+/* 稀有度 3-4 的特殊墨染：浓墨时叠加金色光晕 */
+.card.rarity-3.ink-bleed-3,
+.card.rarity-4.ink-bleed-3 {
+  box-shadow:
+    10px 7px 14px rgba(30, 20, 10, 0.4),
+    3px 3px 0 rgba(30, 20, 10, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.45),
+    inset 0 0 12px rgba(30, 20, 10, 0.08),
+    0 0 18px rgba(201, 168, 76, 0.2);
+}
+
+.card.rarity-3.ink-bleed-2,
+.card.rarity-4.ink-bleed-2 {
+  box-shadow:
+    7px 5px 10px rgba(30, 20, 10, 0.28),
+    2px 2px 0 rgba(30, 20, 10, 0.18),
+    0 4px 10px rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(201, 168, 76, 0.12);
 }
 </style>

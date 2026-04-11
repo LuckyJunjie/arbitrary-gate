@@ -5,6 +5,23 @@ import { ref, computed } from 'vue'
 
 export type AchievementCategory = 'collection' | 'draw' | 'story' | 'combination'
 
+// 稀有组合类型枚举
+export enum CombinationType {
+  THREE_OBJECTS = 'THREE_OBJECTS',       // 三器物
+  THREE_WATER = 'THREE_WATER',            // 三水意象
+  THREE_TITLES = 'THREE_TITLES',          // 三称谓
+  THREE_EMOTIONS = 'THREE_EMOTIONS',      // 三情绪
+  THREE_LEGENDARY = 'THREE_LEGENDARY',    // 三绝品
+}
+
+export interface CombinationAchievement {
+  type: CombinationType
+  name: string
+  description: string
+  bonus: string  // 彩蛋效果描述
+  triggered: boolean
+}
+
 export interface Achievement {
   id: string
   name: string
@@ -14,6 +31,7 @@ export interface Achievement {
   unlockedAt?: string
   threshold?: number    // for count-based achievements
   requiredCards?: string[] // card names for combination achievements
+  combinationType?: CombinationType  // for combination achievements
 }
 
 // ─── Pre-defined Achievements ─────────────────────────────────────────────────
@@ -107,18 +125,20 @@ export const ALL_UNLOCKABLES: Achievement[] = [
   {
     id: 'combo_three_objects',
     name: '物是人非',
-    description: '收集三张器物类卡牌（category=1），旧物仍在，人事已非',
+    description: '收集三张器物类卡牌，旧物仍在，人事已非',
     category: 'combination',
     icon: '🏺',
     requiredCards: ['三器物'],
+    combinationType: CombinationType.THREE_OBJECTS,
   },
   {
     id: 'combo_three_emotions',
     name: '百感交集',
-    description: '收集三张情绪类卡牌（category=4），悲欢离合，尽集于此',
+    description: '收集三张情绪类卡牌，悲欢离合，尽集于此',
     category: 'combination',
     icon: '💠',
     requiredCards: ['三情绪'],
+    combinationType: CombinationType.THREE_EMOTIONS,
   },
   {
     id: 'combo_departing_person',
@@ -127,6 +147,34 @@ export const ALL_UNLOCKABLES: Achievement[] = [
     category: 'combination',
     icon: '⛵',
     requiredCards: ['旧船票', '渡口'],
+  },
+  // P-03 稀有组合成就
+  {
+    id: 'combo_three_water',
+    name: '水过三秋',
+    description: '三张关键词卡皆含水意象（雨、泪、江、河、湖、海、露、霜、溪、涛等）',
+    category: 'combination',
+    icon: '🌊',
+    requiredCards: ['三水意象'],
+    combinationType: CombinationType.THREE_WATER,
+  },
+  {
+    id: 'combo_three_titles',
+    name: '三生石上',
+    description: '三张关键词卡都是称谓类型，命运羁绊，配角左右结局',
+    category: 'combination',
+    icon: '💎',
+    requiredCards: ['三称谓'],
+    combinationType: CombinationType.THREE_TITLES,
+  },
+  {
+    id: 'combo_three_legendary',
+    name: '凤毛麟角',
+    description: '三张关键词卡皆为绝稀有度，绝品汇聚，故事专属藏头诗',
+    category: 'combination',
+    icon: '👑',
+    requiredCards: ['三绝品'],
+    combinationType: CombinationType.THREE_LEGENDARY,
   },
 ]
 
@@ -205,6 +253,88 @@ export const useAchievementStore = defineStore('achievement', () => {
     if (completedStoryCount >= 5) unlockAchievement('story_5')
   }
 
+  // 水意象关键词列表
+  const WATER_KEYWORDS = ['雨', '泪', '江', '河', '湖', '海', '露', '霜', '溪', '涛', '泉', '沧', '浪', '潮', '沐']
+
+  /**
+   * 检测关键词组合成就（P-03）
+   * 返回组合成就信息，如无组合则返回 null
+   */
+  function checkKeywordCombination(
+    keywordCards: Array<{ id: number; name: string; rarity: number; category: number }>
+  ): CombinationAchievement | null {
+    // 需要正好 3 张关键词卡才能触发稀有组合
+    if (keywordCards.length !== 3) return null
+
+    const categories = keywordCards.map(c => c.category)
+    const rarities = keywordCards.map(c => c.rarity)
+
+    // 1. 三器物【物是人非】— 三张都是 category=1（器物）
+    if (categories.every(c => c === 1)) {
+      unlockAchievement('combo_three_objects')
+      return {
+        type: CombinationType.THREE_OBJECTS,
+        name: '物是人非',
+        description: '三张器物卡，旧物仍在，人事已非',
+        bonus: '故事结尾额外生成一首咏物诗',
+        triggered: true,
+      }
+    }
+
+    // 2. 三情绪【百感交集】— 三张都是 category=4（情绪）
+    if (categories.every(c => c === 4)) {
+      unlockAchievement('combo_three_emotions')
+      return {
+        type: CombinationType.THREE_EMOTIONS,
+        name: '百感交集',
+        description: '三张情绪卡，悲欢离合，尽集于此',
+        bonus: '后日谈采用更感伤的语气',
+        triggered: true,
+      }
+    }
+
+    // 3. 三称谓【三生石上】— 三张都是 category=5（称谓）
+    if (categories.every(c => c === 5)) {
+      unlockAchievement('combo_three_titles')
+      return {
+        type: CombinationType.THREE_TITLES,
+        name: '三生石上',
+        description: '三张称谓卡，命运羁绊',
+        bonus: '配角命运值大幅影响结局',
+        triggered: true,
+      }
+    }
+
+    // 4. 三水意象【水过三秋】— 三张都含水意象
+    const waterCardCount = keywordCards.filter(card =>
+      WATER_KEYWORDS.some(w => card.name.includes(w))
+    ).length
+    if (waterCardCount === 3) {
+      unlockAchievement('combo_three_water')
+      return {
+        type: CombinationType.THREE_WATER,
+        name: '水过三秋',
+        description: '三张水意象卡，水过三秋',
+        bonus: '故事必现一场雨',
+        triggered: true,
+      }
+    }
+
+    // 5. 三绝品【凤毛麟角】— 三张都是 rarity=4（绝）
+    if (rarities.every(r => r === 4)) {
+      unlockAchievement('combo_three_legendary')
+      return {
+        type: CombinationType.THREE_LEGENDARY,
+        name: '凤毛麟角',
+        description: '三张绝稀有卡，绝品汇聚',
+        bonus: '生成故事专属藏头诗',
+        triggered: true,
+      }
+    }
+
+    return null
+  }
+
   // Check combination achievements
   function checkCombinationAchievements(
     keywordCards: Array<{ id: number; name: string; rarity: number; category: number }>,
@@ -226,14 +356,14 @@ export const useAchievementStore = defineStore('achievement', () => {
       unlockAchievement('combo_all_rarity')
     }
 
-    // P-02 稀有组合成就
-    // 物是人非: 三器物（category 全为 1）— 旧物仍在，人事已非
+    // P-02 稀有组合成就（牌库成就，非入局组合）
+    // 物是人非: 三器物（category 全为 1）
     const objectCards = allCards.filter(c => c.category === 1)
     if (objectCards.length >= 3) {
       unlockAchievement('combo_three_objects')
     }
 
-    // 百感交集: 三情绪（category 全为 4）— 悲欢离合，尽集于此
+    // 百感交集: 三情绪（category 全为 4）
     const emotionCards = allCards.filter(c => c.category === 4)
     if (emotionCards.length >= 3) {
       unlockAchievement('combo_three_emotions')
@@ -242,6 +372,27 @@ export const useAchievementStore = defineStore('achievement', () => {
     // 离人: 旧船票 + 渡口类事件（摆渡人/乌江渡）
     if (cardNames.has('旧船票') && (cardNames.has('摆渡人') || cardNames.has('乌江渡'))) {
       unlockAchievement('combo_departing_person')
+    }
+
+    // P-03 稀有组合成就
+    // 三水意象: 三张含水意象
+    const waterCardCount = allCards.filter(card =>
+      WATER_KEYWORDS.some(w => card.name.includes(w))
+    ).length
+    if (waterCardCount >= 3) {
+      unlockAchievement('combo_three_water')
+    }
+
+    // 三称谓: 三张 category=5
+    const titleCards = allCards.filter(c => c.category === 5)
+    if (titleCards.length >= 3) {
+      unlockAchievement('combo_three_titles')
+    }
+
+    // 三绝品: 三张 rarity=4
+    const legendaryCards = allCards.filter(c => c.rarity === 4)
+    if (legendaryCards.length >= 3) {
+      unlockAchievement('combo_three_legendary')
     }
   }
 
@@ -278,6 +429,7 @@ export const useAchievementStore = defineStore('achievement', () => {
     checkCollectionAchievements,
     checkDrawAchievements,
     checkStoryAchievements,
+    checkKeywordCombination,
     checkCombinationAchievements,
     loadFromStorage,
     syncToStorage,

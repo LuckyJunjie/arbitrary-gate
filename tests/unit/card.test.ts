@@ -1,7 +1,9 @@
 /**
- * Card.vue 单元测试 — ink fragrance fade animation
+ * Card.vue 单元测试 — ink bleed effect & ink fragrance fade animation
  *
  * 测试覆盖：
+ * - K-07 墨迹晕染等级 CSS 类（.ink-bleed-0 ~ .ink-bleed-3）
+ * - getInkBleedLevel 函数逻辑（inkValueStore.ts）
  * - @keyframes inkFade 定义存在于组件 scoped 样式中
  * - .fragrance-dot.filled 应用了 inkFade 动画（含 animation-fill-mode: both）
  * - 模板中 filled dot 有 ink-fade class、animationDelay stagger
@@ -19,6 +21,11 @@ const cardSrc = readFileSync(
   'utf-8'
 )
 
+const inkValueStoreSrc = readFileSync(
+  resolve(__dirname, '../../src/frontend/stores/inkValueStore.ts'),
+  'utf-8'
+)
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function extractScopedStyle(src: string): string {
@@ -26,7 +33,103 @@ function extractScopedStyle(src: string): string {
   return match ? match[1] : ''
 }
 
+function extractFunctionBody(src: string, fnName: string): string {
+  // Extract function body for manual evaluation
+  const match = src.match(new RegExp(`export\\s+function\\s+${fnName}\\s*\\([^)]*\\)\\s*[:{]\\s*([^}]+\\})`))
+  return match ? match[0] : ''
+}
+
 // ─── Tests ─────────────────────────────────────────────────────────────────────
+
+describe('K-07 getInkBleedLevel — inkValueStore.ts', () => {
+  it('defines getInkBleedLevel function', () => {
+    expect(inkValueStoreSrc).toMatch(/export\s+function\s+getInkBleedLevel/)
+  })
+
+  it('returns 3 when inkValue >= 5', () => {
+    const fnBody = extractFunctionBody(inkValueStoreSrc, 'getInkBleedLevel')
+    // Level 3: inkValue >= 5
+    expect(fnBody).toMatch(/inkValue\s*>=\s*5/)
+    expect(fnBody).toMatch(/return\s+3/)
+  })
+
+  it('returns 2 when inkValue >= 3 and < 5', () => {
+    const fnBody = extractFunctionBody(inkValueStoreSrc, 'getInkBleedLevel')
+    // Level 2: inkValue >= 3
+    expect(fnBody).toMatch(/inkValue\s*>=\s*3/)
+  })
+
+  it('returns 1 when inkValue >= 1 and < 3', () => {
+    const fnBody = extractFunctionBody(inkValueStoreSrc, 'getInkBleedLevel')
+    // Level 1: inkValue >= 1
+    expect(fnBody).toMatch(/inkValue\s*>=\s*1/)
+  })
+
+  it('returns 0 when inkValue < 1', () => {
+    const fnBody = extractFunctionBody(inkValueStoreSrc, 'getInkBleedLevel')
+    // Level 0: default return
+    expect(fnBody).toMatch(/return\s+0/)
+  })
+})
+
+describe('K-07 Card.vue — ink-bleed CSS classes', () => {
+  const style = extractScopedStyle(cardSrc)
+
+  it('defines .ink-bleed-3 class (heavy ink bleed)', () => {
+    expect(style).toMatch(/\.card\.ink-bleed-3\s*\{/)
+  })
+
+  it('.ink-bleed-3 applies strong box-shadow (rgba 0.4)', () => {
+    const rule = style.match(/\.card\.ink-bleed-3\s*\{[\s\S]*?\}/)?.[0] ?? ''
+    expect(rule).toMatch(/rgba\(30,\s*20,\s*10,\s*0\.4\)/)
+  })
+
+  it('defines .ink-bleed-2 class (medium ink bleed)', () => {
+    expect(style).toMatch(/\.card\.ink-bleed-2\s*\{/)
+  })
+
+  it('defines .ink-bleed-1 class (light ink bleed)', () => {
+    expect(style).toMatch(/\.card\.ink-bleed-1\s*\{/)
+  })
+
+  it('defines .ink-bleed-0 class (no ink bleed)', () => {
+    expect(style).toMatch(/\.card\.ink-bleed-0\s*\{/)
+  })
+
+  it('.ink-bleed-0 has minimal shadow (no ink effect)', () => {
+    const rule = style.match(/\.card\.ink-bleed-0\s*\{[\s\S]*?\}/)?.[0] ?? ''
+    // Should NOT contain the heavy ink color rgba(30,20,10,0.4)
+    expect(rule).not.toMatch(/rgba\(30,\s*20,\s*10,\s*0\.4\)/)
+    expect(rule).toMatch(/rgba\(0,\s*0,\s*0/)
+  })
+
+  it('template binds ink-bleed-{level} class via inkBleedLevel computed', () => {
+    expect(cardSrc).toMatch(/`ink-bleed-\$\{inkBleedLevel\}`/)
+  })
+
+  it('template binds class with rarity and flipped classes together', () => {
+    // e.g. :class="[`rarity-${rarity}`, `ink-bleed-${inkBleedLevel}`, { flipped: isFlipped }]"
+    expect(cardSrc).toMatch(/rarity-\$\{rarity\}/)
+    expect(cardSrc).toMatch(/ink-bleed-\$\{inkBleedLevel\}/)
+  })
+
+  it('inkBleedLevel computed uses getInkBleedLevel helper', () => {
+    expect(cardSrc).toMatch(/getInkBleedLevel\(inkFragrance\.value\)/)
+  })
+
+  it('inkBleedLevel computed falls back to props.inkBleedLevel if provided', () => {
+    expect(cardSrc).toMatch(/props\.inkBleedLevel\s*!==\s*undefined/)
+  })
+
+  it('defines inkBleedLevel prop (optional, 0-3 union type)', () => {
+    expect(cardSrc).toMatch(/inkBleedLevel\??:\s*0\s*\|\s*1\s*\|\s*2\s*\|\s*3/)
+  })
+
+  it('稀有度 3-4 with ink-bleed-3 has golden glow shadow', () => {
+    const rule = style.match(/\.card\.rarity-3\.ink-bleed-3[\s\S]*?\}/)?.[0] ?? ''
+    expect(rule).toMatch(/rgba\(201,\s*168,\s*76/)
+  })
+})
 
 describe('Card.vue — ink fragrance fade animation CSS', () => {
   const style = extractScopedStyle(cardSrc)

@@ -14,6 +14,7 @@ import {
   type Chapter,
   type Manuscript,
 } from '@/services/api'
+import type { CombinationAchievement } from './achievementStore'
 
 // ===== 断线重连配置 =====
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000] // 指数退避：1s/2s/4s/8s
@@ -29,6 +30,9 @@ export const useStoryStore = defineStore('story', () => {
   const isLoadingChapter = ref(false)
   const isLoadingManuscript = ref(false)
   const error = ref<string | null>(null)
+
+  // P-03 稀有组合检测结果（入局时检测）
+  const activeCombination = ref<CombinationAchievement | null>(null)
 
   // 历史偏离度追踪
   const historyDeviation = computed(() => currentStory.value?.historyDeviation ?? 0)
@@ -394,6 +398,7 @@ export const useStoryStore = defineStore('story', () => {
     entryAnswers.value = []
     keywordResonance.value = {}
     error.value = null
+    activeCombination.value = null
     disconnectStream()
   }
 
@@ -406,6 +411,13 @@ export const useStoryStore = defineStore('story', () => {
       const key = Number(kid)
       keywordResonance.value[key] = (keywordResonance.value[key] ?? 0) + val
     })
+  }
+
+  /**
+   * 设置当前故事的稀有组合类型（P-03）
+   */
+  function setActiveCombination(combo: CombinationAchievement | null) {
+    activeCombination.value = combo
   }
 
   return {
@@ -422,6 +434,8 @@ export const useStoryStore = defineStore('story', () => {
     isLoadingChapter,
     isLoadingManuscript,
     error,
+    // P-03 稀有组合
+    activeCombination,
     // S-16 Stream state
     wsStatus,
     ws,
@@ -436,6 +450,7 @@ export const useStoryStore = defineStore('story', () => {
     setCurrentStory,
     clearCurrentStory,
     updateKeywordResonance,
+    setActiveCombination,
     // S-14 Actions
     submitEncounterChoice,
     // S-16 Actions

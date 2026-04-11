@@ -9,6 +9,7 @@ import com.timespace.module.story.service.StoryOrchestrationService;
 import com.timespace.module.story.service.StoryOrchestrationService.StartStoryVO;
 import com.timespace.module.story.service.StoryOrchestrationService.ChooseResultVO;
 import com.timespace.module.story.service.StoryOrchestrationService.EncounterChoiceResultVO;
+import com.timespace.module.story.service.StoryOrchestrationService.EncounterVO;
 import com.timespace.module.story.service.StoryOrchestrationService.FinishStoryVO;
 import com.timespace.module.story.service.StoryOrchestrationService.StoryDetailVO;
 import jakarta.validation.Valid;
@@ -288,6 +289,25 @@ public class StoryController {
     // ========== S-14 偶遇支线 ========== //
 
     /**
+     * POST /api/story/encounter/trigger
+     * 手动触发偶遇（绕过30%概率），用于测试或特定剧情节点
+     *
+     * 请求：
+     * {
+     *   "storyId": 123,
+     *   "chapterNo": 2
+     * }
+     */
+    @PostMapping("/encounter/trigger")
+    public Result<EncounterVO> triggerEncounter(@RequestBody EncounterTriggerRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("[S-14] 手动触发偶遇请求: userId={}, storyId={}, chapterNo={}",
+                userId, request.getStoryId(), request.getChapterNo());
+        EncounterVO vo = storyService.maybeTriggerEncounter(request.getStoryId(), request.getChapterNo());
+        return Result.ok(vo);
+    }
+
+    /**
      * POST /api/story/{id}/encounter/choice
      * 提交偶遇选择（搭话A / 装没看见B），影响命运值
      *
@@ -332,6 +352,12 @@ public class StoryController {
         private Long encounterId;
         /** 'A' = 搭话(+10命运值), 'B' = 装作没看见(-5命运值) */
         private String choice;
+    }
+
+    @Data
+    public static class EncounterTriggerRequest {
+        private Long storyId;
+        private Integer chapterNo;
     }
 
     @Data
