@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
-import { aiPainter, previewJudgment, recycleCard } from '@/services/api'
+import { aiPainter, generateVerdict, recycleCard } from '@/services/api'
 import { playBrushTap } from '@/composables/useSound'
 import Card from '@/components/Card.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
@@ -22,7 +22,9 @@ const MAX_KEYWORD_SELECT = 3
 
 // ── P-01 组合判词预览 ──
 const showJudgmentPreview = ref(false)
-const judgmentText = ref('')
+const verdictText = ref('')
+const verdictKeywords = ref('')
+const verdictEvent = ref('')
 const isLoadingJudgment = ref(false)
 
 // ── C-12 陈卡回炉 ──
@@ -134,17 +136,21 @@ async function goToEntryQuestions() {
   localStorage.setItem('selectedKeywordCards', JSON.stringify(selectedKeywordCards.value))
   localStorage.setItem('selectedEventCard', JSON.stringify(selectedEventCard.value))
 
-  // P-01: 调用 AI 生成组合判词
+  // P-01: 调用 AI 生成组合判词（完整版 VerdictVO）
   isLoadingJudgment.value = true
   try {
-    const res = await previewJudgment({
+    const res = await generateVerdict({
       keywordIds: selectedKeywordCards.value.map(c => c.id),
       eventId: selectedEventCard.value?.id,
     })
-    judgmentText.value = res.judgment ?? '墨中藏命，缘起无形。'
+    verdictText.value = res.verdict ?? '墨中藏命，缘起无形。'
+    verdictKeywords.value = res.keywords ?? ''
+    verdictEvent.value = res.event ?? ''
   } catch (err) {
-    console.warn('[CardsView] previewJudgment failed, using fallback:', err)
-    judgmentText.value = '墨中藏命，缘起无形。'
+    console.warn('[CardsView] generateVerdict failed, using fallback:', err)
+    verdictText.value = '墨中藏命，缘起无形。'
+    verdictKeywords.value = ''
+    verdictEvent.value = ''
   } finally {
     isLoadingJudgment.value = false
   }
@@ -343,7 +349,10 @@ async function generateAICardImage() {
     <!-- P-01 组合判词预览浮层 -->
     <JudgmentPreview
       :visible="showJudgmentPreview"
-      :judgment="judgmentText"
+      :verdict="verdictText"
+      :keywords="verdictKeywords"
+      :event="verdictEvent"
+      :loading="isLoadingJudgment"
       @confirm="onJudgmentConfirm"
       @cancel="onJudgmentCancel"
     />

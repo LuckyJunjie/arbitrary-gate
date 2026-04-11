@@ -4,6 +4,11 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.timespace.common.exception.BusinessException;
 import com.timespace.common.exception.GlobalExceptionHandler.Result;
 import com.timespace.module.card.service.CardService;
+import com.timespace.module.card.entity.EventCard;
+import com.timespace.module.card.entity.KeywordCard;
+import com.timespace.module.card.mapper.EventCardMapper;
+import com.timespace.module.card.mapper.KeywordCardMapper;
+import com.timespace.module.ai.agent.JudgeAgent;
 import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.service.StoryOrchestrationService;
 import com.timespace.module.story.service.StoryOrchestrationService.StartStoryVO;
@@ -22,6 +27,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -31,6 +37,9 @@ public class StoryController {
 
     private final StoryOrchestrationService storyService;
     private final CardService cardService;
+    private final JudgeAgent judgeAgent;
+    private final KeywordCardMapper keywordCardMapper;
+    private final EventCardMapper eventCardMapper;
 
     // ========== SSE 流式端点 ==========
 
@@ -455,6 +464,64 @@ public class StoryController {
         return Result.ok(new PreviewJudgmentVO(result.judgment()));
     }
 
+    /**
+     * POST /api/story/verdict
+     * P-01: 入局判词生成（返回完整 VerdictVO，含 keywords + event）
+     *
+     * 请求：
+     * {
+     *   "keywordIds": [1, 2, 3],
+     *   "eventId": 101
+     * }
+     *
+     * 响应：
+     * {
+     *   "verdict": "风云将起，汝择的路，或重于泰山，或轻于鸿毛。",
+     *   "keywords": "铜锁、旧伞、残笔",
+     *   "event": "巨鹿·破釜沉舟"
+     * }
+     */
+    @PostMapping("/verdict")
+    public Result<VerdictVO> generateVerdict(@RequestBody VerdictRequest request) {
+        long userId = StpUtil.getLoginIdAsLong();
+        log.info("[P-01] 入局判词生成请求: userId={}, keywordIds={}, eventId={}",
+                userId, request.getKeywordIds(), request.getEventId());
+
+        // 查询关键词卡名称（保持传入顺序）
+        List<String> keywordNames = List.of();
+        if (request.getKeywordIds() != null && !request.getKeywordIds().isEmpty()) {
+            try {
+                List<KeywordCard> cards = keywordCardMapper.selectBatchIds(request.getKeywordIds());
+                final List<Long> ids = request.getKeywordIds();
+                keywordNames = cards.stream()
+                        .sorted((a, b) -> Integer.compare(ids.indexOf(a.getId()), ids.indexOf(b.getId())))
+                        .map(KeywordCard::getName)
+                        .collect(Collectors.toList());
+            } catch (Exception e) {
+                log.warn("[P-01] 关键词卡查询失败: {}", e.getMessage());
+            }
+        }
+
+        // 查询事件卡标题
+        String eventTitle = "";
+        if (request.getEventId() != null) {
+            try {
+                EventCard eventCard = eventCardMapper.selectById(request.getEventId());
+                if (eventCard != null) {
+                    eventTitle = eventCard.getTitle();
+                }
+            } catch (Exception e) {
+                log.warn("[P-01] 事件卡查询失败: {}", e.getMessage());
+            }
+        }
+
+        // 调用判官 Agent 生成判词
+        JudgeAgent.VerdictResult result = judgeAgent.generateVerdict(keywordNames, eventTitle);
+        return Result.ok(new VerdictVO(result.verdict(), result.keywords(), result.event()));
+    }
+
+    // ========== P-01 DTO ==========
+
     @Data
     public static class PreviewJudgmentRequest {
         /** 3 个关键词卡的 user_keyword_card IDs */
@@ -467,5 +534,31 @@ public class StoryController {
     public static class PreviewJudgmentVO {
         private String judgment;
         public PreviewJudgmentVO(String judgment) { this.judgment = judgment; }
+    }
+
+    @Data
+    public static class VerdictRequest {
+        private List<Long> keywordIds;
+        private Long eventId;
+    }
+
+    /**
+     * P-01 判词 VO
+     * 返回完整的判词信息，供前端 JudgmentPreview 浮层展示
+     */
+    @Data
+    public static class VerdictVO {
+        /** 判词正文 */
+        private String verdict;
+        /** 关键词原文（逗号分隔） */
+        private String keywords;
+        /** 事件标题 */
+        private String event;
+
+        public VerdictVO(String verdict, String keywords, String event) {
+            this.verdict = verdict;
+            this.keywords = keywords;
+            this.event = event;
+        }
     }
 }

@@ -82,6 +82,68 @@ public class JudgeAgent {
     // AI-07: 运行时 Prompt 模板（从 DB 加载）
     private String evaluationSystemPromptTemplate;
 
+    // P-01: 入局判词默认 Prompt
+    private static final String DEFAULT_VERDICT_SYSTEM_PROMPT = """
+            你是一位古代判官，擅长用古文写判词。判词应简洁有力，半文半白，20字以内。
+            """;
+
+    private String verdictSystemPromptTemplate;
+
+    /**
+     * P-01 生成入局判词
+     * 用户选定 3 张关键词卡 + 1 张历史事件卡后，在入局前 AI 生成一段极简判词，暗示故事走向。
+     *
+     * @param keywords 3张关键词卡名称列表
+     * @param eventTitle 历史事件标题
+     * @return 判词结果（包含判词 + 原始输入）
+     */
+    public VerdictResult generateVerdict(List<String> keywords, String eventTitle) {
+        log.info("[P-01] 生成入局判词: keywords={}, eventTitle={}", keywords, eventTitle);
+
+        String keywordText = keywords == null || keywords.isEmpty()
+                ? "无" : String.join("、", keywords);
+        String eventText = (eventTitle == null || eventTitle.isBlank())
+                ? "无" : eventTitle;
+
+        String userPrompt = String.format("""
+                三张关键词：%s，历史事件：%s。
+                请用一句判词（20字以内）暗示这组卡可能产生的故事走向，
+                用判官口吻，半文半白。只返回一句判词，不要解释，不要引号，不要括号。
+                """,
+                keywordText, eventText);
+
+        String systemPrompt = verdictSystemPromptTemplate != null
+                ? verdictSystemPromptTemplate : DEFAULT_VERDICT_SYSTEM_PROMPT;
+
+        try {
+            String judgment = aiClient.callSync(systemPrompt, userPrompt);
+            // 清洗
+            judgment = judgment.trim()
+                    .replaceAll("^[\"'「『\\[\\s]+", "")
+                    .replaceAll("[\"'」』\\]\\s]+$", "");
+            if (judgment.length() > 25) {
+                judgment = judgment.substring(0, 25);
+            }
+            if (judgment.isBlank()) {
+                judgment = "墨中藏命，缘起无形。";
+            }
+            log.info("[P-01] 判词生成成功: {}", judgment);
+            return new VerdictResult(judgment, keywordText, eventText);
+        } catch (Exception e) {
+            log.warn("[P-01] 判词生成失败，降级为兜底文案: {}", e.getMessage());
+            return new VerdictResult("墨中藏命，缘起无形。", keywordText, eventText);
+        }
+    }
+
+    /**
+     * P-01 判词结果
+     *
+     * @param verdict  判词文本
+     * @param keywords 关键词列表原文
+     * @param event    事件标题原文
+     */
+    public record VerdictResult(String verdict, String keywords, String event) {}
+
     /**
      * 评估用户选择
      *
@@ -118,6 +180,13 @@ public class JudgeAgent {
                 DEFAULT_EVALUATION_SYSTEM_PROMPT
         );
         log.info("[AI-07] 评估系统 Prompt 加载完成, length={}", evaluationSystemPromptTemplate.length());
+
+        this.verdictSystemPromptTemplate = promptTemplateService.getPromptTextOrDefault(
+                AiPromptTemplateService.AGENT_JUDGE,
+                "verdict_system",
+                DEFAULT_VERDICT_SYSTEM_PROMPT
+        );
+        log.info("[P-01] 入局判词 Prompt 加载完成, length={}", verdictSystemPromptTemplate.length());
     }
 
     private String buildEvaluationSystemPrompt(Story story,

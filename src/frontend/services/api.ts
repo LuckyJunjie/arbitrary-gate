@@ -229,6 +229,22 @@ export async function previewJudgment(payload: PreviewJudgmentRequest): Promise<
   return api.post('/card/preview', payload)
 }
 
+// P-01 入局判词（完整版）
+export interface VerdictVO {
+  verdict: string
+  keywords: string
+  event: string
+}
+
+/**
+ * POST /api/story/verdict
+ * P-01: 入局判词生成（返回完整 VerdictVO，含 verdict + keywords + event）
+ * 用于 JudgmentPreview 浮层展示
+ */
+export async function generateVerdict(payload: PreviewJudgmentRequest): Promise<VerdictVO> {
+  return api.post('/story/verdict', payload)
+}
+
 // 获取历史事件列表
 export async function fetchHistoryEvents(): Promise<HistoryEvent[]> {
   return api.get('/events')

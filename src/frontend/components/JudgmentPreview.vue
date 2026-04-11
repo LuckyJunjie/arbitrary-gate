@@ -2,7 +2,14 @@
 import { ref, watch } from 'vue'
 
 const props = defineProps<{
-  judgment: string
+  /** 判词正文 */
+  verdict: string
+  /** 关键词原文（逗号分隔） */
+  keywords: string
+  /** 历史事件标题 */
+  event: string
+  /** 加载状态 */
+  loading: boolean
   visible: boolean
 }>()
 
@@ -15,7 +22,6 @@ const isAnimating = ref(false)
 
 watch(() => props.visible, (val) => {
   if (val) {
-    // 触发入场动画
     isAnimating.value = false
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -45,21 +51,43 @@ function handleCancel() {
           <div class="deco-line top" />
           <div class="deco-line bottom" />
 
-          <!-- 判词标题 -->
+          <!-- 判字标签 -->
           <div class="judgment-label">判</div>
 
           <!-- 竖排判词 -->
           <div class="judgment-text-wrapper">
-            <p class="judgment-text" data-testid="judgment-text">{{ judgment }}</p>
+            <p class="judgment-text" data-testid="judgment-text">
+              {{ loading ? '墨中潜心...' : verdict }}
+            </p>
           </div>
 
-          <!-- 底部操作 -->
+          <!-- 关键词 + 事件标签（入局前暗示） -->
+          <div class="verdict-meta" v-if="!loading">
+            <span class="meta-tag" v-if="keywords">
+              <span class="meta-dot" />
+              {{ keywords }}
+            </span>
+            <span class="meta-sep" v-if="keywords && event"> · </span>
+            <span class="meta-tag event-tag" v-if="event">
+              <span class="meta-dot event-dot" />
+              {{ event }}
+            </span>
+          </div>
+
+          <!-- 加载状态 -->
+          <div class="loading-indicator" v-if="loading">
+            <div class="loading-dot" />
+            <div class="loading-dot" />
+            <div class="loading-dot" />
+          </div>
+
+          <!-- 操作按钮 -->
           <div class="judgment-actions">
             <button class="cancel-btn" data-testid="judgment-cancel-btn" @click="handleCancel">
               返回修改
             </button>
-            <button class="confirm-btn" data-testid="judgment-confirm-btn" @click="handleConfirm">
-              入局
+            <button class="confirm-btn" data-testid="judgment-confirm-btn" @click="handleConfirm" :disabled="loading">
+              {{ loading ? '判官沉吟中...' : '入局' }}
             </button>
           </div>
         </div>
@@ -92,7 +120,7 @@ function handleCancel() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.2rem;
   padding: 3rem 2.5rem 2.5rem;
   max-width: 340px;
   width: 100%;
@@ -150,7 +178,7 @@ function handleCancel() {
   align-items: center;
   justify-content: center;
   min-height: 120px;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
 }
 
 .judgment-text {
@@ -164,8 +192,75 @@ function handleCancel() {
   line-height: 2.2;
   margin: 0;
   text-align: center;
-  /* 墨迹质感 */
   text-shadow: 0 0 8px rgba(180, 96, 48, 0.3);
+  transition: opacity 0.3s ease;
+}
+
+/* 元信息区（关键词 + 事件） */
+.verdict-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: rgba(180, 140, 100, 0.65);
+  letter-spacing: 0.08em;
+  padding: 0 0.5rem;
+  text-align: center;
+}
+
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.meta-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(180, 120, 60, 0.5);
+  flex-shrink: 0;
+}
+
+.event-dot {
+  background: rgba(160, 80, 40, 0.5);
+}
+
+.meta-sep {
+  color: rgba(139, 115, 85, 0.4);
+  margin: 0 0.1rem;
+}
+
+/* 加载指示器（三点墨滴） */
+.loading-indicator {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0;
+}
+
+.loading-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(180, 120, 60, 0.5);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-4px); opacity: 1; }
 }
 
 /* 操作按钮 */
@@ -174,6 +269,7 @@ function handleCancel() {
   gap: 1rem;
   width: 100%;
   justify-content: center;
+  margin-top: 0.25rem;
 }
 
 .cancel-btn {
@@ -211,11 +307,16 @@ function handleCancel() {
   transition: all 0.25s;
 }
 
-.confirm-btn:hover {
+.confirm-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #6b4520, #4a2e18);
   border-color: rgba(201, 168, 76, 0.8);
   color: #e8dcc8;
   box-shadow: 0 0 12px rgba(201, 168, 76, 0.2);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Transition */
