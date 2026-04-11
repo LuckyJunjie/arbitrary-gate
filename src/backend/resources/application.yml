@@ -128,7 +128,11 @@ timespace:
     deviation-penalty: 5          # 每次偏离惩罚
   # 分享配置
   share:
-    code-length: 8                # 分享码长度
+    code-length: 8              # 分享码长度
+  # 微信 JSSDK 配置（SH-05）
+  wechat:
+    app-id: ${WECHAT_APP_ID:}
+    app-secret: ${WECHAT_APP_SECRET:}
 
 # 日志配置
 logging:

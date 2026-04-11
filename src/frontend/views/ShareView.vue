@@ -3,6 +3,8 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchShareInfo, jointShare, fetchSpecialCards, type ShareInfoResponse, type SpecialCard } from '../services/api'
 import { playJadeClick } from '@/composables/useSound'
+import { initWeChatJSSDK, isWeChatBrowser } from '@/services/wechat'
+import { useWeChatShare } from '@/composables/useWeChatShare'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +52,27 @@ const categoryNames: Record<number, string> = {
   1: '器物', 2: '职人', 3: '风物', 4: '情绪', 5: '称谓'
 }
 
+// SH-05: 初始化微信分享
+const { setupShare } = useWeChatShare()
+
+async function initWeChatShare() {
+  if (!isWeChatBrowser()) return
+  try {
+    await initWeChatJSSDK()
+    if (shareInfo.value) {
+      const shareData = {
+        title: `《${shareInfo.value.storyTitle}》- 时光笺`,
+        desc: `我在时光笺经历了一段 ${shareInfo.value.cardName} 的故事，期待与你合券共续前缘！`,
+        link: `${window.location.origin}/share/${shareInfo.value.shareCode}`,
+        imgUrl: `${window.location.origin}/assets/share-card.jpg`,
+      }
+      setupShare(shareData)
+    }
+  } catch (err) {
+    console.error('[ShareView] 微信 JSSDK 初始化失败', err)
+  }
+}
+
 // 获取分享信息
 async function loadShareInfo() {
   if (!shareCode) {
@@ -79,6 +102,9 @@ async function loadShareInfo() {
   } finally {
     isLoading.value = false
   }
+
+  // SH-05: 分享信息加载完毕后，初始化微信分享
+  await initWeChatShare()
 }
 
 // 加载用户可选的关键词卡（用于合券）

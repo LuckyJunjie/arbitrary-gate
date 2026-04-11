@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,13 +33,14 @@ public class WeChatService {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final RestTemplateWrapper restTemplate;
 
     @Value("${timespace.wechat.app-id:#{null}}")
     private String appId;
 
     @Value("${timespace.wechat.app-secret:#{null}}")
     private String appSecret;
+
+    private final RestTemplate httpTemplate = new RestTemplate();
 
     /**
      * 获取 access_token（优先从 Redis 缓存获取）
@@ -61,7 +63,7 @@ public class WeChatService {
                 appId, appSecret);
 
         try {
-            String resp = restTemplate.getForObject(url, String.class);
+            String resp = httpTemplate.getForObject(url, String.class);
             JsonNode node = objectMapper.readTree(resp);
             if (node.has("access_token")) {
                 String token = node.get("access_token").asText();
@@ -97,7 +99,7 @@ public class WeChatService {
         String url = "https://api.weixin.qq.com/cgi-bin/ticket/getticket?access_token=" + token + "&type=jsapi";
 
         try {
-            String resp = restTemplate.getForObject(url, String.class);
+            String resp = httpTemplate.getForObject(url, String.class);
             JsonNode node = objectMapper.readTree(resp);
             if ("0".equals(node.path("errcode").asText())) {
                 String ticket = node.get("ticket").asText();
@@ -120,7 +122,8 @@ public class WeChatService {
     /**
      * 生成 JSSDK 签名
      *
-     * @param url 当前页面 URL（必须是 JSSDK 初始化时调用 config 的页面 URL）
+     * @param url 当前页面 URL（必须是调用 wx.config 的页面的 URL，
+     *            需在微信公众号后台已配置 JS 安全域名）
      * @return 签名所需的参数（appId, timestamp, nonceStr, signature）
      */
     public Map<String, String> buildJsapiConfig(String url) {
@@ -144,19 +147,5 @@ public class WeChatService {
 
         log.debug("JSSDK 签名生成完毕，url={}", url);
         return config;
-    }
-
-    /**
-     * 简易 RestTemplate 封装（避免额外依赖）
-     * 实际项目建议使用 WebClient 或 RestTemplate Bean
-     */
-    @lombok.Component
-    @RequiredArgsConstructor
-    public static class RestTemplateWrapper {
-        private final org.springframework.web.client.RestTemplate restTemplate;
-
-        public <T> T getForObject(String url, Class<T> type) {
-            return restTemplate.getForObject(url, type);
-        }
     }
 }
