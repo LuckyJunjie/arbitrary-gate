@@ -95,7 +95,7 @@
 | S-10 | 手势代替按钮选项 | P1 | ✅ 已有 | useGesture composable（滑动/画圈） |
 | S-11 | 手势轻重缓急（慢滑+快点+长按） | P1 | ✅ 已有 | gestureIntensity → buildGestureGuidance(gentle/urgent/forceful) 影响叙事口吻 |
 | S-12 | 涟漪波纹可视化动画 | P1 | ✅ 已有 | RippleEffect Canvas 多点扩散物理动画 |
-| S-13 | 关键词"显灵"特写 | P2 | ⏳ 进行中 | sub-agent 处理中: 后端 JudgeAgent 返回 enlightenmentText + 前端全屏显灵动画 |
+| S-13 | 关键词"显灵"特写 | P2 | ✅ 已有 | 后端 JudgeAgent 返回 enlightenmentText + StoryOrchestrationService SSE推送 + StoryView.vue 全屏显灵动画（grayscale→彩色 1.5s）+ CardServiceTest |
 | S-14 | 配角偶遇支线（章节间随机触发） | P2 | ✅ 已有 | StoryView.vue encounter-overlay UI + storyStore.submitEncounterChoice() + 后端偶遇生成逻辑 |
 | S-15 | 卷轴竖向排版阅读 | P0 | ✅ 已有 | StoryView 卷轴界面 |
 | S-16 | 断线重连内容不丢失 | P1 | ⚠️ 部分 | localStorage 有缓存，完整重连方案不确定 |
@@ -250,5 +250,5 @@
 
 1. **P0 基本完成（100%）**：AI内容安全检测(AI-08)已完成，关键词卡池(D-01)已完成，剩余 D-02 历史事件卡池待做
 2. **P1 核心体验接近完成（86%）**：UI-08 进度墨线、UI-10 逐字渲染、UI-11 触感反馈、P-02 组合成就、S-14 偶遇支线均已实现，P1 达成率从75%提升至86%
-3. **P2 社交传播大幅推进（37%完成）**：B-04 山河图、S-14 偶遇支线、P-02 组合成就已实现，S-13 显灵特写由 sub-agent 处理中
+3. **P2 社交传播大幅推进（37%完成）**：B-04 山河图、S-14 偶遇支线、P-02 组合成就、S-13 关键词显灵特写均已实现
 4. **P3 体感增强基本待做**：音效系统、窗格光影、Service Worker 离线缓存
