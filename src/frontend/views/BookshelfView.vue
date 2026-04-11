@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
-type ViewMode = 'grid' | 'timeline' | 'map'
+type ViewMode = 'grid' | 'timeline' | 'map' | 'bookshelf'
 type SortMode = 'date' | 'deviation' | 'words'
 type FilterStatus = 'all' | 'completed' | 'in_progress'
 
@@ -413,7 +413,7 @@ onMounted(() => {
             :data-testid="`view-toggle-${mode === 'grid' ? 'grid' : mode}`"
             @click="viewMode = mode"
           >
-            {{ { grid: '格子', timeline: '时光轴', map: '山河图' }[mode] }}
+            {{ { grid: '格子', timeline: '时光轴', map: '山河图', bookshelf: '📚 书架' }[mode] }}
           </button>
         </div>
       </div>
@@ -806,6 +806,119 @@ onMounted(() => {
           </svg>
         </div>
       </template>
+    </div>
+
+    <!-- 老式书架视图 -->
+    <div v-if="viewMode === 'bookshelf'" class="bookshelf-old-view" data-testid="bookshelf-old-view">
+      <!-- 书架整体背景（深色木质） -->
+      <div class="old-bookshelf-bg">
+        <!-- 书架装饰层（顶部花瓶/摆件） -->
+        <div class="shelf-top-decor">
+          <div class="decor-vase">
+            <svg viewBox="0 0 40 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="20" cy="55" rx="12" ry="4" fill="#6b4226"/>
+              <path d="M10 55 Q8 35 12 20 Q16 10 20 8 Q24 10 28 20 Q32 35 30 55Z" fill="#c4785a" opacity="0.85"/>
+              <path d="M15 8 Q20 3 25 8" stroke="#5a8a5a" stroke-width="1.5" fill="none"/>
+              <ellipse cx="20" cy="6" rx="4" ry="2" fill="#5a8a5a" opacity="0.7"/>
+            </svg>
+          </div>
+          <div class="decor-scroll">
+            <svg viewBox="0 0 50 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="5" width="46" height="20" rx="2" fill="#e8d5c4" opacity="0.8"/>
+              <rect x="2" y="5" width="6" height="20" rx="1" fill="#d4b98a"/>
+              <rect x="42" y="5" width="6" height="20" rx="1" fill="#d4b98a"/>
+              <line x1="12" y1="10" x2="38" y2="10" stroke="#8b7355" stroke-width="0.75" opacity="0.4"/>
+              <line x1="12" y1="14" x2="35" y2="14" stroke="#8b7355" stroke-width="0.75" opacity="0.4"/>
+              <line x1="12" y1="18" x2="30" y2="18" stroke="#8b7355" stroke-width="0.75" opacity="0.4"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- 书架行 -->
+        <template v-if="bookshelfRows.length > 0">
+          <div
+            v-for="(row, rowIdx) in bookshelfRows"
+            :key="rowIdx"
+            class="old-bookshelf-row"
+          >
+            <!-- 书架背板（木质深色） -->
+            <div class="shelf-back-panel"></div>
+
+            <!-- 书籍层（带前后层次阴影） -->
+            <div class="old-books-layer">
+              <!-- 前排书籍（书脊朝外） -->
+              <div class="old-books-row">
+                <div
+                  v-for="story in row"
+                  :key="story.id"
+                  class="old-book-spine"
+                  :class="{ completed: story.status === 2, 'in-progress': story.status === 1 }"
+                  :style="{
+                    height: spineHeight(story.wordCount) + 'px',
+                    // 根据偏离度调整书脊颜色深浅
+                    filter: story.historyDeviation !== 0
+                      ? `brightness(${1 - Math.min(Math.abs(story.historyDeviation) * 0.01, 0.3)})`
+                      : 'none'
+                  }"
+                  data-testid="old-story-card"
+                  :data-status="story.status === 2 ? 'completed' : 'in_progress'"
+                  @click="openDetail(story)"
+                >
+                  <!-- 书脊顶部色带 -->
+                  <div class="old-spine-top-band"></div>
+
+                  <!-- 题签（手写风格竖排） -->
+                  <div class="old-spine-title-slip">
+                    <div class="old-slip-bg"></div>
+                    <span class="old-slip-title" data-testid="old-story-title">{{ story.title }}</span>
+                  </div>
+
+                  <!-- 题签装饰线 -->
+                  <div class="old-slip-divider"></div>
+
+                  <!-- 关键词/标签 -->
+                  <div class="old-spine-keyword" data-testid="old-story-keyword">
+                    {{ story.keywords?.[0]?.name ?? story.eventName ?? '' }}
+                  </div>
+
+                  <!-- 书脊底部：朱红印鉴（仅已完成） -->
+                  <div v-if="story.status === 2" class="old-seal-mark" title="已完成">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="1" y="1" width="22" height="22" rx="2" stroke="#B22222" stroke-width="1.5"/>
+                      <rect x="3" y="3" width="18" height="18" rx="1" stroke="#B22222" stroke-width="0.5" stroke-dasharray="2 2"/>
+                      <text x="12" y="15" text-anchor="middle" font-size="7" fill="#B22222" font-family="serif">完</text>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 书架横梁（层与层之间的木板） -->
+            <div class="shelf-beam"></div>
+          </div>
+        </template>
+
+        <template v-else-if="isEmpty">
+          <div class="old-empty-bookshelf">
+            <p class="empty-hint" data-testid="empty-bookshelf-message">书架空空，暂无故事记录</p>
+            <button class="start-btn" data-testid="start-new-story-button" @click="startNewStory">开始新故事</button>
+          </div>
+        </template>
+
+        <template v-else>
+          <p class="empty-hint">没有符合筛选条件的记录</p>
+        </template>
+
+        <!-- 底层抽屉装饰 -->
+        <div class="shelf-bottom-drawers">
+          <div class="drawer-face">
+            <div class="drawer-handle"></div>
+          </div>
+          <div class="drawer-face">
+            <div class="drawer-handle"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 故事详情面板 -->
@@ -1864,5 +1977,366 @@ onMounted(() => {
   background: #c0392b;
   color: #f5efe0;
   border-color: #c0392b;
+}
+
+/* =============================================
+   老式书架视图（bookshelf 模式）
+   ============================================= */
+
+.old-bookshelf-bg {
+  min-height: calc(100vh - 120px);
+  padding-bottom: 2rem;
+  /* 深色木质纹理背景 */
+  background:
+    /* 横向木纹 */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 4px,
+      rgba(0, 0, 0, 0.04) 4px,
+      rgba(0, 0, 0, 0.04) 5px
+    ),
+    /* 纵向纹理叠加 */
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 20px,
+      rgba(0, 0, 0, 0.03) 20px,
+      rgba(0, 0, 0, 0.03) 22px
+    ),
+    /* 深色渐变底色 */
+    linear-gradient(
+      180deg,
+      #2c1810 0%,
+      #3d2415 20%,
+      #2c1810 40%,
+      #3d2415 60%,
+      #2c1810 80%,
+      #1a0f0a 100%
+    );
+  position: relative;
+}
+
+/* 顶层装饰 */
+.shelf-top-decor {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  padding: 1.5rem 2rem 0;
+  height: 80px;
+}
+
+.decor-vase {
+  width: 40px;
+  height: 60px;
+  opacity: 0.85;
+}
+
+.decor-scroll {
+  width: 50px;
+  height: 30px;
+  opacity: 0.8;
+}
+
+/* 书架行 */
+.old-bookshelf-row {
+  position: relative;
+  margin: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* 书架背板（深色木质） */
+.shelf-back-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(0, 0, 0, 0.06) 8px,
+      rgba(0, 0, 0, 0.06) 10px
+    ),
+    linear-gradient(
+      180deg,
+      #3a2010 0%,
+      #2a1508 30%,
+      #3a2010 60%,
+      #2a1508 100%
+    );
+  border-radius: 2px;
+  z-index: 0;
+}
+
+/* 书籍层（带层次感阴影） */
+.old-books-layer {
+  position: relative;
+  z-index: 1;
+  padding: 0 6px;
+  /* 底部阴影营造前排感 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.old-books-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  padding-bottom: 2px;
+}
+
+/* 书脊 */
+.old-book-spine {
+  position: relative;
+  width: 40px;
+  min-width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 2px 2px 0 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+  /* 宣纸质感暖色书脊 */
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.02) 3px,
+      rgba(0, 0, 0, 0.02) 4px
+    ),
+    linear-gradient(
+      90deg,
+      #f5e6d3 0%,
+      #e8d5c4 30%,
+      #dcc8b5 60%,
+      #e8d5c4 100%
+    );
+  box-shadow:
+    inset 2px 0 4px rgba(0, 0, 0, 0.15),
+    inset -1px 0 3px rgba(255, 220, 160, 0.1),
+    3px 0 6px rgba(0, 0, 0, 0.3),
+    -1px 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.old-book-spine:hover {
+  transform: translateY(-8px);
+  box-shadow:
+    inset 2px 0 4px rgba(0, 0, 0, 0.15),
+    inset -1px 0 3px rgba(255, 220, 160, 0.1),
+    0 12px 20px rgba(0, 0, 0, 0.4),
+    -1px 0 2px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.old-book-spine.completed {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.03) 3px,
+      rgba(0, 0, 0, 0.03) 4px
+    ),
+    linear-gradient(
+      90deg,
+      #f0e0c8 0%,
+      #e0ccb0 30%,
+      #d4bfa0 60%,
+      #e0ccb0 100%
+    );
+}
+
+.old-book-spine.in-progress {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.02) 3px,
+      rgba(0, 0, 0, 0.02) 4px
+    ),
+    linear-gradient(
+      90deg,
+      #e8f0e0 0%,
+      #d8e4cc 30%,
+      #ccd8bc 60%,
+      #d8e4cc 100%
+    );
+}
+
+/* 书脊顶部色带 */
+.old-spine-top-band {
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(180deg, #5c3a20, #8b5a2b);
+  border-radius: 2px 2px 0 0;
+  flex-shrink: 0;
+}
+
+/* 题签 */
+.old-spine-title-slip {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 6px 4px;
+  overflow: hidden;
+}
+
+.old-slip-bg {
+  position: absolute;
+  inset: 2px;
+  background: rgba(255, 248, 235, 0.55);
+  border-radius: 1px;
+}
+
+.old-slip-title {
+  position: relative;
+  z-index: 1;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 11px;
+  font-family: 'Ma Shan Zheng', 'FZQingKeBenYueSong', 'STKaiti', 'KaiTi', '楷体', serif;
+  color: #3d2914;
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: 1;
+  max-height: 100%;
+}
+
+/* 题签装饰线 */
+.old-slip-divider {
+  width: 65%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(139, 90, 43, 0.45),
+    transparent
+  );
+  margin: 1px 0;
+  flex-shrink: 0;
+}
+
+/* 关键词 */
+.old-spine-keyword {
+  font-size: 9px;
+  color: #8b7355;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 2px 4px 4px;
+  letter-spacing: 0.05em;
+  font-family: 'STKaiti', 'KaiTi', '楷体', serif;
+  max-height: 30px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: horizontal;
+  -webkit-line-clamp: 1;
+  flex-shrink: 0;
+}
+
+/* 朱红印鉴 */
+.old-seal-mark {
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.old-seal-mark svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* 书架横梁 */
+.shelf-beam {
+  height: 16px;
+  background:
+    linear-gradient(
+      180deg,
+      #8b5a2b 0%,
+      #6b4226 20%,
+      #7a4f2e 40%,
+      #6b4226 60%,
+      #5c3a20 80%,
+      #7a4f2e 100%
+    );
+  border-top: 2px solid #a07040;
+  border-bottom: 2px solid #4a2e14;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 220, 160, 0.2);
+  border-radius: 0 0 2px 2px;
+  position: relative;
+  z-index: 2;
+}
+
+/* 底层抽屉装饰 */
+.shelf-bottom-drawers {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 1rem 2rem 0;
+  margin-top: -4px;
+}
+
+.drawer-face {
+  width: 120px;
+  height: 40px;
+  background:
+    linear-gradient(
+      180deg,
+      #7a4f2e 0%,
+      #5c3a20 40%,
+      #6b4226 70%,
+      #4a2e14 100%
+    );
+  border: 1px solid #a07040;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 160, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-handle {
+  width: 24px;
+  height: 6px;
+  background: linear-gradient(180deg, #c9a84c, #a08040);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 空书架提示 */
+.old-empty-bookshelf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 1rem;
+}
+
+.old-empty-bookshelf .empty-hint {
+  color: #c9a84c;
+  font-size: 1rem;
+  font-family: 'Ma Shan Zheng', serif;
 }
 </style>
