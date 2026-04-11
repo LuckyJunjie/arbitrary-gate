@@ -423,7 +423,7 @@ function goBack() {
 .inscription-text {
   font-family: 'Noto Serif SC', 'Songti SC', serif;
   font-size: 1.15rem;
-  color: #8b5e3c;
+  color: #4A6B6B;
   font-style: italic;
   letter-spacing: 0.2em;
   line-height: 1.8;
