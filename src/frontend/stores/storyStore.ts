@@ -4,6 +4,7 @@ import {
   fetchChapterWithMock,
   submitChoiceWithMock,
   submitEncounterChoice as submitEncounterChoiceApi,
+  triggerEncounter as triggerEncounterApi,
   fetchManuscript,
   fetchStoryList,
   finishStoryWithMock,
@@ -13,6 +14,7 @@ import {
   type Story,
   type Chapter,
   type Manuscript,
+  type Encounter,
 } from '@/services/api'
 import type { CombinationAchievement } from './achievementStore'
 
@@ -53,6 +55,9 @@ export const useStoryStore = defineStore('story', () => {
 
   // 关键词共鸣值追踪
   const keywordResonance = ref<Record<number, number>>({})
+
+  // S-14 当前活跃偶遇
+  const activeEncounter = ref<Encounter | null>(null)
 
   // ===== S-16 断线重连状态 =====
   const wsStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
@@ -307,6 +312,29 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
+  // S-14 手动触发偶遇（绕过30%概率）
+  async function triggerEncounter(storyId: string, chapterNo: number) {
+    try {
+      const encounter = await triggerEncounterApi(storyId, chapterNo)
+      if (encounter) {
+        // 设置 activeEncounter 以触发 UI 显示
+        activeEncounter.value = {
+          encounterId: encounter.encounterId,
+          encounterText: encounter.encounterText,
+          optionA: encounter.optionA,
+          optionB: encounter.optionB,
+          chapterNo: encounter.chapterNo,
+          characterName: encounter.characterName,
+          characterRole: encounter.characterRole,
+        }
+      }
+      return encounter
+    } catch (err) {
+      console.error('[storyStore] triggerEncounter failed:', err)
+      throw err
+    }
+  }
+
   async function generateManuscript(storyId: string) {
     isLoadingManuscript.value = true
     error.value = null
@@ -453,6 +481,8 @@ export const useStoryStore = defineStore('story', () => {
     setActiveCombination,
     // S-14 Actions
     submitEncounterChoice,
+    triggerEncounter,
+    activeEncounter,
     // S-16 Actions
     connectStream,
     disconnectStream,

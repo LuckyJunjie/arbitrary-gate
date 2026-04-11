@@ -232,7 +232,7 @@ describe('API functions', () => {
     const { finishStory } = await reloadApi()
     const result = await finishStory('story-1')
 
-    expect(mockInstance.post).toHaveBeenCalledWith('/story/story-1/finish')
+    expect(mockInstance.post).toHaveBeenCalledWith('/story/story-1/finish', { combinationType: undefined })
     expect(result.wordCount).toBe(1200)
   })
 

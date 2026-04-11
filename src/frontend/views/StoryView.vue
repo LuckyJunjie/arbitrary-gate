@@ -298,6 +298,8 @@ function connectSSE() {
         optionA: data.optionA,
         optionB: data.optionB,
         chapterNo: data.chapterNo,
+        characterName: data.characterName,
+        characterRole: data.characterRole,
       }
     } catch (err) {
       console.error('[StoryView] encounter parse error:', err)
