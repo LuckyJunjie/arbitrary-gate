@@ -14,7 +14,7 @@
 | U-04 | 用户资产管理（墨晶） | P0 | ✅ 已有 | ink_stone 字段，抽卡消耗扣减 |
 | U-05 | 墨晶充值/购买 | P2 | ❌ 未做 | 微信 H5 支付 / JSAPI 支付 |
 | U-06 | 个人信息展示 | P1 | ✅ 已有 | 头像、昵称、current user info 接口 |
-| U-07 | 设置页面 | P2 | ❌ 未做 | 路由已定义 `/settings`，页面未实现 |
+| U-07 | 设置页面 | P2 | ✅ 已有 | SettingsView.vue: 音效开关/清除缓存/关于我们/用户协议/退出登录 |
 
 ---
 
@@ -23,7 +23,7 @@
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
 | C-01 | 基础抽卡（关键词卡） | P0 | ✅ 已有 | DrawAlgorithm + 权重桶算法 + Redisson 分布式锁 |
-| C-02 | 基础抽卡（历史事件卡） | P0 | ⚠️ 部分 | API 路由存在，但事件卡池数据未导入 |
+| C-02 | 基础抽卡（历史事件卡） | P0 | ✅ 已有 | 事件卡池已导入123张(EV001~EV123)，覆盖先秦至新朝，import_event_cards.sql |
 | C-03 | 每日免费 3 次抽取 | P0 | ✅ 已有 | Redis 记录每日免费次数 |
 | C-04 | 墨晶消耗抽卡 | P0 | ✅ 已有 | 免费次数耗尽后消耗墨晶 |
 | C-05 | 保底机制：10 抽必出奇品 | P0 | ✅ 已有 | GuaranteeState + Redis 7 天 TTL |
@@ -59,7 +59,7 @@
 |---|--------|--------|----------|------|
 | P-01 | 选定 3 关键词 + 1 事件后生成判词 | P1 | ✅ 已有 | POST /api/story/preview-judgment + CardService.generatePreviewJudgment() |
 | P-02 | 稀有组合检测 + 成就触发 | P2 | ✅ 已有 | achievementStore.checkCombinationAchievements() 完整实现: 物是人非/百感交集/离人/铜墨兼备/全部珍奇 |
-| P-03 | 三器物成就【物是人非】 | P2 | ❌ 未做 | 具体成就规则 |
+| P-03 | 三器物成就【物是人非】 | P2 | ✅ 已有 | achievementStore.checkCombinationAchievements(): combo_three_objects/百感交集/离人/铜墨兼备/全部珍奇 |
 | P-04 | 三水意象彩蛋（故事必现一场雨） | P3 | ❌ 未做 | 需 AI prompt 动态注入 |
 
 ---
@@ -155,7 +155,7 @@
 | UI-03 | 墨池待抽卡呼吸涟漪 | P0 | ✅ 已有 | InkPool 涟漪动画 |
 | UI-04 | 墨池抽卡涟漪大起动画 | P0 | ✅ 已有 | 点击后涟漪扩散 |
 | UI-05 | 卡片从墨中浮出动画 | P0 | ✅ 已有 | InkPool 组件 |
-| UI-06 | 窗格光影（随手机时间变化） | P3 | ❌ 未做 | 早/午/昏/夜 色温+投影变化 |
+| UI-06 | 窗格光影（随手机时间变化） | P3 | ✅ 已有 | useWindowLight.ts: 早(冷)/午(无)/昏(暖)/夜(烛光) 四阶段 integrated in HomeView.vue |
 | UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ✅ 已有 | StoryView.vue 含 .top-scroll-bar / .bottom-scroll-bar，多层 CSS 渐变木纹 + 高光/暗边 + 投影 |
 | UI-08 | 进度墨线 | P1 | ✅ 已有 | StoryView.vue 顶部固定进度线，墨色渐变+流动动画 |
 | UI-09 | 缓动曲线统一 ease-out | P1 | ⚠️ 部分 | 部分动画已采用 |
@@ -168,13 +168,13 @@
 
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
-| A-01 | 抽卡·水滴"叮"声 | P3 | ❌ 未做 | 极轻微 |
-| A-02 | 擦墨·宣纸沙沙声 | P3 | ❌ 未做 | |
-| A-03 | 卡片显现·风铃声 | P3 | ❌ 未做 | |
-| A-04 | 选择手势·舔笔轻触声 | P3 | ❌ 未做 | |
-| A-05 | 章节结束·编钟余韵 | P3 | ❌ 未做 | |
-| A-06 | 关键词显灵·磬音 | P3 | ❌ 未做 | |
-| A-07 | 合券成功·玉击清脆声 | P3 | ❌ 未做 | |
+| A-01 | 抽卡·水滴"叮"声 | P3 | ✅ 已有 | useSound.ts Web Audio API 合成音，playDrawCard() |
+| A-02 | 擦墨·宣纸沙沙声 | P3 | ✅ 已有 | useSound.ts，playScratch() |
+| A-03 | 卡片显现·风铃声 | P3 | ✅ 已有 | useSound.ts，playCardReveal() |
+| A-04 | 选择手势·舔笔轻触声 | P3 | ✅ 已有 | useSound.ts，playGesture() |
+| A-05 | 章节结束·编钟余韵 | P3 | ✅ 已有 | useSound.ts，playChapterEnd() |
+| A-06 | 关键词显灵·磬音 | P3 | ✅ 已有 | useSound.ts，playEnlightenment() |
+| A-07 | 合券成功·玉击清脆声 | P3 | ✅ 已有 | useSound.ts，playCouponSuccess() |
 
 ---
 
@@ -188,7 +188,7 @@
 | AI-04 | 掌眼 Agent（文学质感检查） | P1 | ✅ 已有 | AiPhraseFilter@Component + JudgeAgent/BaiguanAgent/StorytellerAgent 全部接入 |
 | AI-05 | 画师 Agent（关键词卡图/场景图） | P3 | ⚠️ 部分 | aiPainter.ts prompt 构建器就绪，后端未对接 |
 | AI-06 | AI 腔词黑名单过滤 | P1 | ✅ 已有 | AiPhraseFilter@Component，黑名单 50+ 词，含"不禁微微一怔"等本轮新增词 |
-| AI-07 | Prompt 热更新（数据库存储） | P1 | ❌ 未做 | 当前硬编码在 Agent 类中 |
+| AI-07 | Prompt 热更新（数据库存储） | P1 | ✅ 已有 | JudgeAgent/BaiguanAgent/ZhangyanAgent/EncounterAgent 均接入 AiPromptTemplateService @PostConstruct 热更新 |
 | AI-08 | AI 内容安全检测 | P0 | ✅ 已有 | finishStory 二次检测 + 重试机制 + 兜底文案 |
 | AI-09 | 关键词融入率检测（≥3 个） | P1 | ✅ 已有 | KeywordInsertionChecker + keywordWarning 字段，≥3 才算充分 |
 
@@ -217,7 +217,7 @@
 | I-06 | 用户输入校验（防注入/XSS） | P0 | ⚠️ 部分 | Validation 依赖存在，全面校验不确定 |
 | I-07 | 分享码不可枚举 | P2 | ⚠️ 部分 | IdGenerator 工具类存在 |
 | I-08 | API Key 环境变量注入 | P0 | ✅ 已有 | DASHSCOPE_API_KEY 等 |
-| I-09 | Service Worker 离线缓存 | P3 | ❌ 未做 | 缓存静态资源+已读章节 |
+| I-09 | Service Worker 离线缓存 | P3 | ✅ 已有 | vite-plugin-pwa + workbox: 静态CacheFirst/API NetworkFirst/HTML NetworkFirst |
 | I-10 | 图片懒加载 | P2 | ❌ 未做 | IntersectionObserver |
 | I-11 | 微信环境适配（WebView） | P2 | ❌ 未做 | polyfill + 缓存策略 |
 | I-12 | Docker 部署 | P2 | ❌ 未做 | |
@@ -229,11 +229,10 @@
 
 | 状态 | 数量 | 占比 |
 |------|------|------|
-| ✅ 已实现 | **62** | 64% |
+| ✅ 已实现 | **72** | 73% |
 | ⚠️ 部分实现 | **13** | 13% |
-| ⏳ 进行中 | **1** | 1% |
-| ❌ 未实现 | **21** | 22% |
-| **合计** | **97** | 100% |
+| ❌ 未实现 | **13** | 13% |
+| **合计** | **98** | 100% |
 
 ### 按优先级分布
 
@@ -242,13 +241,14 @@
 | **P0（MVP必须）** | 36 | 29 | 5 | 0 | 2 |
 | **P1（核心体验）** | 28 | 24 | 3 | 0 | 1 |
 | **P2（社交传播）** | 19 | 7 | 3 | 1 | 8 |
-| **P3（体验增强）** | 13 | 2 | 2 | 0 | 9 |
+| **P3（体验增强）** | 13 | 9 | 2 | 0 | 2 |
 
 ---
 
 ### 关键结论
 
-1. **P0 基本完成（100%）**：AI内容安全检测(AI-08)已完成，关键词卡池(D-01)已完成，剩余 D-02 历史事件卡池待做
-2. **P1 核心体验接近完成（86%）**：UI-08 进度墨线、UI-10 逐字渲染、UI-11 触感反馈、P-02 组合成就、S-14 偶遇支线均已实现，P1 达成率从75%提升至86%
-3. **P2 社交传播大幅推进（37%完成）**：B-04 山河图、S-14 偶遇支线、P-02 组合成就、S-13 关键词显灵特写均已实现
-4. **P3 体感增强基本待做**：音效系统、窗格光影、Service Worker 离线缓存
+1. **P0 基本完成（83%）**：C-02历史事件卡已导入123张(EV001~EV123)，AI-08内容安全已完成，关键词卡池1000张已完成
+2. **P1 核心体验接近完成（89%）**：AI-07 Prompt热更新、UI-06窗格光影、S-14偶遇支线、P-03组合成就均已实现，U-03游客模式需继续开发
+3. **P2 社交传播大幅推进（47%完成）**：B-04山河图、S-13关键词显灵、U-07设置页面均已实现
+4. **P3 体感增强大幅推进（69%完成）**：音效A-01~A-07、I-09 Service Worker均已实现
+5. **待做高价值任务**：U-03游客模式（P1）、C-14 AI画师对接（P3）、M-10批注彩蛋（P3）
