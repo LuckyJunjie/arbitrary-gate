@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { fetchChapter } from '@/services/api'
 import { playBell, playChime } from '@/composables/useSound'
+import KeywordEnlightenment from '@/components/KeywordEnlightenment.vue'
 import type { Chapter, Option, Encounter, KeywordEnlightenment } from '@/services/api'
 
 const route = useRoute()
@@ -278,12 +279,6 @@ function connectSSE() {
       const data = JSON.parse(e.data) as KeywordEnlightenment
       activeEnlightenment.value = data
       playChime()
-      // 5秒后自动关闭
-      setTimeout(() => {
-        if (activeEnlightenment.value === data) {
-          activeEnlightenment.value = null
-        }
-      }, 5000)
     } catch (err) {
       console.error('[StoryView] keyword_enlightenment parse error:', err)
     }
@@ -318,6 +313,41 @@ function closeSSE() {
     eventSource = null
   }
 }
+
+// S-13: 监听累积共鸣值，当任何关键词共鸣值首次达到阈值（>= 5）时触发显灵
+// 防重复：每个 cardId 只触发一次（session 级别）
+const enlightenedCardIds = new Set<number>()
+
+watch(
+  () => storyStore.keywordResonance,
+  (resonanceMap) => {
+    for (const [cardIdStr, resonance] of Object.entries(resonanceMap)) {
+      const cardId = Number(cardIdStr)
+      if (resonance >= 5 && !enlightenedCardIds.has(cardId)) {
+        // 如果已有完整的 enlightenment 数据（来自 REST API），不覆盖
+        if (activeEnlightenment.value?.cardId === cardId && activeEnlightenment.value.cardName) {
+          enlightenedCardIds.add(cardId)
+          continue
+        }
+        enlightenedCardIds.add(cardId)
+        // 构造 enlightenment 数据（cardImageUrl 留空，由 SSE 推送补充）
+        activeEnlightenment.value = {
+          cardId,
+          cardName: '',
+          enlightenmentText: '',
+        }
+        playChime()
+        // 若 5s 内 SSE 未推送完整数据（如离线），清除占位内容
+        setTimeout(() => {
+          if (activeEnlightenment.value?.cardId === cardId && !activeEnlightenment.value.cardName) {
+            activeEnlightenment.value = null
+          }
+        }, 5000)
+      }
+    }
+  },
+  { deep: true }
+)
 
 // S-16: 使用 storyStore 的断线重连 WebSocket 流式接口
 function connectStoryStream() {
@@ -489,14 +519,9 @@ async function selectOption(optionId: number, _valueOrientation?: string, event?
       }
       // S-13: 如果有显灵数据，弹出显灵浮层
       if (res.keywordEnlightenment) {
+        enlightenedCardIds.add(res.keywordEnlightenment.cardId)
         activeEnlightenment.value = res.keywordEnlightenment
         playChime()
-        // 5秒后自动关闭
-        setTimeout(() => {
-          if (activeEnlightenment.value === res.keywordEnlightenment) {
-            activeEnlightenment.value = null
-          }
-        }, 5000)
       }
       // S-14: 如果有偶遇事件，弹出偶遇浮层
       if (res.encounter) {
@@ -655,24 +680,11 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
     </Teleport>
 
     <!-- S-13 关键词显灵全屏浮层 -->
-    <Teleport to="body">
-      <div
-        v-if="activeEnlightenment"
-        class="keyword-enlightenment-overlay"
-        @click="activeEnlightenment = null"
-      >
-        <div class="enlightenment-card">
-          <div class="enlightenment-card-image">
-            <!-- 卡片从灰暗变彩色的 transition -->
-            <div class="card-glow" />
-          </div>
-          <div class="enlightenment-text-container">
-            <p class="enlightenment-card-name">「{{ activeEnlightenment.cardName }}」</p>
-            <p class="enlightenment-text">{{ activeEnlightenment.enlightenmentText }}</p>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <!-- S-13 关键词显灵全屏浮层 -->
+    <KeywordEnlightenment
+      :enlightenment="activeEnlightenment"
+      @close="activeEnlightenment = null"
+    />
 
     <!-- 进度墨线 UI-08 -->
     <div class="ink-progress-line" :style="{ width: `${(currentChapterNo / totalChapters) * 100}%` }" />
