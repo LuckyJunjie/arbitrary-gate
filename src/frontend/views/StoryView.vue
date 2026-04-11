@@ -712,7 +712,15 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
     </header>
 
     <!-- 卷轴天杆 UI-07 -->
-    <div class="scroll-bar top-scroll-bar" />
+    <div class="scroll-header">
+      <div class="heavenly-rod">
+        <div class="rod-end left"></div>
+        <div class="hanging-string left"></div>
+        <div class="rod-body"></div>
+        <div class="rod-end right"></div>
+        <div class="hanging-string right"></div>
+      </div>
+    </div>
 
     <!-- 主内容区 -->
     <div class="story-main" data-testid="scroll-container">
@@ -774,7 +782,13 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
     </div>
 
     <!-- 卷轴地杆 UI-07 -->
-    <div class="scroll-bar bottom-scroll-bar" />
+    <div class="scroll-footer">
+      <div class="earthly-rod">
+        <div class="rod-end left"></div>
+        <div class="rod-body"></div>
+        <div class="rod-end right"></div>
+      </div>
+    </div>
 
     <!-- 选项区 -->
     <div class="options-panel">
@@ -883,84 +897,71 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 }
 
 /* ── 卷轴天杆/地杆 UI-07 ── */
-.scroll-bar {
-  height: 8px;
-  border-radius: 4px;
-  /* 木纹背景：使用 CSS 渐变模拟木纹质感 */
-  background:
-    /* 木纹高光层 */
-    linear-gradient(
-      90deg,
-      rgba(80, 50, 20, 0.1) 0%,
-      rgba(200, 160, 90, 0.25) 15%,
-      rgba(80, 50, 20, 0.15) 30%,
-      rgba(200, 160, 90, 0.2) 45%,
-      rgba(80, 50, 20, 0.1) 60%,
-      rgba(200, 160, 90, 0.3) 75%,
-      rgba(80, 50, 20, 0.15) 90%,
-      rgba(200, 160, 90, 0.2) 100%
-    ),
-    /* 基础木色：从深褐到浅褐的竖向木纹底色 */
-    linear-gradient(
-      180deg,
-      #3d2510 0%,
-      #6b4020 20%,
-      #4a2e15 40%,
-      #7a5030 60%,
-      #5a3820 80%,
-      #3d2510 100%
-    );
-  background-size: 200px 100%, 100% 100%;
-  box-shadow:
-    inset 0 1px 2px rgba(255, 220, 160, 0.3),   /* 顶部高光：模拟圆柱受光 */
-    inset 0 -1px 2px rgba(20, 10, 5, 0.4),     /* 底部暗边：模拟圆柱背光 */
-    0 2px 4px rgba(0, 0, 0, 0.5),               /* 外投影：立体感 */
-    0 1px 2px rgba(0, 0, 0, 0.3);
+.scroll-header,
+.scroll-footer {
   position: relative;
-  overflow: hidden;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-/* 木纹纹理叠加：用伪元素做细木纹线条 */
-.scroll-bar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
+/* 天杆 UI-07 */
+.heavenly-rod {
+  display: flex;
+  align-items: flex-end;
+  background: linear-gradient(180deg, #4a3728 0%, #2c1810 50%, #1a0f0a 100%);
+  border-radius: 8px;
+  height: 24px;
+  width: 90%;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+/* 地杆 UI-07 */
+.earthly-rod {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(180deg, #4a3728 0%, #3d2a1c 50%, #2c1810 100%);
+  border-radius: 8px;
+  height: 32px;
+  width: 92%;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+/* 杆两端的装饰 */
+.rod-end {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d4af37 0%, #8b6914 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.rod-body {
+  flex: 1;
+  height: 100%;
   background: repeating-linear-gradient(
-    92deg,
-    transparent 0px,
-    rgba(30, 15, 5, 0.15) 1px,
-    transparent 2px,
-    transparent 8px
-  ),
-  repeating-linear-gradient(
-    88deg,
-    transparent 0px,
-    rgba(255, 210, 140, 0.06) 1px,
-    transparent 2px,
-    transparent 20px
+    90deg,
+    transparent,
+    transparent 10px,
+    rgba(0, 0, 0, 0.05) 10px,
+    rgba(0, 0, 0, 0.05) 11px
   );
-  border-radius: inherit;
 }
 
-/* 天杆：顶部向外凸出感，光照偏亮 */
-.top-scroll-bar {
-  /* 顶部光晕，稍亮一些 */
-  box-shadow:
-    inset 0 2px 3px rgba(255, 220, 160, 0.4),
-    inset 0 -1px 2px rgba(20, 10, 5, 0.3),
-    0 3px 6px rgba(0, 0, 0, 0.6),
-    0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-/* 地杆：底部向内凹陷感，光照偏暗 */
-.bottom-scroll-bar {
-  /* 底部暗边更强，模拟凹陷 */
-  box-shadow:
-    inset 0 1px 2px rgba(255, 220, 160, 0.2),
-    inset 0 -2px 4px rgba(10, 5, 2, 0.6),
-    0 2px 4px rgba(0, 0, 0, 0.5),
-    0 1px 2px rgba(0, 0, 0, 0.3);
+/* 悬挂绳 */
+.hanging-string {
+  width: 2px;
+  height: 30px;
+  background: linear-gradient(180deg, #8b7355 0%, #d4af37 100%);
+  flex-shrink: 0;
+  margin: 0 4px;
 }
 
 /* ── 进度墨线 UI-08 ── */

@@ -175,76 +175,91 @@ function goBack() {
 
     <!-- 手稿正文 -->
     <div v-else-if="manuscript" class="manuscript-scroll" data-testid="manuscript-scroll">
-      <div class="manuscript-content">
-        <!-- 题记 -->
-        <div v-if="inscription" class="manuscript-inscription" data-testid="manuscript-inscription">
-          <span class="inscription-text">{{ inscription }}</span>
+      <!-- 天杆 UI-07 -->
+      <div class="scroll-header">
+        <div class="heavenly-rod">
+          <div class="rod-end left"></div>
+          <div class="hanging-string left"></div>
+          <div class="rod-body"></div>
+          <div class="rod-end right"></div>
+          <div class="hanging-string right"></div>
         </div>
+      </div>
 
-        <!-- 卷轴顶边 -->
-        <div class="scroll-top-bar">
-          <span class="scroll-label">卷</span>
-        </div>
+      <!-- 卷面 -->
+      <div class="scroll-content">
+        <div class="manuscript-content">
+          <!-- 题记 -->
+          <div v-if="inscription" class="manuscript-inscription" data-testid="manuscript-inscription">
+            <span class="inscription-text">{{ inscription }}</span>
+          </div>
 
-        <!-- 正文区域 -->
-        <div class="manuscript-body" data-testid="manuscript-body">
-          <div
-            v-for="(para, idx) in paragraphs"
-            :key="idx"
-            class="manuscript-paragraph"
-            :data-testid="`manuscript-para-${idx}`"
-          >
-            <!-- 选择标记 -->
-            <span
-              v-if="choiceMarksByPara[idx]"
-              class="choice-mark"
-              :title="`第${idx + 1}章选择：${choiceMarksByPara[idx]}`"
-            >·</span>
-
-            <!-- 正文 -->
-            <span class="para-text">{{ para }}</span>
-
-            <!-- 朱批 -->
+          <!-- 正文区域 -->
+          <div class="manuscript-body" data-testid="manuscript-body">
             <div
-              v-if="annotationsByPara[idx]?.length"
-              class="zhub-annotation"
-              data-testid="zhub-annotation"
+              v-for="(para, idx) in paragraphs"
+              :key="idx"
+              class="manuscript-paragraph"
+              :data-testid="`manuscript-para-${idx}`"
             >
-              <div class="zhub-marks">〰️</div>
-              <div class="zhub-content">
-                <span class="zhub-label">批</span>
-                <p
-                  v-for="(ann, ai) in annotationsByPara[idx]"
-                  :key="ai"
-                  class="zhub-text"
-                  :class="{ 'annotation-easter-egg': ann.type === 'easter_egg' }"
-                >{{ ann.text }}</p>
+              <!-- 选择标记 -->
+              <span
+                v-if="choiceMarksByPara[idx]"
+                class="choice-mark"
+                :title="`第${idx + 1}章选择：${choiceMarksByPara[idx]}`"
+              >·</span>
+
+              <!-- 正文 -->
+              <span class="para-text">{{ para }}</span>
+
+              <!-- 朱批 -->
+              <div
+                v-if="annotationsByPara[idx]?.length"
+                class="zhub-annotation"
+                data-testid="zhub-annotation"
+              >
+                <div class="zhub-marks">〰️</div>
+                <div class="zhub-content">
+                  <span class="zhub-label">批</span>
+                  <p
+                    v-for="(ann, ai) in annotationsByPara[idx]"
+                    :key="ai"
+                    class="zhub-text"
+                    :class="{ 'annotation-easter-egg': ann.type === 'easter_egg' }"
+                  >{{ ann.text }}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- 后日谈 -->
-        <div v-if="epilogue" class="epilogue-section" data-testid="manuscript-epilogue">
-          <div class="epilogue-divider">✦ ✦ ✦</div>
-          <p class="epilogue-text">{{ epilogue }}</p>
-        </div>
+          <!-- 后日谈 -->
+          <div v-if="epilogue" class="epilogue-section" data-testid="manuscript-epilogue">
+            <div class="epilogue-divider">✦ ✦ ✦</div>
+            <p class="epilogue-text">{{ epilogue }}</p>
+          </div>
 
-        <!-- 稗官评语 -->
-        <div
-          v-if="manuscript.baiguanComment"
-          class="baiguan-comment"
-          data-testid="baiguan-comment"
-        >
-          <p class="baiguan-text">{{ manuscript.baiguanComment }}</p>
-        </div>
+          <!-- 稗官评语 -->
+          <div
+            v-if="manuscript.baiguanComment"
+            class="baiguan-comment"
+            data-testid="baiguan-comment"
+          >
+            <p class="baiguan-text">{{ manuscript.baiguanComment }}</p>
+          </div>
 
-        <!-- 卷轴底边 + 印鉴 -->
-        <div class="scroll-bottom-bar">
+          <!-- 印鉴 -->
           <div class="manuscript-seal" :style="{ color: sealColor }" data-testid="manuscript-seal">
             <span class="seal-char">笺</span>
           </div>
-          <span class="scroll-label">完</span>
+        </div>
+      </div>
+
+      <!-- 地杆 UI-07 -->
+      <div class="scroll-footer">
+        <div class="earthly-rod">
+          <div class="rod-end left"></div>
+          <div class="rod-body"></div>
+          <div class="rod-end right"></div>
         </div>
       </div>
     </div>
@@ -327,6 +342,94 @@ function goBack() {
   letter-spacing: 0.05em;
 }
 
+/* ── 手稿卷轴 ── */
+.manuscript-scroll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.scroll-header,
+.scroll-footer {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* 天杆 UI-07 */
+.heavenly-rod {
+  display: flex;
+  align-items: flex-end;
+  background: linear-gradient(180deg, #4a3728 0%, #2c1810 50%, #1a0f0a 100%);
+  border-radius: 8px;
+  height: 24px;
+  width: 90%;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+/* 地杆 UI-07 — 比天杆略粗 */
+.earthly-rod {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(180deg, #4a3728 0%, #3d2a1c 50%, #2c1810 100%);
+  border-radius: 8px;
+  height: 32px;
+  width: 92%;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+/* 杆两端的装饰 */
+.rod-end {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d4af37 0%, #8b6914 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.rod-body {
+  flex: 1;
+  height: 100%;
+  /* 木纹效果 */
+  background: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 10px,
+    rgba(0, 0, 0, 0.05) 10px,
+    rgba(0, 0, 0, 0.05) 11px
+  );
+}
+
+/* 悬挂绳 */
+.hanging-string {
+  width: 2px;
+  height: 30px;
+  background: linear-gradient(180deg, #8b7355 0%, #d4af37 100%);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+/* ── 卷面 - 宣纸质感 ── */
+.scroll-content {
+  background: linear-gradient(180deg, #f5efe0 0%, #faf8f2 50%, #f5efe0 100%);
+  width: 85%;
+  min-height: 500px;
+  box-shadow:
+    inset 0 0 20px rgba(139, 90, 43, 0.1),
+    0 0 30px rgba(0, 0, 0, 0.2);
+  overflow-y: auto;
+}
+
 /* ── 加载/错误/空状态 ── */
 .manuscript-loading,
 .manuscript-error,
@@ -369,44 +472,11 @@ function goBack() {
   background: rgba(139, 94, 60, 0.1);
 }
 
-/* ── 手稿卷轴 ── */
-.manuscript-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
+/* ── 手稿内容 ── */
 .manuscript-content {
   max-width: 680px;
   margin: 0 auto;
   padding: 2rem 3rem 4rem;
-}
-
-/* ── 卷轴天杆/地杆 ── */
-.scroll-top-bar,
-.scroll-bottom-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 1rem;
-  border-top: 2px solid rgba(139, 94, 60, 0.3);
-  border-bottom: 2px solid rgba(139, 94, 60, 0.3);
-  background: rgba(139, 94, 60, 0.06);
-  margin-bottom: 1.5rem;
-}
-
-.scroll-bottom-bar {
-  margin-bottom: 0;
-  margin-top: 2rem;
-  border-top: 2px solid rgba(139, 94, 60, 0.3);
-  border-bottom: 2px solid rgba(139, 94, 60, 0.3);
-}
-
-.scroll-label {
-  font-family: 'Noto Serif SC', serif;
-  font-size: 0.75rem;
-  color: rgba(139, 94, 60, 0.5);
-  letter-spacing: 0.3em;
 }
 
 /* ── 题记 ── */
@@ -434,8 +504,9 @@ function goBack() {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   direction: ltr;
-  height: 60vh;
-  overflow-y: hidden;
+  min-height: 400px;
+  max-height: 70vh;
+  overflow-y: auto;
   padding: 0 1rem;
   position: relative;
 }
