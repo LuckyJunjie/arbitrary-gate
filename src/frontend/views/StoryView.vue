@@ -4,8 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { fetchChapter } from '@/services/api'
 import { playBell, playChime } from '@/composables/useSound'
-import KeywordEnlightenment from '@/components/KeywordEnlightenment.vue'
-import type { Chapter, Option, Encounter, KeywordEnlightenment } from '@/services/api'
+import KeywordEnlightenmentOverlay from '@/components/KeywordEnlightenment.vue'
+import type { Chapter, Option, Encounter } from '@/services/api'
+import type { KeywordEnlightenment } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -680,8 +681,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
     </Teleport>
 
     <!-- S-13 关键词显灵全屏浮层 -->
-    <!-- S-13 关键词显灵全屏浮层 -->
-    <KeywordEnlightenment
+    <KeywordEnlightenmentOverlay
       :enlightenment="activeEnlightenment"
       @close="activeEnlightenment = null"
     />
@@ -1740,114 +1740,6 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   opacity: 0.6;
   letter-spacing: 0.05em;
   flex-shrink: 0;
-}
-
-/* ── S-13 关键词显灵全屏浮层 ── */
-.keyword-enlightenment-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 8, 5, 0.92);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  z-index: 200;
-  cursor: pointer;
-  animation: enlightenment-fade-in 0.5s ease;
-  padding-bottom: 15vh;
-}
-
-@keyframes enlightenment-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.enlightenment-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2rem;
-  animation: enlightenment-card-rise 1.5s cubic-bezier(0.22, 1, 0.36, 1);
-  max-width: 600px;
-  width: 100%;
-  padding: 0 2rem;
-}
-
-.enlightenment-card-image {
-  position: relative;
-  width: 180px;
-  height: 260px;
-  border-radius: 8px;
-  overflow: hidden;
-  /* S-13: 卡片从灰暗变彩色，1.5s transition */
-  filter: grayscale(1) brightness(0.4);
-  animation: card-reveal 1.5s ease forwards;
-  box-shadow:
-    0 0 40px rgba(196, 168, 130, 0.3),
-    0 0 80px rgba(196, 168, 130, 0.15),
-    0 20px 60px rgba(0, 0, 0, 0.5);
-}
-
-@keyframes card-reveal {
-  0% {
-    filter: grayscale(1) brightness(0.4);
-    transform: scale(0.95);
-  }
-  100% {
-    filter: grayscale(0) brightness(1);
-    transform: scale(1);
-  }
-}
-
-.card-glow {
-  position: absolute;
-  inset: -50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(212, 175, 120, 0.4) 0%,
-    rgba(180, 140, 80, 0.1) 40%,
-    transparent 70%
-  );
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
-}
-
-.enlightenment-text-container {
-  text-align: center;
-  animation: enlightenment-text-rise 1.2s ease 0.5s both;
-}
-
-@keyframes enlightenment-text-rise {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.enlightenment-card-name {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #d4af78;
-  letter-spacing: 0.15em;
-  margin-bottom: 1rem;
-  text-shadow: 0 0 20px rgba(212, 175, 120, 0.5);
-}
-
-.enlightenment-text {
-  font-size: 1.05rem;
-  line-height: 2;
-  color: #e8dcc8;
-  letter-spacing: 0.08em;
-  font-style: italic;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  max-width: 480px;
 }
 
 /* ── 涟漪动画 ── */
