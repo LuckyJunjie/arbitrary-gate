@@ -105,6 +105,10 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
                 }
                 userService.useDailyFreeDraw(userId);
             } else {
+                // U-03: 游客不能消耗墨晶抽卡
+                if (userService.isGuest(userId)) {
+                    throw new BusinessException(403, "游客无法使用墨晶抽卡，请先绑定正式账号");
+                }
                 userService.consumeInkStone(userId, inkStoneCost);
             }
 

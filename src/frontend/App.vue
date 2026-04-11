@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { ref, onErrorCaptured } from 'vue'
+import { ref, onErrorCaptured, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { ensureLogin } from './services/api'
 
 // ── 路由守卫 ──
 const router = useRouter()
 const token = localStorage.getItem('token')
 const isGuest = !token
+
+// U-03: App 启动时自动检查登录状态，未登录则自动触发游客登录
+onMounted(() => {
+  ensureLogin()
+})
 
 // ── 全局错误边界 ──
 const globalError = ref<string | null>(null)

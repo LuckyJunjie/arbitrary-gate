@@ -15,6 +15,7 @@ import ShareView from './views/ShareView.vue'
 import EntryQuestionsView from './views/EntryQuestionsView.vue'
 import ManuscriptView from './views/ManuscriptView.vue'
 import ShopView from './views/ShopView.vue'
+import SettingsView from './views/SettingsView.vue'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView },
@@ -26,6 +27,7 @@ const routes = [
   { path: '/share/:code', name: 'share', component: ShareView },
   { path: '/manuscript/:id', name: 'manuscript', component: ManuscriptView },
   { path: '/shop', name: 'shop', component: ShopView },
+  { path: '/settings', name: 'settings', component: SettingsView },
 ]
 
 const router = createRouter({

@@ -625,4 +625,55 @@ export async function invokeWxPay(payParams: WxPayParams): Promise<void> {
 // Re-export aiPainter for CardsView compatibility
 export { aiPainter } from './aiPainter'
 
+// ========== U-03 游客登录 ==========
+
+export interface GuestLoginResponse {
+  token: string
+  user: {
+    id: number
+    nickname: string
+    avatarUrl?: string
+    inkStone: number
+    dailyFreeDraws: number
+    totalStories: number
+    completedStories: number
+    isGuest: number // 0=正式用户，1=游客
+  }
+}
+
+/**
+ * U-03 POST /api/user/guest-login
+ * 游客登录：自动创建临时账号，获取 token
+ * 前端在未登录时调用此方法
+ */
+export async function guestLogin(): Promise<GuestLoginResponse> {
+  return api.post('/user/guest-login')
+}
+
+/**
+ * 初始化登录（自动判别游客或正式登录）
+ * 若 localStorage 中已有 token：使用现有 token
+ * 若没有 token：自动调用 guest-login
+ *
+ * @returns true=登录成功，false=登录失败（未登录）
+ */
+export async function ensureLogin(): Promise<boolean> {
+  const existingToken = localStorage.getItem('token')
+  if (existingToken) {
+    // 已有 token，视为已登录（可能是正式用户或游客）
+    return true
+  }
+  try {
+    const res = await guestLogin()
+    localStorage.setItem('token', res.token)
+    // 存储用户信息（含 isGuest 标志）
+    localStorage.setItem('arbitrary_gate_user', JSON.stringify(res.user))
+    console.info('[Auth] Guest login success, userId=', res.user.id, 'isGuest=', res.user.isGuest)
+    return true
+  } catch (err) {
+    console.error('[Auth] Guest login failed:', err)
+    return false
+  }
+}
+
 export default api

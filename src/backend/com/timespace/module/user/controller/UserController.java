@@ -76,6 +76,17 @@ public class UserController {
         return Result.ok();
     }
 
+    /**
+     * U-03 POST /api/user/guest-login
+     * 游客登录：生成 UUID 作为 guest_open_id，创建 is_guest=1 的临时用户，签发 token
+     */
+    @PostMapping("/guest-login")
+    public Result<WxLoginVO> guestLogin() {
+        log.info("游客登录请求");
+        WxLoginVO vo = userService.guestLogin();
+        return Result.ok(vo);
+    }
+
     @Data
     public static class WxLoginRequest {
         private String code;
@@ -98,5 +109,7 @@ public class UserController {
         private Integer dailyFreeDraws;
         private Integer totalStories;
         private Integer completedStories;
+        /** 0=正式用户，1=游客 */
+        private Integer isGuest;
     }
 }

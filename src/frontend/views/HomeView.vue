@@ -125,6 +125,7 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
       <div class="header-seal" aria-hidden="true">📜</div>
       <h1 class="title">时光笺</h1>
       <p class="subtitle">穿越者书房</p>
+      <button class="settings-btn" @click="router.push('/settings')" aria-label="设置">⚙️</button>
       <div class="header-divider" />
     </header>
 
@@ -317,6 +318,24 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
   font-size: 2rem;
   margin-bottom: 0.5rem;
   opacity: 0.6;
+}
+
+.settings-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  line-height: 1;
+}
+
+.settings-btn:hover {
+  opacity: 1;
 }
 
 .title {

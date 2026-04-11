@@ -8,7 +8,7 @@ import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { useAchievementStore } from '@/stores/achievementStore'
-import { drawKeywordCard, fetchFortune, drawEventCard, type EventDrawResult } from '@/services/api'
+import { drawKeywordCard, fetchFortune, drawEventCard, ensureLogin, type EventDrawResult } from '@/services/api'
 import { playInkDrop, playWindChime } from '@/composables/useSound'
 import type { KeywordCard } from '@/services/api'
 
@@ -29,8 +29,21 @@ const fortuneText = ref('')
 const fortuneHint = ref('')
 const currentFortune = computed(() => fortuneText.value)
 
-// 每日免费次数上限
-const DAILY_FREE_LIMIT = 3
+// U-03: 从 localStorage 读取用户信息，获取 isGuest 标志
+function getUserIsGuest(): boolean {
+  try {
+    const saved = localStorage.getItem('arbitrary_gate_user')
+    if (saved) {
+      const user = JSON.parse(saved)
+      return user.isGuest === 1
+    }
+  } catch { /* ignore */ }
+  return false
+}
+
+// 每日免费次数上限（游客 1 次，正式用户 3 次）
+const isGuest = ref(getUserIsGuest())
+const DAILY_FREE_LIMIT = computed(() => isGuest.value ? 1 : 3)
 
 // ========== 事件卡池 ========== //
 type PoolTab = 'keyword' | 'event'
@@ -46,6 +59,11 @@ const hasDrawnEvent = ref(false)
 
 // 从 localStorage 读取已有卡牌
 onMounted(async () => {
+  // U-03: 确保已登录（未登录时自动触发游客登录）
+  await ensureLogin()
+  // 重新检查 isGuest（ensureLogin 后 localStorage 已更新）
+  isGuest.value = getUserIsGuest()
+
   inkValueStore.loadFromStorage()
   loadDailyFreeDraws()
   loadSavedCards()
@@ -88,11 +106,11 @@ function loadDailyFreeDraws() {
       remainingFreeDraws.value = data.remaining
     } else {
       // 新的一天，重置
-      remainingFreeDraws.value = DAILY_FREE_LIMIT
+      remainingFreeDraws.value = DAILY_FREE_LIMIT.value
       saveDailyFreeDraws()
     }
   } else {
-    remainingFreeDraws.value = DAILY_FREE_LIMIT
+    remainingFreeDraws.value = DAILY_FREE_LIMIT.value
     saveDailyFreeDraws()
   }
 }

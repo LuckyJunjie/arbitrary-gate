@@ -32,6 +32,12 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     private static final String WX_SESSION_KEY_PREFIX = "wx:session:";
     private static final long SESSION_EXPIRE_SECONDS = 3600;
 
+    /** 游客每日免费抽卡次数上限（正式用户 3 次，游客 1 次） */
+    private static final int GUEST_DAILY_FREE_COUNT = 1;
+
+    @Value("${timespace.card.daily-free-count:3}")
+    private int dailyFreeCount;
+
     /**
      * 微信登录流程：
      * 1. 用code调用微信接口获取session_key + openid
@@ -78,6 +84,50 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         if (user == null) throw new BusinessException(404, "用户不存在");
         user.setNickname(nickname);
         updateById(user);
+    }
+
+    /**
+     * U-03 游客登录
+     * 生成 UUID 作为 guest_open_id，创建 is_guest=1 的临时用户
+     * 游客每日免费抽 1 次（正式用户 3 次）
+     */
+    @Transactional
+    public WxLoginVO guestLogin() {
+        String guestOpenId = "guest_" + java.util.UUID.randomUUID().toString().replace("-", "");
+
+        User user = new User();
+        user.setOpenId(guestOpenId);
+        user.setNickname("旅人");
+        user.setInkStone(0);
+        user.setDailyFreeDraws(GUEST_DAILY_FREE_COUNT);
+        user.setLastFreeResetTime(LocalDateTime.now());
+        user.setTotalStories(0);
+        user.setCompletedStories(0);
+        user.setIsGuest(1);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        save(user);
+
+        // 重置每日免费次数（跨天后自动重置为 1）
+        resetDailyFreeDrawsIfNeeded(user);
+
+        // 生成 Sa-Token
+        StpUtil.login(user.getId());
+        String token = StpUtil.getTokenValue();
+
+        WxLoginVO vo = new WxLoginVO();
+        vo.setToken(token);
+        vo.setUser(toUserVO(user));
+        log.info("游客登录成功: userId={}, nickname={}", user.getId(), user.getNickname());
+        return vo;
+    }
+
+    /**
+     * 判断用户是否为游客
+     */
+    public boolean isGuest(Long userId) {
+        User user = getById(userId);
+        return user != null && user.getIsGuest() != null && user.getIsGuest() == 1;
     }
 
     public void consumeInkStone(long userId, int amount) {
@@ -150,6 +200,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         user.setCompletedStories(0);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
+        user.setIsGuest(0);
         save(user);
         return user;
     }
@@ -158,7 +209,10 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime lastReset = user.getLastFreeResetTime();
         if (lastReset == null || lastReset.toLocalDate().isBefore(now.toLocalDate())) {
-            user.setDailyFreeDraws(1);
+            int dailyLimit = (user.getIsGuest() != null && user.getIsGuest() == 1)
+                    ? GUEST_DAILY_FREE_COUNT
+                    : dailyFreeCount;
+            user.setDailyFreeDraws(dailyLimit);
             user.setLastFreeResetTime(now);
             updateById(user);
         }
@@ -173,6 +227,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         vo.setDailyFreeDraws(user.getDailyFreeDraws());
         vo.setTotalStories(user.getTotalStories());
         vo.setCompletedStories(user.getCompletedStories());
+        vo.setIsGuest(user.getIsGuest());
         return vo;
     }
 

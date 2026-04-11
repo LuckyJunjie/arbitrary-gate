@@ -36,6 +36,11 @@ public class User {
 
     private LocalDateTime updatedAt;
 
+    /**
+     * 0=正式用户，1=游客
+     */
+    private Integer isGuest;
+
     @TableLogic
     private Integer deleted;
 }

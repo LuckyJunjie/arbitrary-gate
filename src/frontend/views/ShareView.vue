@@ -8,6 +8,18 @@ const route = useRoute()
 const router = useRouter()
 const shareCode = route.params.code as string
 
+// U-03: 检查是否为游客
+function isGuestUser(): boolean {
+  try {
+    const saved = localStorage.getItem('arbitrary_gate_user')
+    if (saved) {
+      const user = JSON.parse(saved)
+      return user.isGuest === 1
+    }
+  } catch { /* ignore */ }
+  return !localStorage.getItem('token')
+}
+
 // 分享信息
 const shareInfo = ref<ShareInfoResponse | null>(null)
 const isLoading = ref(true)
@@ -290,6 +302,16 @@ async function renderMissingCornerCards() {
 
 // 处理合券
 async function handleJoint() {
+  // U-03: 游客不能合券
+  if (isGuestUser()) {
+    jointResultData.value = {
+      message: '游客无法合券，请先绑定正式账号',
+      storyTitle: '',
+      specialCardName: ''
+    }
+    verifyResult.value = 'fail'
+    return
+  }
   if (!selectedCardId.value || !shareCode) return
   isVerifying.value = true
   verifyResult.value = null
@@ -476,7 +498,7 @@ onMounted(loadShareInfo)
               {{ jointResultData?.message }} 故事《{{ jointResultData?.storyTitle }}》已收录
             </p>
             <p v-else-if="verifyResult === 'fail'" class="result-msg fail">
-              合券失败，卡片不匹配
+              {{ jointResultData?.message || '合券失败，卡片不匹配' }}
             </p>
           </div>
         </transition>
