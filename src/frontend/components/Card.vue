@@ -51,6 +51,14 @@ const inkIntensity = computed(() => {
   return Math.min(1.0, Math.max(0, val / 7))
 })
 
+// C-11 墨香状态（浓/淡/将尽），基于墨香值
+const inkFragranceStatus = computed(() => {
+  const val = inkFragrance.value
+  if (val >= 5) return '浓'
+  if (val >= 2) return '淡'
+  return '将尽'
+})
+
 import { computed } from 'vue'
 </script>
 
@@ -126,6 +134,10 @@ import { computed } from 'vue'
               : {}"
           ></span>
         </div>
+        <!-- C-11 墨香状态文字（浓/淡/将尽） -->
+        <span class="fragrance-status" :class="`status-${inkFragranceStatus}`">
+          {{ inkFragranceStatus }}
+        </span>
       </div>
 
       <!-- K-06 累计共鸣次数显示 -->
@@ -361,6 +373,35 @@ import { computed } from 'vue'
   0%   { opacity: 0.8; }
   50%  { opacity: 0.4; }
   100% { opacity: 0.8; }
+}
+
+/* C-11 墨香状态文字 */
+.fragrance-status {
+  font-size: 0.55rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 2px;
+  border: 1px solid;
+  letter-spacing: 0.08em;
+  margin-left: 0.2rem;
+  flex-shrink: 0;
+}
+
+.fragrance-status.status-浓 {
+  color: #FFD700;
+  border-color: rgba(255, 215, 0, 0.5);
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.fragrance-status.status-淡 {
+  color: #8b7355;
+  border-color: rgba(139, 115, 85, 0.4);
+  background: rgba(139, 115, 85, 0.08);
+}
+
+.fragrance-status.status-将尽 {
+  color: #a07050;
+  border-color: rgba(160, 112, 80, 0.4);
+  background: rgba(160, 112, 80, 0.08);
 }
 
 /* K-06 累计共鸣次数 - 赭石色小字 */

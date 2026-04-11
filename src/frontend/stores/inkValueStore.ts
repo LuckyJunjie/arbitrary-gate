@@ -8,14 +8,20 @@ const STORAGE_KEY = 'arbitrary_gate_ink_value'
 /** 上次访问时间戳存储 key */
 const LAST_ACCESS_KEY = 'arbitrary_gate_last_access'
 
-/** 墨香衰减阈值：24小时 */
-const DECAY_INTERVAL_MS = 24 * 60 * 60 * 1000
-
-/** 每次衰减比例：10% */
-const DECAY_RATE = 0.1
+/** 墨香衰减配置（可覆盖） */
+export const INK_DECAY_CONFIG = {
+  /** 是否启用衰减 */
+  enabled: true,
+  /** 每小时衰减百分比（如 0.05 = 5%/小时） */
+  rate: 0.05,
+  /** 衰减时间间隔（毫秒），默认 1 小时 */
+  intervalMs: 60 * 60 * 1000,
+  /** 最低衰减下限（总积分的 30% 约为最低值） */
+  minFloorRatio: 0.3,
+}
 
 /** 墨香值衰减最低下限（不低于此值） */
-const MIN_INK_BASE = 10
+export const MIN_INK_BASE = 10
 
 /** 稀有度对应基础墨香值 */
 export const RARITY_INK_BONUS: Record<number, number> = {
@@ -101,6 +107,20 @@ export const useInkValueStore = defineStore('inkValue', () => {
   const nextLevel = computed(() => {
     const idx = INK_LEVELS.findIndex(l => l.level === currentLevel.value.level)
     return idx < INK_LEVELS.length - 1 ? INK_LEVELS[idx + 1] : null
+  })
+
+  /**
+   * 墨香状态（浓/淡/将尽）
+   * 基于当前等级进度计算：
+   * - 浓：进度 > 70%
+   * - 淡：进度 30%-70%
+   * - 将尽：进度 < 30%
+   */
+  const inkFragranceStatus = computed<'浓' | '淡' | '将尽'>(() => {
+    const p = levelProgress.value
+    if (p > 0.7) return '浓'
+    if (p >= 0.3) return '淡'
+    return '将尽'
   })
 
   // ── Storage ──────────────────────────────────────────────────────────────
@@ -202,9 +222,14 @@ export const useInkValueStore = defineStore('inkValue', () => {
 
   /**
    * 执行墨香值时间衰减
-   * 每 24 小时未访问，衰减 10%，最低不低于 MIN_INK_BASE
+   * 每 INK_DECAY_CONFIG.intervalMs 未访问，按 rate 百分比衰减，
+   * 最低不低于 MIN_INK_BASE（配置项可通过覆盖 INK_DECAY_CONFIG 调整）
    */
   function decayInkValue(): number {
+    if (!INK_DECAY_CONFIG.enabled) {
+      saveLastAccessTime()
+      return 0
+    }
     const now = Date.now()
     const lastAccess = getLastAccessTime()
 
@@ -215,21 +240,25 @@ export const useInkValueStore = defineStore('inkValue', () => {
     }
 
     const elapsed = now - lastAccess
-    // 不足 24 小时，无需衰减
-    if (elapsed < DECAY_INTERVAL_MS) {
+    // 不足配置的衰减间隔，无需衰减
+    if (elapsed < INK_DECAY_CONFIG.intervalMs) {
       saveLastAccessTime()
       return 0
     }
 
-    // 计算衰减轮次（每 24 小时衰减一次）
-    const decayCycles = Math.floor(elapsed / DECAY_INTERVAL_MS)
-    // 最多衰减至 MIN_INK_BASE（总积分的 30% 约为最低值）
-    const minFloor = Math.floor(totalPoints.value * 0.3)
+    // 计算衰减轮次
+    const decayCycles = Math.floor(elapsed / INK_DECAY_CONFIG.intervalMs)
+    // 最低下限：配置比例 or MIN_INK_BASE
+    const minFloor = Math.max(
+      Math.floor(totalPoints.value * INK_DECAY_CONFIG.minFloorRatio),
+      MIN_INK_BASE
+    )
 
     let decayed = 0
     for (let i = 0; i < decayCycles; i++) {
       const current = totalPoints.value - decayed
-      const nextValue = Math.floor(current * (1 - DECAY_RATE))
+      const decayAmount = Math.floor(current * INK_DECAY_CONFIG.rate)
+      const nextValue = current - decayAmount
       const floorCheck = Math.max(minFloor, MIN_INK_BASE)
 
       if (nextValue <= floorCheck) {
@@ -237,7 +266,7 @@ export const useInkValueStore = defineStore('inkValue', () => {
         decayed = totalPoints.value - floorCheck
         break
       }
-      decayed += Math.floor(current * DECAY_RATE)
+      decayed += decayAmount
     }
 
     if (decayed > 0) {
@@ -266,6 +295,7 @@ export const useInkValueStore = defineStore('inkValue', () => {
     levelProgress,
     pointsToNextLevel,
     nextLevel,
+    inkFragranceStatus,
     loadFromStorage,
     syncToStorage,
     awardInkForDraw,

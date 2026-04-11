@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import {
   useInkValueStore,
@@ -7,17 +7,15 @@ import {
   STREAK_BONUS_PER_STEP,
   STREAK_BONUS_MAX,
   INK_LEVELS,
+  INK_DECAY_CONFIG,
 } from '@/stores/inkValueStore'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** 模拟本地存储 */
-const mockStorage: Record<string, string> = {}
-
 /** 创建一个全新的 store 实例（每个测试独立） */
 function createFreshStore() {
   const store = useInkValueStore()
-  // 清除 localStorage mock
+  // 清除 store 状态
   store.$state = {
     totalPoints: 0,
     records: [],
@@ -26,19 +24,32 @@ function createFreshStore() {
   return store
 }
 
+// ─── Shared mock localStorage（每个测试独立，互不干扰）───────────────────────
+let mockStorageInstance: Record<string, string> = {}
+
+function createMockStorage() {
+  const storage: Record<string, string> = {}
+  mockStorageInstance = storage
+  return {
+    getItem: (key: string) => storage[key] ?? null,
+    setItem: (key: string, value: string) => { storage[key] = value },
+    removeItem: (key: string) => { delete storage[key] },
+    clear: () => { Object.keys(storage).forEach(k => delete storage[k]) },
+  }
+}
+
+let globalMockRef = createMockStorage()
+
 // ─── Mock localStorage ────────────────────────────────────────────────────
 beforeEach(() => {
-  vi.stubGlobal('localStorage', {
-    getItem: (key: string) => mockStorage[key] ?? null,
-    setItem: (key: string, value: string) => { mockStorage[key] = value },
-    removeItem: (key: string) => { delete mockStorage[key] },
-    clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]) },
-  })
+  globalMockRef.clear()
+  vi.stubGlobal('localStorage', globalMockRef)
 })
 
 afterEach(() => {
+  vi.useRealTimers() // 恢复真实 timer，避免污染后续测试
   vi.unstubAllGlobals()
-  Object.keys(mockStorage).forEach(k => delete mockStorage[k])
+  globalMockRef.clear()
 })
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -308,24 +319,19 @@ describe('STREAK_BONUS_MAX / STREAK_BONUS_PER_STEP', () => {
   })
 })
 
-// ─── 时间衰减测试 ────────────────────────────────────────────────────────────
+// ─── 时间衰减测试（C-11 墨香渐淡）───────────────────────────────────────────
 
-const DECAY_INTERVAL_MS = 24 * 60 * 60 * 1000
+describe('墨香值时间衰减 - INK_DECAY_CONFIG', () => {
+  it('默认每小时衰减 5%', () => {
+    expect(INK_DECAY_CONFIG.rate).toBe(0.05)
+    expect(INK_DECAY_CONFIG.intervalMs).toBe(60 * 60 * 1000)
+    expect(INK_DECAY_CONFIG.enabled).toBe(true)
+  })
+})
 
 describe('墨香值时间衰减 - decayInkValue', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    vi.stubGlobal('localStorage', {
-      getItem: (key: string) => mockStorage[key] ?? null,
-      setItem: (key: string, value: string) => { mockStorage[key] = value },
-      removeItem: (key: string) => { delete mockStorage[key] },
-      clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]) },
-    })
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    Object.keys(mockStorage).forEach(k => delete mockStorage[k])
   })
 
   it('无上次访问记录，无需衰减', () => {
@@ -333,65 +339,148 @@ describe('墨香值时间衰减 - decayInkValue', () => {
     store.totalPoints = 100
     const decayed = store.decayInkValue()
     expect(decayed).toBe(0)
+    expect(store.totalPoints).toBe(100)
   })
 
-  it('不足 24 小时，无需衰减', () => {
+  it('不足 1 小时，无需衰减', () => {
     const store = createFreshStore()
     store.totalPoints = 100
-    // 设置 12 小时前的时间
-    const twelveHoursAgo = Date.now() - (12 * 60 * 60 * 1000)
-    mockStorage['arbitrary_gate_last_access'] = String(twelveHoursAgo)
+    // T0 = 2024-01-01 00:00:00 UTC
+    vi.useFakeTimers()
+    vi.setSystemTime(1704067200000)
+    // lastAccess = T0 - 30min → 不足 1 小时间隔，无需衰减
+    mockStorageInstance['arbitrary_gate_last_access'] = String(1704067200000 - 30 * 60 * 1000)
     const decayed = store.decayInkValue()
     expect(decayed).toBe(0)
+    expect(store.totalPoints).toBe(100)
+    vi.useRealTimers()
   })
 
-  it('超过 24 小时，衰减 10%', () => {
+  it('超过 1 小时，衰减 5%（1轮）', () => {
     const store = createFreshStore()
     store.totalPoints = 100
-    const twentyFiveHoursAgo = Date.now() - DECAY_INTERVAL_MS - (1 * 60 * 60 * 1000)
-    mockStorage['arbitrary_gate_last_access'] = String(twentyFiveHoursAgo)
+    // T0 = 2024-01-01 00:00:00 UTC, lastAccess = T0 - 2h → 2 小时 elapsed = 2 轮
+    // 但 fake timer 可能稍有偏差，改用 65min 以确保 > 1h 但 < 2h
+    vi.useFakeTimers()
+    vi.setSystemTime(1704067200000)
+    // 65 分钟前：超过 1 小时，触发 1 轮
+    mockStorageInstance['arbitrary_gate_last_access'] = String(1704067200000 - 65 * 60 * 1000)
     const decayed = store.decayInkValue()
-    expect(decayed).toBe(10)
-    expect(store.totalPoints).toBe(90)
+    // 1轮: floor(100 * 0.05) = 5
+    expect(decayed).toBe(5)
+    expect(store.totalPoints).toBe(95)
+    vi.useRealTimers()
   })
 
-  it('超过 48 小时，衰减 2 轮（20%）', () => {
+  it('超过 2 小时，衰减 2 轮', () => {
     const store = createFreshStore()
     store.totalPoints = 100
-    const fiftyHoursAgo = Date.now() - (50 * 60 * 60 * 1000)
-    mockStorage['arbitrary_gate_last_access'] = String(fiftyHoursAgo)
+    vi.useFakeTimers()
+    vi.setSystemTime(1704067200000)
+    // T0 - 3h → 3 小时 elapsed = 3 轮，但 3 * 0.05 * 100 = 15 太多
+    // 改用 2h15m = 2 完整轮 + 0.25 轮
+    mockStorageInstance['arbitrary_gate_last_access'] = String(1704067200000 - 135 * 60 * 1000)
     const decayed = store.decayInkValue()
-    // 100 * 0.9 = 90, 90 * 0.9 = 81 → 衰减 19
-    expect(decayed).toBeGreaterThanOrEqual(18)
-    expect(store.totalPoints).toBeLessThan(82)
+    // 第1轮: 100 - floor(100 * 0.05) = 95
+    // 第2轮: 95 - floor(95 * 0.05) = 95 - 4 = 91
+    expect(decayed).toBe(9)
+    expect(store.totalPoints).toBe(91)
+    vi.useRealTimers()
   })
 
   it('衰减不低于最低下限 MIN_INK_BASE(10)', () => {
     const store = createFreshStore()
-    store.totalPoints = 15
-    const fiftyHoursAgo = Date.now() - (50 * 60 * 60 * 1000)
-    mockStorage['arbitrary_gate_last_access'] = String(fiftyHoursAgo)
-    const decayed = store.decayInkValue()
-    // 第一次衰减: 15 * 0.1 = 1.5 → floor 1
-    // 剩余: 15 - 1 = 14
-    // 第二次: 14 * 0.1 = 1.4 → floor 1
-    // 剩余不能低于 10
+    store.totalPoints = 12
+    vi.useFakeTimers()
+    vi.setSystemTime(1704067200000)
+    // 设置 100 小时前
+    mockStorageInstance['arbitrary_gate_last_access'] = String(1704067200000 - 100 * 60 * 60 * 1000)
+    store.decayInkValue()
+    // 不得衰减到 10 以下
     expect(store.totalPoints).toBeGreaterThanOrEqual(10)
+    vi.useRealTimers()
+  })
+
+  it('INK_DECAY_CONFIG.enabled=false 时跳过衰减', () => {
+    INK_DECAY_CONFIG.enabled = false
+    const store = createFreshStore()
+    store.totalPoints = 100
+    vi.useFakeTimers()
+    vi.setSystemTime(1704067200000)
+    mockStorageInstance['arbitrary_gate_last_access'] = String(1704067200000 - 2 * 60 * 60 * 1000)
+    const decayed = store.decayInkValue()
+    expect(decayed).toBe(0)
+    expect(store.totalPoints).toBe(100)
+    vi.useRealTimers()
   })
 })
 
 describe('墨香值时间衰减 - checkAndDecayOnAppStart', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1704067200000)
     setActivePinia(createPinia())
+    // 确保 INK_DECAY_CONFIG.enabled 为 true（前面测试可能设为 false）
+    INK_DECAY_CONFIG.enabled = true
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('应在应用启动时被调用，返回衰减墨香值', () => {
     const store = createFreshStore()
     store.totalPoints = 100
-    const twentyFiveHoursAgo = Date.now() - DECAY_INTERVAL_MS - (1 * 60 * 60 * 1000)
-    mockStorage['arbitrary_gate_last_access'] = String(twentyFiveHoursAgo)
+    mockStorageInstance['arbitrary_gate_last_access'] = String(1704067200000 - 2 * 60 * 60 * 1000)
     const decayed = store.checkAndDecayOnAppStart()
     expect(decayed).toBeGreaterThan(0)
     expect(store.totalPoints).toBeLessThan(100)
+  })
+})
+
+// ─── C-11 墨香状态测试 ────────────────────────────────────────────────────────
+
+describe('inkFragranceStatus 墨香状态', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    INK_DECAY_CONFIG.enabled = true
+    INK_DECAY_CONFIG.rate = 0.05
+    INK_DECAY_CONFIG.intervalMs = 60 * 60 * 1000
+  })
+
+  it('进度 > 70% → 浓', () => {
+    const store = createFreshStore()
+    store.totalPoints = 80 // 初墨: 0-99, 80/100 = 80% > 70%
+    expect(store.inkFragranceStatus).toBe('浓')
+  })
+
+  it('进度 30%-70% → 淡', () => {
+    const store = createFreshStore()
+    store.totalPoints = 50 // 初墨: 50/100 = 50%
+    expect(store.inkFragranceStatus).toBe('淡')
+  })
+
+  it('进度 < 30% → 将尽', () => {
+    const store = createFreshStore()
+    store.totalPoints = 20 // 初墨: 20/100 = 20% < 30%
+    expect(store.inkFragranceStatus).toBe('将尽')
+  })
+
+  it('入墨 100-299: 100点 = 0% → 将尽', () => {
+    const store = createFreshStore()
+    store.totalPoints = 100 // 入墨起点
+    expect(store.inkFragranceStatus).toBe('将尽')
+  })
+
+  it('入墨 200点 = 50% → 淡', () => {
+    const store = createFreshStore()
+    store.totalPoints = 200 // 入墨: 100-299 range, 200-100=100, 100/200=50%
+    expect(store.inkFragranceStatus).toBe('淡')
+  })
+
+  it('墨魂（无限）→ 浓', () => {
+    const store = createFreshStore()
+    store.totalPoints = 2000 // 墨魂
+    expect(store.inkFragranceStatus).toBe('浓')
   })
 })

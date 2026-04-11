@@ -62,6 +62,7 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     private final AIClient aiClient;
     private final ResourceLoader resourceLoader;
     private final ObjectMapper objectMapper;
+    private final InkDecayConfig inkDecayConfig;
 
     @Value("${timespace.card.ink-stone-cost:10}")
     private int inkStoneCost;
@@ -218,6 +219,10 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     private static final String EVENT_GUARANTEE_KEY = "event:card:guarantee:user:%d";
     private static final long EVENT_GUARANTEE_TTL = 7 * 24 * 3600L;
     private static final int EVENT_CARD_LIMIT = 3;
+
+    /** 墨香衰减 Redis key 模板：ink_decay:last:{userId}:{cardId} */
+    private static final String INK_DECAY_LAST_KEY = "ink_decay:last:%d:%d";
+    private static final long INK_DECAY_TTL = 7 * 24 * 3600L; // 7天过期
 
     /**
      * 事件卡保底状态
@@ -421,6 +426,8 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
         userCard.setInkFragrance(Math.min(7, userCard.getInkFragrance() + delta));
         userCard.setResonanceCount(userCard.getResonanceCount() + 1);
         userKeywordCardMapper.updateById(userCard);
+        // 重置衰减计时起点
+        saveInkDecayTimestamp(userId, userCard.getId());
     }
 
     /**
@@ -531,6 +538,8 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
             // 已拥有则增加墨香值（不超过7）
             existing.setInkFragrance(Math.min(7, existing.getInkFragrance() + 1));
             userKeywordCardMapper.updateById(existing);
+            // 重置衰减计时起点
+            saveInkDecayTimestamp(userId, existing.getId());
             log.info("用户已拥有该卡，增加墨香值: userId={}, cardId={}", userId, card.getId());
             return existing;
         }
@@ -543,6 +552,8 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
         userCard.setResonanceCount(0);
         userCard.setAcquiredAt(LocalDateTime.now());
         userKeywordCardMapper.insert(userCard);
+        // 设置衰减计时起点
+        saveInkDecayTimestamp(userId, userCard.getId());
         return userCard;
     }
 
@@ -750,26 +761,165 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
      */
     public record PreviewResult(String judgment) {}
 
-    // ========== C-11 墨香渐淡（时间衰减）每日零点执行 ==========
+    // ========== C-11 墨香渐淡（时间衰减）每小时执行 ==========
 
     /**
      * C-11 墨香渐淡（时间衰减）
-     * 每日零点（0:00）执行，扫描所有用户关键词卡的墨香值，
-     * 将 ink_fragrance = MAX(0, ink_fragrance - 1)
-     * 模拟"墨香随时间流逝而渐淡"的游戏体验。
+     * 每小时执行，扫描所有用户关键词卡的墨香值，
+     * 按配置百分比（默认 5%/小时）衰减，
+     * 最低衰减到稀有度基准值。
      *
-     * 注意：墨香值存储在 user_keyword_card 表，使用 userKeywordCardMapper。
+     * 公式：currentInkValue = max(baseValue, lastValue - (hoursElapsed * decayRate * lastValue))
      */
-    @Scheduled(cron = "0 0 0 * * ?")
-    public void decayInkFragranceDaily() {
+    @Scheduled(cron = "0 0 * * * ?")
+    public void decayInkFragranceHourly() {
+        if (!inkDecayConfig.isEnabled()) {
+            return;
+        }
         log.info("[C-11] 墨香渐淡定时任务开始执行");
 
-        // 墨香值最小为0，衰减后不低于0；只更新 ink_fragrance > 0 的记录
-        int updated = userKeywordCardMapper.update(null,
-                new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<UserKeywordCard>()
-                        .setSql("ink_fragrance = GREATEST(0, ink_fragrance - 1)")
-                        .gt(UserKeywordCard::getInkFragrance, 0)
+        int totalUpdated = 0;
+        int pageSize = 200;
+        int page = 0;
+        long now = System.currentTimeMillis();
+
+        while (true) {
+            // 分批查询有墨香值的卡牌
+            List<UserKeywordCard> cards = userKeywordCardMapper.selectList(
+                    new LambdaQueryWrapper<UserKeywordCard>()
+                            .gt(UserKeywordCard::getInkFragrance, 0)
+                            .last("LIMIT " + page * pageSize + ", " + pageSize)
+            );
+            if (cards == null || cards.isEmpty()) {
+                break;
+            }
+
+            for (UserKeywordCard card : cards) {
+                Long userId = card.getUserId();
+                Long cardId = card.getId();
+                String redisKey = String.format(INK_DECAY_LAST_KEY, userId, cardId);
+
+                // 获取上次衰减时间戳
+                String lastStr = redissonClient.getBucket(redisKey).get();
+                long lastTime = 0;
+                if (lastStr != null) {
+                    try {
+                        lastTime = Long.parseLong(lastStr.trim());
+                    } catch (NumberFormatException e) {
+                        log.warn("[C-11] Redis 时间戳解析失败: key={}, value={}", redisKey, lastStr);
+                    }
+                }
+
+                // 计算小时数（首次或无记录时，以获取卡牌时开始计算）
+                double hoursElapsed;
+                if (lastTime == 0) {
+                    // 无记录，以卡牌获取时间作为起点（最多衰减到获取时的墨香值）
+                    hoursElapsed = (now - card.getAcquiredAt()
+                            .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()) / 3600000.0;
+                } else {
+                    hoursElapsed = (now - lastTime) / 3600000.0;
+                }
+
+                // 跳过不足 1 小时的情况
+                if (hoursElapsed < 1.0) {
+                    continue;
+                }
+
+                // 获取稀有度（需查询卡牌表）
+                KeywordCard keywordCard = keywordCardMapper.selectById(card.getCardId());
+                int rarity = keywordCard != null ? keywordCard.getRarity() : 1;
+                int baseValue = inkDecayConfig.getBaseForRarity(rarity);
+
+                // 计算衰减后墨香值
+                int currentInk = card.getInkFragrance();
+                double rate = inkDecayConfig.getRate() / 100.0;
+                double decayed = currentInk - (hoursElapsed * rate * currentInk);
+                int newInk = (int) Math.max(baseValue, Math.round(decayed));
+
+                if (newInk < currentInk) {
+                    card.setInkFragrance(newInk);
+                    userKeywordCardMapper.updateById(card);
+                    totalUpdated++;
+                    // 更新 Redis 时间戳
+                    redissonClient.getBucket(redisKey).set(String.valueOf(now),
+                            java.time.Duration.ofSeconds(INK_DECAY_TTL));
+                }
+            }
+
+            page++;
+            if (cards.size() < pageSize) {
+                break;
+            }
+        }
+        log.info("[C-11] 墨香渐淡定时任务完成，共衰减 {} 张卡牌的墨香值", totalUpdated);
+    }
+
+    /**
+     * 保存墨香衰减时间戳（每次衰减/充值后调用）
+     */
+    private void saveInkDecayTimestamp(Long userId, Long userCardId) {
+        String redisKey = String.format(INK_DECAY_LAST_KEY, userId, userCardId);
+        redissonClient.getBucket(redisKey).set(
+                String.valueOf(System.currentTimeMillis()),
+                java.time.Duration.ofSeconds(INK_DECAY_TTL));
+    }
+
+    /**
+     * 获取墨香衰减时间戳（毫秒）
+     */
+    private long getInkDecayTimestamp(Long userId, Long userCardId) {
+        String redisKey = String.format(INK_DECAY_LAST_KEY, userId, userCardId);
+        String val = redissonClient.getBucket(redisKey).get();
+        if (val == null) return 0;
+        try {
+            return Long.parseLong(val.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * C-11 手动触发墨香衰减（用于测试或特定场景）
+     * 根据 Redis 时间戳计算当前应衰减到的值
+     */
+    @Transactional
+    public int decayInkFragranceForCard(Long userId, Long userCardId) {
+        UserKeywordCard card = userKeywordCardMapper.selectOne(
+                new LambdaQueryWrapper<UserKeywordCard>()
+                        .eq(UserKeywordCard::getUserId, userId)
+                        .eq(UserKeywordCard::getId, userCardId)
         );
-        log.info("[C-11] 墨香渐淡定时任务完成，共衰减 {} 张卡牌的墨香值", updated);
+        if (card == null || card.getInkFragrance() <= 0) {
+            return 0;
+        }
+
+        long now = System.currentTimeMillis();
+        long lastTime = getInkDecayTimestamp(userId, userCardId);
+        double hoursElapsed;
+        if (lastTime == 0) {
+            hoursElapsed = (now - card.getAcquiredAt()
+                    .atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()) / 3600000.0;
+        } else {
+            hoursElapsed = (now - lastTime) / 3600000.0;
+        }
+
+        if (hoursElapsed < 1.0) {
+            return 0;
+        }
+
+        KeywordCard keywordCard = keywordCardMapper.selectById(card.getCardId());
+        int rarity = keywordCard != null ? keywordCard.getRarity() : 1;
+        int baseValue = inkDecayConfig.getBaseForRarity(rarity);
+
+        double rate = inkDecayConfig.getRate() / 100.0;
+        double decayed = card.getInkFragrance() - (hoursElapsed * rate * card.getInkFragrance());
+        int newInk = (int) Math.max(baseValue, Math.round(decayed));
+
+        if (newInk < card.getInkFragrance()) {
+            card.setInkFragrance(newInk);
+            userKeywordCardMapper.updateById(card);
+            saveInkDecayTimestamp(userId, userCardId);
+        }
+        return newInk;
     }
 }

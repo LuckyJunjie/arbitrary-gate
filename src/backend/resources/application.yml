@@ -108,6 +108,18 @@ timespace:
     guaranteed-legendary-chapter: 30 # 保底绝品章节数
     guaranteed-rare-rate: 100     # 保底奇品概率(每抽)
     guaranteed-legendary-rate: 100 # 保底绝品概率(每抽)
+  # 墨香衰减配置（C-11）
+  ink:
+    decay:
+      enabled: true              # 是否启用墨香衰减
+      rate: 5                    # 每小时衰减百分比（5 = 5%）
+      minimum: base              # 最低衰减到基准值（base = 稀有度基准值）
+      # 稀有度对应基准墨香值
+      rarity-base:
+        1: 0   # 凡
+        2: 1   # 珍
+        3: 2   # 奇
+        4: 3   # 绝
   # 故事配置
   story:
     max-chapters: 5               # 最大章节数
