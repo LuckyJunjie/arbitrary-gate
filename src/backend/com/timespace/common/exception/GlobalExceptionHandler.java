@@ -19,6 +19,13 @@ public class GlobalExceptionHandler {
         return Result.fail(e.getCode(), e.getMessage());
     }
 
+    // I-06: XSS 注入攻击异常
+    @ExceptionHandler(XssInjectionException.class)
+    public Result<?> handleXssInjectionException(XssInjectionException e) {
+        log.warn("XSS 注入攻击检测: field={}, message={}", e.getFieldName(), e.getMessage());
+        return Result.fail(400, "请求包含非法字符，请勿输入 HTML 或脚本内容");
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<?> handleValidationException(MethodArgumentNotValidException e) {
         Map<String, String> errors = new HashMap<>();
