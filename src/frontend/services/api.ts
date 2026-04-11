@@ -649,6 +649,7 @@ export interface GuestLoginResponse {
     totalStories: number
     completedStories: number
     isGuest: number // 0=正式用户，1=游客
+    guestDeviceId?: string // 游客设备标识 UUID
   }
 }
 
@@ -679,6 +680,10 @@ export async function ensureLogin(): Promise<boolean> {
     localStorage.setItem('token', res.token)
     // 存储用户信息（含 isGuest 标志）
     localStorage.setItem('arbitrary_gate_user', JSON.stringify(res.user))
+    // 存储游客设备标识（用于账号升级）
+    if (res.user.guestDeviceId) {
+      localStorage.setItem('guest_device_id', res.user.guestDeviceId)
+    }
     console.info('[Auth] Guest login success, userId=', res.user.id, 'isGuest=', res.user.isGuest)
     return true
   } catch (err) {

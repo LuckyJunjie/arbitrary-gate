@@ -41,6 +41,11 @@ public class User {
      */
     private Integer isGuest;
 
+    /**
+     * 游客设备标识（UUID，用于账号升级时关联正式账号）
+     */
+    private String guestDeviceId;
+
     @TableLogic
     private Integer deleted;
 }

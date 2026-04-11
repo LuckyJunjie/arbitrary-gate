@@ -15,6 +15,7 @@ import com.timespace.module.user.mapper.UserMapper;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,10 +95,14 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     @Transactional
     public WxLoginVO guestLogin() {
         String guestOpenId = "guest_" + java.util.UUID.randomUUID().toString().replace("-", "");
+        String guestDeviceId = java.util.UUID.randomUUID().toString().replace("-", "");
+        // 昵称：旅人 + 随机 4 位数字（如"旅人7293"）
+        String guestNickname = "旅人" + RandomUtil.randomInt(1000, 9999);
 
         User user = new User();
         user.setOpenId(guestOpenId);
-        user.setNickname("旅人");
+        user.setGuestDeviceId(guestDeviceId);
+        user.setNickname(guestNickname);
         user.setInkStone(0);
         user.setDailyFreeDraws(GUEST_DAILY_FREE_COUNT);
         user.setLastFreeResetTime(LocalDateTime.now());

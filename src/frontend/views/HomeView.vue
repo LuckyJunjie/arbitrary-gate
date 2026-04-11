@@ -26,6 +26,20 @@ const totalCardCount = computed(() => cardStore.totalCount)
 // ── 背景墨迹动画状态 ──
 const inkPulse = ref(false)
 
+// ── U-03 游客状态 ──
+function getUserIsGuest(): boolean {
+  try {
+    const saved = localStorage.getItem('arbitrary_gate_user')
+    if (saved) {
+      const user = JSON.parse(saved)
+      return user.isGuest === 1
+    }
+  } catch { /* ignore */ }
+  return false
+}
+
+const isGuest = ref(getUserIsGuest())
+
 onMounted(() => {
   // 墨香值时间衰减检查
   inkValueStore.checkAndDecayOnAppStart()
@@ -36,6 +50,8 @@ onMounted(() => {
   setInterval(() => {
     inkPulse.value = !inkPulse.value
   }, 8000)
+  // U-03: 更新游客状态
+  isGuest.value = getUserIsGuest()
 })
 
 function loadRecentStories() {
@@ -125,9 +141,19 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
       <div class="header-seal" aria-hidden="true">📜</div>
       <h1 class="title">时光笺</h1>
       <p class="subtitle">穿越者书房</p>
+      <!-- U-03: 游客身份标签 -->
+      <div v-if="isGuest" class="guest-badge" aria-label="游客模式">
+        <span class="guest-badge__dot" />
+        <span class="guest-badge__text">游客</span>
+      </div>
       <button class="settings-btn" @click="router.push('/settings')" aria-label="设置">⚙️</button>
       <div class="header-divider" />
     </header>
+
+    <!-- U-03: 游客绑定提示 -->
+    <div v-if="isGuest" class="guest-bind-prompt" aria-live="polite">
+      <span>绑定微信账号，解锁完整功能</span>
+    </div>
 
     <!-- 导航区 -->
     <nav class="study-nav">
@@ -362,6 +388,54 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ── U-03 游客身份标签 ── */
+.guest-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  background: rgba(139, 115, 85, 0.12);
+  border: 1px solid rgba(139, 115, 85, 0.3);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  color: #8b7355;
+  letter-spacing: 0.08em;
+}
+
+.guest-badge__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c9a84c;
+  animation: guest-pulse 2s ease-in-out infinite;
+}
+
+@keyframes guest-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.guest-badge__text {
+  font-family: inherit;
+}
+
+/* ── U-03 游客绑定提示 ── */
+.guest-bind-prompt {
+  width: 100%;
+  max-width: 340px;
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: #a09080;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.8rem;
+  background: rgba(201, 168, 76, 0.06);
+  border: 1px dashed rgba(201, 168, 76, 0.25);
+  border-radius: 4px;
+}
+
 
 /* ── 导航 ── */
 .study-nav {

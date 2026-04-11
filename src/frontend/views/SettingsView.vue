@@ -11,11 +11,42 @@ const settingsStore = useSettingsStore()
 const showAgreement = ref(false)
 const showAbout = ref(false)
 const showLogoutConfirm = ref(false)
+const showBindTip = ref(false)
 
 // App 信息
 const APP_NAME = '时光笺·任意门'
 const APP_VERSION = '0.1.0'
 const CONTACT = 'timespace@example.com'
+
+// ── U-03 游客状态 ──
+function getUserIsGuest(): boolean {
+  try {
+    const saved = localStorage.getItem('arbitrary_gate_user')
+    if (saved) {
+      const user = JSON.parse(saved)
+      return user.isGuest === 1
+    }
+  } catch { /* ignore */ }
+  return false
+}
+
+const isGuest = ref(getUserIsGuest())
+const userNickname = ref('')
+const guestDeviceId = ref('')
+
+function loadUserInfo() {
+  try {
+    const saved = localStorage.getItem('arbitrary_gate_user')
+    if (saved) {
+      const user = JSON.parse(saved)
+      userNickname.value = user.nickname || ''
+    }
+    const deviceId = localStorage.getItem('guest_device_id')
+    guestDeviceId.value = deviceId || ''
+  } catch { /* ignore */ }
+}
+
+loadUserInfo()
 
 // 清除缓存
 function clearCache() {
@@ -59,6 +90,17 @@ function handleLogout() {
   showLogoutConfirm.value = false
   localStorage.removeItem('token')
   localStorage.removeItem('arbitrary_gate_user')
+  localStorage.removeItem('guest_device_id')
+  // U-03: 游客退出时清除所有本地数据（游客数据不可保留）
+  if (isGuest.value) {
+    localStorage.removeItem('selectedKeywordCards')
+    localStorage.removeItem('selectedEventCard')
+    localStorage.removeItem('recentStories')
+    localStorage.removeItem('ownedKeywordCards')
+    localStorage.removeItem('story_values')
+    localStorage.removeItem('arbitrary_gate_ink_value')
+    localStorage.removeItem('dailyFreeDraws')
+  }
   router.replace('/')
 }
 </script>
@@ -76,6 +118,33 @@ function handleLogout() {
 
     <!-- 设置列表 -->
     <div class="settings-list">
+
+      <!-- U-03: 账号信息（区分游客和正式用户） -->
+      <div class="account-section">
+        <div class="account-avatar">
+          <span class="avatar-icon">{{ isGuest ? '👤' : '🏮' }}</span>
+        </div>
+        <div class="account-info">
+          <div class="account-nickname">{{ userNickname || (isGuest ? '旅人' : '时光旅人') }}</div>
+          <div v-if="isGuest" class="account-guest-tag">
+            <span class="guest-dot" />
+            <span>游客身份</span>
+          </div>
+          <div v-else class="account-normal-tag">正式账号</div>
+        </div>
+      </div>
+
+      <!-- U-03: 游客绑定提示 -->
+      <div v-if="isGuest" class="guest-bind-card">
+        <div class="guest-bind-card__icon">🔗</div>
+        <div class="guest-bind-card__content">
+          <div class="guest-bind-card__title">绑定微信账号</div>
+          <div class="guest-bind-card__desc">绑定后可解锁完整功能，保留当前游客数据</div>
+        </div>
+        <button class="guest-bind-card__btn" @click="showBindTip = true">
+          绑定
+        </button>
+      </div>
       <!-- 音效开关 -->
       <div class="setting-item">
         <div class="setting-left">
@@ -125,11 +194,11 @@ function handleLogout() {
 
       <div class="divider" />
 
-      <!-- 退出登录 -->
+      <!-- 退出登录 / 退出体验 -->
       <button class="setting-item setting-item--btn setting-item--danger" @click="showLogoutConfirm = true">
         <div class="setting-left">
           <span class="setting-icon">🚪</span>
-          <span class="setting-label">退出登录</span>
+          <span class="setting-label">{{ isGuest ? '退出体验' : '退出登录' }}</span>
         </div>
         <span class="setting-arrow">›</span>
       </button>
@@ -189,17 +258,48 @@ function handleLogout() {
         <div v-if="showLogoutConfirm" class="modal-overlay" @click.self="showLogoutConfirm = false">
           <div class="modal-dialog">
             <div class="modal-header">
-              <h3 class="modal-title">确认退出</h3>
+              <h3 class="modal-title">{{ isGuest ? '确认退出体验' : '确认退出' }}</h3>
               <button class="modal-close" @click="showLogoutConfirm = false">×</button>
             </div>
             <div class="modal-body">
-              <p class="confirm-text">确定要退出当前账号吗？</p>
+              <p class="confirm-text">{{ isGuest ? '退出后游客数据将被清除，确定要退出吗？' : '确定要退出当前账号吗？' }}</p>
               <div class="confirm-actions">
                 <button class="confirm-btn confirm-btn--cancel" @click="showLogoutConfirm = false">
                   取消
                 </button>
                 <button class="confirm-btn confirm-btn--confirm" @click="handleLogout">
-                  确认退出
+                  {{ isGuest ? '退出体验' : '确认退出' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- U-03: 绑定提示弹窗 -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="showBindTip" class="modal-overlay" @click.self="showBindTip = false">
+          <div class="modal-dialog">
+            <div class="modal-header">
+              <h3 class="modal-title">绑定微信账号</h3>
+              <button class="modal-close" @click="showBindTip = false">×</button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-text">绑定微信账号后可解锁以下功能：</p>
+              <ul class="bind-feature-list">
+                <li>保留所有抽卡记录与故事数据</li>
+                <li>每日免费抽卡次数提升至 3 次</li>
+                <li>解锁手稿分享与合券功能</li>
+                <li>支持墨晶充值与商城购买</li>
+              </ul>
+              <p class="confirm-text" style="margin-top:1rem; font-size:0.78rem; color:#8b7355;">
+                绑定功能即将上线，敬请期待。
+              </p>
+              <div class="confirm-actions" style="margin-top:1.5rem;">
+                <button class="confirm-btn confirm-btn--cancel" style="flex:1;" @click="showBindTip = false">
+                  知道了
                 </button>
               </div>
             </div>
@@ -370,6 +470,142 @@ function handleLogout() {
   height: 1px;
   background: rgba(232, 220, 200, 0.07);
   margin: 0;
+}
+
+/* ── U-03 账号信息区 ── */
+.account-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: rgba(201, 168, 76, 0.04);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.1);
+}
+
+.account-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-icon {
+  font-size: 1.4rem;
+}
+
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.account-nickname {
+  font-size: 1rem;
+  color: #e8dcc8;
+  letter-spacing: 0.08em;
+}
+
+.account-guest-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: #c9a84c;
+  letter-spacing: 0.06em;
+}
+
+.guest-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c9a84c;
+  animation: guest-blink 2s ease-in-out infinite;
+}
+
+@keyframes guest-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.account-normal-tag {
+  font-size: 0.7rem;
+  color: #6b8e6b;
+  letter-spacing: 0.06em;
+}
+
+/* ── U-03 游客绑定卡片 ── */
+.guest-bind-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: rgba(201, 168, 76, 0.06);
+  border-top: 1px solid rgba(201, 168, 76, 0.08);
+  border-bottom: 1px solid rgba(201, 168, 76, 0.08);
+}
+
+.guest-bind-card__icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.guest-bind-card__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.guest-bind-card__title {
+  font-size: 0.88rem;
+  color: #c9a84c;
+  letter-spacing: 0.08em;
+}
+
+.guest-bind-card__desc {
+  font-size: 0.72rem;
+  color: #8b7355;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.guest-bind-card__btn {
+  padding: 0.4rem 1rem;
+  background: rgba(201, 168, 76, 0.15);
+  border: 1px solid rgba(201, 168, 76, 0.35);
+  border-radius: 4px;
+  color: #c9a84c;
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.guest-bind-card__btn:hover {
+  background: rgba(201, 168, 76, 0.25);
+}
+
+/* ── U-03 绑定功能列表 ── */
+.bind-feature-list {
+  margin-top: 0.75rem;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bind-feature-list li {
+  font-size: 0.82rem;
+  color: rgba(232, 220, 200, 0.7);
+  letter-spacing: 0.05em;
+  line-height: 1.5;
 }
 
 /* ── 弹窗 ── */
