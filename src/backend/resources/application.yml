@@ -68,7 +68,7 @@ spring.ai:
   # 图片生成（通义万相）
   images:
     options:
-      model: wanx-v1
+      model: wanx2.1
   # 内容安全配置
   content-safety:
     enabled: ${CONTENT_SAFETY_ENABLED:true}

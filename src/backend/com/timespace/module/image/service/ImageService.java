@@ -30,7 +30,7 @@ public class ImageService {
 
     private static final String WANX_URL =
             "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis";
-    private static final String WANX_MODEL = "wanx-v1"; // 与 application.yml spring.ai.images.options.model 保持一致
+    private static final String WANX_MODEL = "wanx2.1"; // 与 application.yml spring.ai.images.options.model 保持一致
 
     private static final String CACHE_PREFIX = "img:cache:";
     private static final long CACHE_TTL_HOURS = 24;
@@ -67,7 +67,7 @@ public class ImageService {
     }
 
     /**
-     * 调用通义万相 wanx-v1 API
+     * 调用通义万相 wanx2.1 API
      */
     private String callWanxApi(String prompt, String size) {
         if (apiKey == null || apiKey.isBlank()) {

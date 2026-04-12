@@ -132,7 +132,7 @@
 | B-01 | 故事列表（网格视图） | P0 | ✅ 已有 | BookshelfView grid 模式 |
 | B-02 | 故事状态标记（进行中/已完成） | P0 | ✅ 已有 | status 1/2 + 卡片标记 |
 | B-03 | 时光轴视图 | P1 | ✅ 已有 | timeline 视图模式 |
-| B-04 | 山河图视图（古风地图标点） | P2 | ⚠️ 部分 | map 视图模式存在，地图可视化不确定 |
+| B-04 | 山河图视图（古风地图标点） | P2 | ✅ 已完成 | BookshelfView.vue 含完整 SVG 古风中国地图（黄河/长江/海岸线/山脉）+ LOCATION_COORDS 50+ 历史地名坐标 + mapMarkers computed 聚合故事地点 + 地图标记点击弹出故事列表 |
 | B-05 | 书架视觉（老式书架+题签+书脊） | P2 | ✅ 已完成 | BookshelfView bookshelf 模式：深色木质纹理+书脊+题签+层间横梁（commit 9bbb00bf） |
 | B-06 | 故事筛选+排序 | P1 | ✅ 已有 | 过滤和排序功能 |
 
@@ -191,7 +191,7 @@
 | AI-02 | 判官 Agent（选项/评估/偏离度） | P0 | ✅ 已有 | JudgeAgent |
 | AI-03 | 稗官 Agent（后日谈/配角判词） | P0 | ✅ 已有 | BaiguanAgent |
 | AI-04 | 掌眼 Agent（文学质感检查） | P1 | ✅ 已完成 | `ZhangyanAgent.java` 完整实现：黑名单正则替换 + 可选 AI 二次润色；在 `StoryOrchestrationService.finishStory()` 中调用 `zhangyanAgent.filter()` |
-| AI-05 | 画师 Agent（关键词卡图/场景图） | P3 | ⚠️ 部分 | aiPainter.ts prompt 构建器就绪，后端未对接 |
+| AI-05 | 画师 Agent（关键词卡图/场景图） | P3 | ✅ 已完成 | 后端 ImageService + ImageController 完整实现（C-14）；前端 aiPainter.ts 完整 prompt builder + api.generateImage() 调用后端；前端直连 wanx2.1 降级兜底 |
 | AI-06 | AI 腔词黑名单过滤 | P1 | ✅ 已完成 | `AiPhraseFilter.java` 完整实现：70+ 黑名单词 + 预编译正则 + deleteWords 直接删除；`@PostConstruct` 初始化 |
 | AI-07 | Prompt 热更新（数据库存储） | P1 | ✅ 已完成 | `AiPromptTemplateService.java` + `AiPromptTemplate` 实体；`Cacheable` 缓存；`CacheEvict` 更新；各 Agent 调用 `getPromptTextOrDefault()` |
 | AI-08 | AI 内容安全检测 | P0 | ✅ 已完成 | `ContentSafetyChecker.java` 完整实现：阿里云内容安全 API + 关键词黑名单双重检测；`checkWithRetry()` 重试机制；`finishStory()` 中二次确认 |
@@ -235,8 +235,8 @@
 
 | 状态 | 数量 | 占比 |
 |------|------|------|
-| ✅ 已实现 / 已完成 | **69** | 72% |
-| ⚠️ 部分实现 | **13** | 14% |
+| ✅ 已实现 / 已完成 | **71** | 74% |
+| ⚠️ 部分实现 | **11** | 11% |
 | ❌ 未实现 | **14** | 15% |
 | **合计** | **96** | 100% |
 
@@ -257,7 +257,7 @@
 2. **P1 缺口仅剩 1 项**：U-02 手机号登录（commit 2f51000a 已完成，待验证文档）
 3. **P2 突破性进展**：Docker/I-12（50217732）、CI/CD/I-13、B-05书架视觉（9bbb00bf）、SH-05微信JSSDK（ca5c99d2）、SH-04合券纪念卡（653ec3d1）、U-07设置页面（74487e54）
 4. **剩余未完成项**：U-05（微信支付，需商户号）、I-11（微信WebView适配）
-5. **整体完成度：~86%（72%✅ + 14%⚠️部分），项目进入收尾阶段**
+5. **整体完成度：~85%（74%✅ + 11%⚠️部分），项目进入收尾阶段**
 
 ---
 
@@ -316,3 +316,7 @@
 
 **下午修订（第三次）：**
 - D-04 卡池数据分包扩展机制：新增 `CardExpansion` 实体/Mapper/Service；`event_card.expansion` 字段（VARCHAR(32)，默认'core'）；`card_expansion` 表；`GET /api/card/expansions` 和 `GET /api/card/event-cards?expansion=xxx` API；前端 `PoolView.vue` 扩展包 Tab 切换；`03-card_expansion.sql` 初始化数据（core/legend/wuxia）；整体完成度提升至 84%
+
+**晚间修订（第四次）：**
+- AI-05 画师 Agent：统一 wanx 模型名为 `wanx2.1`（阿里云通义万相当前稳定版）；更新 `ImageService.java` 常量 `WANX_MODEL` 为 `wanx2.1`；更新 `application.yml` `spring.ai.images.options.model` 为 `wanx2.1`；修正 `callWanxApi` 方法注释；前端 `aiPainter.ts` 降级函数已使用 `wanx2.1`，无需修改；API 端到端链路完整（C-14）
+- B-04 山河图视图：确认 `BookshelfView.vue` 已完整实现（SVG 古风中国地图含黄河/长江/山脉/海岸线 + 50+ 历史地名 LOCATION_COORDS + mapMarkers computed 聚合 + 地图标记点击弹窗）；状态从 ⚠️ 部分更新为 ✅ 已完成
