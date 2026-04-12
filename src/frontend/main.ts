@@ -17,6 +17,7 @@ import EntryQuestionsView from './views/EntryQuestionsView.vue'
 import ManuscriptView from './views/ManuscriptView.vue'
 import ShopView from './views/ShopView.vue'
 import SettingsView from './views/SettingsView.vue'
+import CommemorativeCardView from './views/CommemorativeCardView.vue'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView },
@@ -29,6 +30,7 @@ const routes = [
   { path: '/manuscript/:id', name: 'manuscript', component: ManuscriptView },
   { path: '/shop', name: 'shop', component: ShopView },
   { path: '/settings', name: 'settings', component: SettingsView },
+  { path: '/commemorative-card/:cardId', name: 'commemorative-card', component: CommemorativeCardView },
 ]
 
 const router = createRouter({

@@ -10,6 +10,8 @@ import com.timespace.module.share.service.ShareService.JointResultVO;
 import com.timespace.module.share.service.ShareService.JointShareRequest;
 import com.timespace.module.share.service.ShareService.ShareInfoVO;
 import com.timespace.module.share.service.ShareService.SpecialCardVO;
+import com.timespace.module.share.service.CommemorativeCardService;
+import com.timespace.module.share.service.CommemorativeCardService.CommemorativeCardVO;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,7 @@ import java.util.List;
 public class ShareController {
 
     private final ShareService shareService;
+    private final CommemorativeCardService commemorativeCardService;
 
     /**
      * POST /api/share/create
@@ -125,5 +128,37 @@ public class ShareController {
         log.info("获取合券纪念卡列表: userId={}", userId);
         List<SpecialCardVO> cards = shareService.getUserSpecialCards(userId);
         return Result.ok(cards);
+    }
+
+    // ========== SH-04 合券纪念卡 API ==========
+
+    /**
+     * GET /api/share/commemorative-card/:id
+     * 根据纪念卡ID获取纪念卡详情
+     */
+    @GetMapping("/commemorative-card/{id}")
+    public Result<CommemorativeCardVO> getCommemorativeCard(@PathVariable("id") Long id) {
+        log.info("获取纪念卡详情: id={}", id);
+        CommemorativeCardVO card = commemorativeCardService.getCardById(id);
+        if (card == null) {
+            return Result.fail(404, "纪念卡不存在");
+        }
+        return Result.ok(card);
+    }
+
+    /**
+     * GET /api/share/commemorative-cards
+     * 获取当前用户的所有纪念卡列表（通过 openId 查询）
+     */
+    @GetMapping("/commemorative-cards")
+    public Result<List<CommemorativeCardVO>> getCommemorativeCards(
+            @RequestParam(value = "openId", required = false) String openId) {
+        if (openId != null && !openId.isEmpty()) {
+            log.info("获取用户纪念卡列表: openId={}", openId);
+            List<CommemorativeCardVO> cards = commemorativeCardService.getCardsByOpenId(openId);
+            return Result.ok(cards);
+        }
+        // 无 openId 时返回空列表（需前端先登录获取 openId）
+        return Result.ok(List.of());
     }
 }

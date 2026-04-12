@@ -16,6 +16,7 @@ import com.timespace.module.share.mapper.StoryReaderMapper;
 import com.timespace.module.share.mapper.StoryShareMapper;
 import com.timespace.module.share.mapper.SpecialCardMapper;
 import com.timespace.module.share.mapper.UserSpecialCardMapper;
+import com.timespace.module.share.service.CommemorativeCardService.CommemorativeCardVO;
 import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryManuscript;
 import com.timespace.module.story.mapper.StoryMapper;
@@ -47,6 +48,7 @@ public class ShareService extends ServiceImpl<StoryShareMapper, StoryShare> {
     private final StoryMapper storyMapper;
     private final StoryManuscriptMapper storyManuscriptMapper;
     private final RedissonClient redissonClient;
+    private final CommemorativeCardService commemorativeCardService;
 
     @Value("${timespace.share.code-length:8}")
     private int shareCodeLength;
@@ -312,6 +314,10 @@ public class ShareService extends ServiceImpl<StoryShareMapper, StoryShare> {
             Long specialCardId = grantSpecialCard(share.getCreatorUserId(), share, "creator");
             Long specialCardIdJoint = grantSpecialCard(userId, share, "joint");
 
+            // 8. 生成合券纪念卡（永久纪念）
+            CommemorativeCardVO commCard = commemorativeCardService.generateCommemorativeCard(
+                    share.getStoryId(), share.getCreatorUserId(), userId);
+
             Story story = storyMapper.selectById(share.getStoryId());
 
             log.info("合券成功: shareCode={}, creatorUserId={}, jointUserId={}, storyId={}",
@@ -324,7 +330,9 @@ public class ShareService extends ServiceImpl<StoryShareMapper, StoryShare> {
                     .setStoryId(share.getStoryId())
                     .setSpecialCardId(specialCardIdJoint)
                     .setSpecialCardName("合璧笺")
-                    .setGrantedReadPermission(true);
+                    .setGrantedReadPermission(true)
+                    .setCommemorativeCardId(commCard != null ? commCard.getId() : null)
+                    .setCommemorativeCardNo(commCard != null ? commCard.getCardNo() : null);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -457,6 +465,10 @@ public class ShareService extends ServiceImpl<StoryShareMapper, StoryShare> {
         private Long specialCardId;
         private String specialCardName;
         private Boolean grantedReadPermission;
+        /** 合券纪念卡ID（SH-04） */
+        private Long commemorativeCardId;
+        /** 合券纪念卡编号 */
+        private String commemorativeCardNo;
     }
 
     @Data

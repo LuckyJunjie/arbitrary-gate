@@ -39,6 +39,8 @@ public class Story {
 
     private Integer status;          // 1进行中 2已完成 3已归档
 
+    private String endingType;       // 结局类型：功成名就/归隐山林/悲剧收场/爱情圆满/友情长存/宿命难逃/意外转折/平淡是真
+
     private Integer currentChapter;  // 当前章节
 
     private String contextJson;      // 故事上下文 JSON（存储配角命运等）

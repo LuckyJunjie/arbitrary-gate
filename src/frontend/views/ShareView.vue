@@ -46,6 +46,8 @@ const mergeProgress = ref(0)
 // 纪念卡弹层
 const showSpecialCardModal = ref(false)
 const specialCardData = ref<SpecialCard | null>(null)
+const commemorativeCardId = ref<number | null>(null)
+const commemorativeCardNo = ref<string | null>(null)
 
 // 分类名称映射
 const categoryNames: Record<number, string> = {
@@ -350,6 +352,9 @@ async function handleJoint() {
       storyTitle: result.storyTitle,
       specialCardName: result.specialCardName
     }
+    // SH-04: 记录纪念卡ID
+    commemorativeCardId.value = result.commemorativeCardId ?? null
+    commemorativeCardNo.value = result.commemorativeCardNo ?? null
     playJadeClick()
     // 播放合券动画
     await playMergeAnimation()
@@ -407,6 +412,14 @@ async function playMergeAnimation() {
 function goToStory() {
   if (shareInfo.value?.storyId) {
     router.push(`/story/${shareInfo.value.storyId}`)
+  }
+}
+
+// SH-04: 跳转到纪念卡页面
+function goToCommemorativeCard() {
+  showSpecialCardModal.value = false
+  if (commemorativeCardId.value) {
+    router.push(`/commemorative-card/${commemorativeCardId.value}`)
   }
 }
 
@@ -549,6 +562,7 @@ onMounted(loadShareInfo)
             </div>
           </div>
           <div class="modal-actions">
+            <button v-if="commemorativeCardId" class="modal-btn gold" @click="goToCommemorativeCard">查看纪念卡</button>
             <button class="modal-btn primary" @click="goToStory">阅读故事</button>
             <button class="modal-btn" @click="showSpecialCardModal = false">收起</button>
           </div>
@@ -1010,6 +1024,12 @@ onMounted(loadShareInfo)
   background: #2c1f14;
   color: #f5efe0;
   border-color: #2c1f14;
+}
+
+.modal-btn.gold {
+  background: rgba(201, 168, 76, 0.15);
+  color: #c9a84c;
+  border-color: rgba(201, 168, 76, 0.5);
 }
 
 /* 过渡动画 */

@@ -528,6 +528,10 @@ export interface JointShareResponse {
   specialCardId: number
   specialCardName: string
   grantedReadPermission: boolean
+  /** 合券纪念卡ID（SH-04） */
+  commemorativeCardId?: number
+  /** 合券纪念卡编号 */
+  commemorativeCardNo?: string
 }
 
 export interface SpecialCard {
@@ -572,6 +576,40 @@ export async function jointShare(code: string, payload: JointShareRequest): Prom
  */
 export async function fetchSpecialCards(): Promise<SpecialCard[]> {
   return api.get('/share/special-cards')
+}
+
+// ========== SH-04 合券纪念卡 API ==========
+
+export interface CommemorativeCard {
+  id: number
+  cardNo: string
+  storyId: number
+  shareCode: string
+  storyTitle: string
+  user1OpenId: string
+  user1Nickname: string
+  user2OpenId: string
+  user2Nickname: string
+  endingType: string
+  exclusiveMark: string
+  jointTime: string
+  createdAt: string
+}
+
+/**
+ * GET /api/share/commemorative-card/:id
+ * 获取纪念卡详情
+ */
+export async function fetchCommemorativeCard(id: number): Promise<CommemorativeCard> {
+  return api.get(`/share/commemorative-card/${id}`)
+}
+
+/**
+ * GET /api/share/commemorative-cards?openId=xxx
+ * 获取用户的所有纪念卡列表
+ */
+export async function fetchCommemorativeCards(openId: string): Promise<CommemorativeCard[]> {
+  return api.get('/share/commemorative-cards', { params: { openId } })
 }
 
 // ========== C-14 AI画师对接 API ==========
