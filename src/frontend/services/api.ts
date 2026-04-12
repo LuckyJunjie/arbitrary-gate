@@ -703,7 +703,7 @@ export interface GuestLoginResponse {
     totalStories: number
     completedStories: number
     isGuest: number // 0=正式用户，1=游客
-    guestDeviceId?: string // 游客设备标识 UUID
+    guestDeviceId?: string // 游客设备标识 UUID（U-03）
     phone?: string // 手机号
   }
 }
@@ -760,9 +760,10 @@ export async function sendPhoneCode(phone: string): Promise<void> {
 /**
  * U-02 POST /api/user/phone-login
  * 手机号一键登录/注册
+ * @param guestDeviceId 游客设备标识（U-03，用于账号升级时迁移游客数据）
  */
-export async function phoneLogin(phone: string, code: string): Promise<GuestLoginResponse> {
-  return api.post('/user/phone-login', { phone, code })
+export async function phoneLogin(phone: string, code: string, guestDeviceId?: string): Promise<GuestLoginResponse> {
+  return api.post('/user/phone-login', { phone, code, guestDeviceId })
 }
 
 export default api

@@ -29,6 +29,9 @@ import java.util.concurrent.TimeUnit;
 public class UserService extends ServiceImpl<UserMapper, User> {
 
     private final StringRedisTemplate redisTemplate;
+    private final com.timespace.module.card.mapper.UserKeywordCardMapper userKeywordCardMapper;
+    private final com.timespace.module.card.mapper.UserEventCardMapper userEventCardMapper;
+    private final com.timespace.module.story.mapper.StoryMapper storyMapper;
 
     private static final String WX_SESSION_KEY_PREFIX = "wx:session:";
     private static final long SESSION_EXPIRE_SECONDS = 3600;
@@ -233,6 +236,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         vo.setTotalStories(user.getTotalStories());
         vo.setCompletedStories(user.getCompletedStories());
         vo.setIsGuest(user.getIsGuest());
+        vo.setGuestDeviceId(user.getGuestDeviceId());
         return vo;
     }
 
@@ -273,7 +277,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
      * 验证验证码，正确则用户存在则登录，不存在则自动注册（is_guest=0）
      */
     @Transactional
-    public WxLoginVO phoneLogin(String phone, String code) {
+    public WxLoginVO phoneLogin(String phone, String code, String guestDeviceId) {
         // 1. 验证手机号格式
         if (!isValidPhone(phone)) {
             throw new BusinessException(400, "手机号格式不正确");
@@ -285,7 +289,19 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         }
         // 3. 验证通过后删除验证码（一次性）
         redisTemplate.delete(SMS_CODE_KEY_PREFIX + phone);
-        // 4. 查询用户是否已存在（按手机号）
+
+        // 4. 查找关联的游客账号（如果有 guestDeviceId）
+        User guestUser = null;
+        if (guestDeviceId != null && !guestDeviceId.isBlank()) {
+            guestUser = getOne(new LambdaQueryWrapper<User>()
+                    .eq(User::getGuestDeviceId, guestDeviceId)
+                    .eq(User::getIsGuest, 1));
+            if (guestUser != null) {
+                log.info("[PhoneLogin] 找到关联游客账号, guestUserId={}, guestDeviceId={}", guestUser.getId(), guestDeviceId);
+            }
+        }
+
+        // 5. 查询正式用户是否已存在（按手机号）
         User user = getOne(new LambdaQueryWrapper<User>().eq(User::getPhone, phone));
         if (user == null) {
             // 不存在则自动注册
@@ -300,6 +316,12 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             user.setIsGuest(0); // 正式用户
             user.setCreatedAt(LocalDateTime.now());
             user.setUpdatedAt(LocalDateTime.now());
+            // 如果有关联游客：将游客的墨晶、故事数等合并过来
+            if (guestUser != null) {
+                user.setInkStone(user.getInkStone() + (guestUser.getInkStone() != null ? guestUser.getInkStone() : 0));
+                user.setTotalStories(guestUser.getTotalStories() != null ? guestUser.getTotalStories() : 0);
+                user.setCompletedStories(guestUser.getCompletedStories() != null ? guestUser.getCompletedStories() : 0);
+            }
             save(user);
             log.info("[PhoneLogin] 新用户注册, phone={}, userId={}", phone, user.getId());
         } else {
@@ -311,17 +333,52 @@ public class UserService extends ServiceImpl<UserMapper, User> {
                 log.info("[PhoneLogin] 游客账号升级, phone={}, userId={}", phone, user.getId());
             }
         }
-        // 5. 重置每日免费次数
+
+        // 6. 迁移游客数据（关键词卡、事件卡、故事等）到正式账号
+        if (guestUser != null && !guestUser.getId().equals(user.getId())) {
+            migrateGuestData(guestUser.getId(), user.getId());
+            // 删除游客账号记录
+            removeById(guestUser.getId());
+            log.info("[PhoneLogin] 游客数据已迁移并删除 guestUserId={} -> userId={}", guestUser.getId(), user.getId());
+        }
+
+        // 7. 重置每日免费次数
         resetDailyFreeDrawsIfNeeded(user);
-        // 6. 签发 Sa-Token
+        // 8. 签发 Sa-Token
         StpUtil.login(user.getId());
         String token = StpUtil.getTokenValue();
-        // 7. 构建返回
+        // 9. 构建返回
         WxLoginVO vo = new WxLoginVO();
         vo.setToken(token);
         vo.setUser(toUserVO(user));
         log.info("[PhoneLogin] 登录成功, phone={}, userId={}", phone, user.getId());
         return vo;
+    }
+
+    /**
+     * U-03 将游客的所有数据迁移到正式账号
+     * 迁移内容：关键词卡、事件卡、故事记录、成就等
+     */
+    private void migrateGuestData(Long guestUserId, Long formalUserId) {
+        // 迁移关键词卡（user_keyword_card）
+        var keywordWrapper = new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<com.timespace.module.card.entity.UserKeywordCard>()
+                .eq(com.timespace.module.card.entity.UserKeywordCard::getUserId, guestUserId)
+                .set(com.timespace.module.card.entity.UserKeywordCard::getUserId, formalUserId);
+        userKeywordCardMapper.update(null, keywordWrapper);
+
+        // 迁移事件卡（user_event_card）
+        var eventWrapper = new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<com.timespace.module.card.entity.UserEventCard>()
+                .eq(com.timespace.module.card.entity.UserEventCard::getUserId, guestUserId)
+                .set(com.timespace.module.card.entity.UserEventCard::getUserId, formalUserId);
+        userEventCardMapper.update(null, eventWrapper);
+
+        // 迁移故事（story 表 - 将 story 的 user_id 从 guest 改为 formal）
+        var storyWrapper = new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<com.timespace.module.story.entity.Story>()
+                .eq(com.timespace.module.story.entity.Story::getUserId, guestUserId)
+                .set(com.timespace.module.story.entity.Story::getUserId, formalUserId);
+        storyMapper.update(null, storyWrapper);
+
+        log.info("[Migrate] guestUserId={} -> formalUserId={} 数据迁移完成", guestUserId, formalUserId);
     }
 
     private boolean isValidPhone(String phone) {

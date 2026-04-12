@@ -136,8 +136,8 @@ public class UserController {
      */
     @PostMapping("/phone-login")
     public Result<WxLoginVO> phoneLogin(@Valid @RequestBody PhoneLoginRequest request) {
-        log.info("手机号登录请求, phone={}", request.getPhone());
-        WxLoginVO vo = userService.phoneLogin(request.getPhone(), request.getCode());
+        log.info("手机号登录请求, phone={}, hasGuestDeviceId={}", request.getPhone(), request.getGuestDeviceId() != null);
+        WxLoginVO vo = userService.phoneLogin(request.getPhone(), request.getCode(), request.getGuestDeviceId());
         return Result.ok(vo);
     }
 
@@ -157,6 +157,8 @@ public class UserController {
     public static class PhoneLoginRequest {
         private String phone;
         private String code;
+        /** 游客设备标识，用于账号升级时关联并迁移游客数据（可选） */
+        private String guestDeviceId;
     }
 
     @Data
@@ -183,5 +185,7 @@ public class UserController {
         private Integer completedStories;
         /** 0=正式用户，1=游客 */
         private Integer isGuest;
+        /** 游客设备标识 UUID，用于账号升级时关联正式账号 */
+        private String guestDeviceId;
     }
 }

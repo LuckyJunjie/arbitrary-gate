@@ -56,11 +56,22 @@ async function handleLogin() {
   errorMsg.value = ''
   try {
     loading.value = true
-    const res = await phoneLoginApi(phone.value, code.value)
+    // U-03: 读取本地存储的游客设备标识，用于账号升级时迁移数据
+    const guestDeviceId = localStorage.getItem('guest_device_id') || undefined
+    const res = await phoneLoginApi(phone.value, code.value, guestDeviceId)
     // 存储 token 和用户信息
     localStorage.setItem('token', res.token)
     localStorage.setItem('arbitrary_gate_user', JSON.stringify(res.user))
-    console.info('[PhoneLogin] 登录成功, userId=', res.user.id, 'isGuest=', res.user.isGuest)
+
+    // U-03: 如果是游客升级成功，清除游客相关的临时 localStorage 数据
+    // （保留 token 和用户信息，让用户感觉是同一个账号）
+    if (guestDeviceId) {
+      localStorage.removeItem('guest_device_id')
+      console.info('[PhoneLogin] 游客账号升级成功, userId=', res.user.id, 'guestDeviceId=', guestDeviceId)
+    } else {
+      console.info('[PhoneLogin] 新用户注册成功, userId=', res.user.id)
+    }
+
     router.replace('/')
   } catch (e: any) {
     errorMsg.value = e?.response?.data?.message || e?.message || '登录失败，请检查验证码'
