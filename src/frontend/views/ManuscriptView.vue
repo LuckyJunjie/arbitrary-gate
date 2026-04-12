@@ -91,7 +91,7 @@ async function handleCreateShare() {
   shareCreationError.value = null
   try {
     const result = await createShare({
-      storyId: storyStore.currentStory.id,
+      storyId: Number(storyStore.currentStory.id),
       cardId: selectedKeywordCardId.value,
     })
     showShareModal.value = false
