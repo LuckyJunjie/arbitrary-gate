@@ -4,12 +4,12 @@
 
 ## 一、用户模块
 
-### U-02 手机号一键登录 ❌ P1
+### U-02 手机号一键登录 ✅ P1
 - **后端**：`UserController` 新增 `POST /api/user/phone-login`，接收手机号 + 验证码，调用阿里云 SMS 发验证码，校验后调用 `StpUtil.login(userId)` 签发 token
 - **前端**：新增 `PhoneLoginView.vue`，输入手机号 → 获取验证码 → 提交登录
 - **数据库**：`user` 表新增 `phone VARCHAR(20)` 字段
 
-### U-03 游客模式正式方案 ⚠️ P1
+### U-03 游客模式正式方案 ✅ P1
 - **后端**：`POST /api/user/guest-login`，生成 UUID 作为 guest_open_id，创建临时用户（标记 `is_guest=1`），签发 token
 - **前端**：首次打开 App 时自动调用 guest-login，无需用户操作；后续微信登录时合并游客数据到正式账号
 - **限制**：游客每日免费抽 1 次（正式用户 3 次），不能分享
@@ -35,7 +35,7 @@
 - **后端**：`CardService.drawKeywordCard()` 开头增加检查 `SELECT COUNT(*) FROM user_card WHERE user_id=? AND card_type=1`，超 9 张返回错误码 `CARD_LIMIT_REACHED`
 - **前端**：提示"卡匣已满，请先使用或回炉卡牌"
 
-### C-08 墨迹占卜（今日运势） ❌ P1
+### C-08 墨迹占卜（今日运势） ✅ P1
 - **后端**：`GET /api/card/fortune`，根据当天日期 seed + 用户 ID 哈希，从预置的 30 条运势文案中选取一条（如"今日墨色偏青，似有旧物来寻"），附带暗示的 category（器物/职人/风物/情绪/称谓）
 - **前端**：`PoolView.vue` 墨池上方用烟灰色 `方正清刻本悦宋` 字体展示，opacity 0.5，3 秒 fadeIn 动画
 - **数据**：新建 `fortune_text` 配置表，或 JSON 配置文件存 30+ 条文案
@@ -52,7 +52,7 @@
 - **后端**：定时任务（`@Scheduled(cron="0 0 0 * * ?")` 每日零点），扫描所有 `user_card`，`ink_fragrance = MAX(0, ink_fragrance - 1)`
 - **前端**：`inkValueStore` 显示时根据 `ink_fragrance` 值控制卡片边缘 blur 滤镜强度（7=浓墨 → 0=无墨迹）
 
-### C-12 陈卡回炉 ❌ P2
+### C-12 陈卡回炉 ✅ P1
 - **后端**：`POST /api/card/recycle`，参数 `cardId`。校验：每日限 1 次（Redis key `recycle:{userId}:{date}`），删除 user_card 记录，返还 1 次免费抽取机会（Redis incr `free_draw:{userId}:{date}`）
 - **前端**：卡匣页长按卡片弹出"投入墨池回炉"确认框
 
@@ -70,7 +70,7 @@
 - **前端**：`CardsView.vue` 卡片详情弹层中展示 `resonanceCount`，用赭石色小字 "共鸣 ×{n}"
 - **后端**：确保 `GET /api/card/owned` 返回 `resonance_count` 字段
 
-### K-07 墨迹晕染效果 ❌ P2
+### K-07 墨迹晕染效果 ✅ P2
 - **前端**：`Card.vue` 外层 wrapper 加 CSS `box-shadow` + `filter: blur()`，强度与 `inkFragrance` 绑定：
   - 7: `box-shadow: 0 0 12px rgba(44,44,42,0.6)` 
   - 4: `box-shadow: 0 0 6px rgba(44,44,42,0.3)`
@@ -81,7 +81,7 @@
 
 ## 四、组合预览模块
 
-### P-01 组合判词生成 ❌ P1
+### P-01 组合判词生成 ✅ P1
 - **后端**：`POST /api/card/preview`，参数 `{ keywordIds: [1,2,3], eventId: 1 }`。调用 AI（说书人 Agent 轻量 prompt）：
   ```
   三张关键词：{name1}、{name2}、{name3}，历史事件：{eventTitle}。
@@ -143,7 +143,7 @@
 - **前端**：StoryView 章节过渡动画后，弹出半屏偶遇浮层
 - **数据**：影响 `story_character.fate_value`（搭话 +10，忽略 -5），影响后日谈内容
 
-### S-16 断线重连 ⚠️ P1
+### S-16 断线重连 ✅ P1
 - **前端**：`storyStore` 在 WebSocket 断开时启动 reconnect 定时器（指数退避 1s/2s/4s/8s，最多 5 次）；每次收到流式文本都 append 到 `localStorage` key `story_draft:{storyId}:{chapterNo}`；重连后对比服务端已生成长度，只请求增量
 - **后端**：`GET /api/story/{id}/chapter/{no}/progress` 返回当前已生成文本长度，前端据此决定是否需要补全
 
@@ -171,7 +171,7 @@
 - **后端**：稗官 Agent 生成批注时增加 prompt：`"其中1-2条批注可以打破第四面墙，对读者说话，或暗示'如果当时选了别的选项会怎样'"`
 - **数据**：annotations JSON 中增加 `type: 'normal' | 'easter_egg'`，彩蛋批注前端用不同颜色（黛青色）
 
-### M-12 掌眼 Agent ❌ P1
+### M-12 掌眼 Agent ✅ P1
 - **后端**：新建 `ZhangyanAgent.java`（掌眼），在 finishStory 流程中，说书人生成正文后、存入数据库前调用掌眼：
   ```
   prompt: "你是一位严苛的老编辑。检查以下文本，找出所有AI腔词汇（宛如、仿佛、无法言说、竟然、不禁、缓缓、轻轻），替换为更自然的表达。直接返回修改后的全文。"
@@ -236,20 +236,20 @@
 ### UI-07 卷轴天杆/地杆 ✅ P2
 - **前端**：`StoryView.vue` 顶部和底部各加一个 `div.scroll-bar`，背景为木纹图片（`background-image`），高度 8px，圆角，阴影模拟立体感
 
-### UI-08 进度墨线 ❌ P1
+### UI-08 进度墨线 ✅ P1
 - **前端**：`StoryView.vue` 顶部 fixed 定位一条细线（2px），宽度 = `(currentChapter / totalChapters) * 100%`，颜色墨色 `#2C2C2A`，transition 0.5s
 
 ### UI-10 逐字渲染 ⚠️ P1
 - **前端**：WebSocket 收到文本片段后，不直接 innerHTML，而是逐字 append 到 DOM，每字间隔 30ms（`setTimeout` 队列），配合 CSS `@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }` 每个字 0.3s 淡入
 
-### UI-11 触感反馈 ⚠️ P1
+### UI-11 触感反馈 ✅ P1
 - **前端**：在 `useGesture.ts` 完成手势识别后调用 `navigator.vibrate([10])`（轻震 10ms）；抽卡成功时 `navigator.vibrate([15, 50, 15])`（双震）
 
 ---
 
 ## 十一、音效模块（全部 P3）
 
-### A-01 ~ A-07 音效系统 ❌
+### A-01 ~ A-07 音效系统 ✅
 - **前端**：新建 `composables/useSound.ts`：
   ```typescript
   // 预加载 AudioBuffer，用 Web Audio API 播放
@@ -270,7 +270,7 @@
 
 ## 十二、AI Agent 模块
 
-### AI-04 掌眼 Agent ❌ P1
+### AI-04 掌眼 Agent ✅ P1
 （见 M-12，同一功能）
 
 ### AI-06 AI 腔词黑名单过滤 ✅ P1
@@ -279,7 +279,7 @@
 - **替换策略**：直接替换为空字符串或映射为更自然表达
 - **调用点**：`ZhangyanAgent.filter(text)` 在故事生成结束后自动触发
 
-### AI-07 Prompt 热更新 ❌ P1
+### AI-07 Prompt 热更新 ✅ P1
 - **数据库**：新建 `ai_prompt_template` 表（id, agent_name, prompt_key, prompt_text, version, updated_at）
 - **后端**：各 Agent 启动时从 DB 加载 prompt，Redis 缓存 10 分钟 TTL；管理接口 `PUT /api/admin/prompt/{id}` 更新后清缓存
 - **好处**：调整 prompt 不需要重新编译部署
@@ -289,7 +289,7 @@
 - **调用点**：说书人/稗官返回文本 → `ContentSafetyChecker.check(text)` → 不通过则重新生成（最多 3 次）→ 仍不通过则返回兜底文案
 - **配置**：`CONTENT_SAFETY_API_KEY` 环境变量
 
-### AI-09 关键词融入率检测 ❌ P1
+### AI-09 关键词融入率检测 ✅ P1
 - **后端**：`common/util/KeywordChecker.java`，故事完结生成手稿后，检查三个关键词在正文中出现次数，要求 ≥ 3 个关键词至少各出现 1 次
 - **不通过**：在说书人 prompt 中追加强调 `"正文中必须自然地融入以下关键词：{kw1}、{kw2}、{kw3}"`，重新生成
 
