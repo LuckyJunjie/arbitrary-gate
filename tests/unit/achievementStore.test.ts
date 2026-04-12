@@ -375,6 +375,96 @@ describe('useAchievementStore — checkCombinationAchievements', () => {
 
     expect(store.hasUnlocked('combo_departing_person')).toBe(false)
   })
+
+  // P-03: 稀有组合成就（牌库成就）
+
+  it('拥有3张含水意象的卡牌解锁 combo_three_water（水过三秋）', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '乌江渡', 3, 3),
+      makeKeywordCard(2, '雨纷纷', 2, 3),
+      makeKeywordCard(3, '泪如雨', 3, 4),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_water')).toBe(true)
+  })
+
+  it('拥有2张含水意象的卡牌不解锁 combo_three_water', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '乌江渡', 3, 3),
+      makeKeywordCard(2, '雨纷纷', 2, 3),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_water')).toBe(false)
+  })
+
+  it('拥有3张称谓类卡牌（category=5）解锁 combo_three_titles（三生石上）', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '阶下囚', 3, 5),
+      makeKeywordCard(2, '末代王朝', 4, 5),
+      makeKeywordCard(3, '说书人', 2, 5),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_titles')).toBe(true)
+  })
+
+  it('拥有2张称谓类卡牌不解锁 combo_three_titles', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '阶下囚', 3, 5),
+      makeKeywordCard(2, '末代王朝', 4, 5),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_titles')).toBe(false)
+  })
+
+  it('拥有3张绝稀有度卡牌（rarity=4）解锁 combo_three_legendary（凤毛麟角）', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '咸阳宫阙', 4, 3),
+      makeKeywordCard(2, '亡国恨', 4, 4),
+      makeKeywordCard(3, '末代王朝', 4, 5),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_legendary')).toBe(true)
+  })
+
+  it('拥有2张绝稀有度卡牌不解锁 combo_three_legendary', () => {
+    const store = useAchievementStore()
+    const kw = [
+      makeKeywordCard(1, '咸阳宫阙', 4, 3),
+      makeKeywordCard(2, '亡国恨', 4, 4),
+    ]
+
+    store.checkCombinationAchievements(kw, [])
+
+    expect(store.hasUnlocked('combo_three_legendary')).toBe(false)
+  })
+
+  it('拥有事件卡（eventCards）也能触发组合成就', () => {
+    const store = useAchievementStore()
+    const kw = [makeKeywordCard(1, '旧船票', 3, 1)]
+    const ev = [
+      makeEventCard(2, '摆渡人', 2, 2),
+      makeEventCard(3, '乌江渡', 3, 3),
+    ]
+
+    store.checkCombinationAchievements(kw, ev)
+
+    expect(store.hasUnlocked('combo_departing_person')).toBe(true)
+  })
 })
 
 // ─── Tests: Storage Persistence ──────────────────────────────────────────────
