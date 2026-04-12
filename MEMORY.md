@@ -74,8 +74,10 @@ _最后更新: 2026-04-12 21:39_
 
 ## 已知问题
 - apiClient.test.ts 有1个测试失败(预存问题)
-- UI-09 缓动曲线统一 — 🔄 sub-agent进行中 (jarvis-ui09-easing)
 - U-05 墨晶充值 — ❌ 阻塞（需微信商户号凭证）
+
+## 构建修复
+- 2026-04-13 03:39: ManuscriptView.vue TS2322 storyId类型错误 — ✅ 已修复 (commit 1bb5eb31, Number() cast)
 
 ## Docker 部署
 - `docker-compose.yml`: MySQL + Redis + 后端 + 前端 + Nginx
@@ -92,4 +94,4 @@ _最后更新: 2026-04-12 21:39_
 - 2026-04-13 00:39: 成就解锁通知 — ✅ 已完成 (commit 51e7098a, useAchievementToast composable)
 - 2026-04-13 00:39: SH-01~03 分享模块完整链路 — ✅ 已完成 (commit 6ff6c220)
 - 2026-04-13 01:44: P-02 稀有组合检测优先级修复 — ✅ 已完成 (commit 46f2a9d2)
-- 2026-04-13 02:39: UI-09 缓动曲线标准化 — 🔄 进行中 (session: jarvis-ui09-easing)
+- 2026-04-13 03:39: UI-09 缓动曲线标准化 — ✅ 已完成 (commit ab0814cd)
