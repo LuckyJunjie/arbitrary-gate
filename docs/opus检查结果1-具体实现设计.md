@@ -19,14 +19,14 @@
 - **前端**：新增 `ShopView.vue`，展示墨晶套餐（10晶/50晶/200晶），调用微信 JSAPI 支付
 - **安全**：回调验签 + 幂等防重
 
-### U-07 设置页面 ❌ P2
+### U-07 设置页面 ✅ P2
 - **前端**：实现 `/settings` 路由对应的 `SettingsView.vue`，包含：清除缓存、关于我们、用户协议、退出登录、音效开关
 
 ---
 
 ## 二、抽卡模块
 
-### C-02 事件卡抽取完善 ⚠️ P0
+### C-02 事件卡抽取完善 ✅ P0
 - **数据**：`event_card` 表导入 600+ 历史事件数据，字段：card_no, title, dynasty, year, location, description, rarity, image_url
 - **后端**：`CardService.drawEventCard()` 复用 `DrawAlgorithm`，事件卡独立保底计数器（GuaranteeState key 加 `event:` 前缀）
 - **前端**：`PoolView.vue` 新增"事件卡池"tab 切换，复用抽卡动画
@@ -90,14 +90,14 @@
   返回 `{ judgment: "江边渡口，有人把半生未说出口的话，折成一张旧船票。" }`
 - **前端**：选卡完成后、点击"入局"前，展示判词浮层（竖排，`方正清刻本悦宋`，赭石色）
 
-### P-02/P-03 稀有组合成就 ⚠️ P2
+### P-02/P-03 稀有组合成就 ✅ P2
 - **前端**：`achievementStore` 新增组合检测逻辑：
   - 三器物（category 全为 1）→ 解锁 `物是人非`
   - 三情绪（category 全为 4）→ 解锁 `百感交集`
   - 旧船票 + 渡口类事件 → 解锁 `离人`
 - **后端**：`POST /api/achievement/unlock`，记录到 `user_achievement` 表
 
-### P-04 三水意象彩蛋 ❌ P3
+### P-04 三水意象彩蛋 ✅ P3
 - **后端**：在 `StoryOrchestrationService.startNewStory()` 中检测三张关键词是否都带"水"标签（tag 包含 渡口/船/江/河/雨），若是则在说书人 prompt 尾部注入 `"故事中必须出现一场雨"`
 
 ---
@@ -133,12 +133,12 @@
   - **长按检测**：按住 > 1500ms 判定为"用力"动作
   - 根据检测结果传递 `gestureIntensity: 'gentle' | 'urgent' | 'forceful'` 给后端，影响 AI 生成的场景描写语气
 
-### S-13 关键词"显灵"特写 ❌ P2
+### S-13 关键词"显灵"特写 ✅ P2
 - **后端**：`JudgeAgent` 评估选择时，若某关键词 `resonance >= 5`，返回 `keywordEnlightenment: { cardId, text: "一句显灵描写" }`
 - **前端**：触发时全屏展示关键词卡面（灰暗变彩色 transition 1.5s），底部浮现显灵故事文字，配合磬音音效
 - **数据**：`user_card.resonance_count` 累加，卡面增加小字记录"显灵于《故事名》第X章"
 
-### S-14 配角偶遇支线 ❌ P2
+### S-14 配角偶遇支线 ✅ P2
 - **后端**：`StoryOrchestrationService` 在章节间转场时，30% 概率触发偶遇事件。调用说书人 Agent 生成 50-80 字的偶遇场景 + 2 选项（搭话/装没看见）
 - **前端**：StoryView 章节过渡动画后，弹出半屏偶遇浮层
 - **数据**：影响 `story_character.fate_value`（搭话 +10，忽略 -5），影响后日谈内容
@@ -151,7 +151,7 @@
 
 ## 七、落笔成书模块
 
-### M-02 标题三选一 ⚠️ P0
+### M-02 标题三选一 ✅ P0
 - **后端**：`StoryOrchestrationService.finishStory()` 中，说书人 prompt 增加 `"请为这个故事生成3个备选标题，用JSON数组返回"`，解析后存入 `story.candidate_titles JSON`
 - **前端**：`ManuscriptView.vue` 首次查看时弹出标题选择浮层，用户选定后 `POST /api/story/{id}/title` 更新
 
@@ -160,14 +160,14 @@
 - **数据**：`story_manuscript` 新增 `epigraph VARCHAR(128)` 字段
 - **前端**：手稿页正文前，居中竖排展示题记，字号略大，赭石色
 
-### M-11 文学风格输出差异 ⚠️ P1
+### M-11 文学风格输出差异 ✅ P1
 - **后端**：说书人 Agent prompt 根据 `story.style` 值切换：
   - style=1 白描：`"用白描手法，惜字如金，不用任何形容词"`
   - style=2 江湖：`"用江湖话本口吻，可以夸张，可以热血"`
   - style=3 笔记：`"用笔记体，像纪晓岚《阅微草堂笔记》"`
   - style=4 话本：`"用话本口吻，可以有'看官''且说'等说书套语"`
 
-### M-10 批注彩蛋 ❌ P3
+### M-10 批注彩蛋 ✅ P3
 - **后端**：稗官 Agent 生成批注时增加 prompt：`"其中1-2条批注可以打破第四面墙，对读者说话，或暗示'如果当时选了别的选项会怎样'"`
 - **数据**：annotations JSON 中增加 `type: 'normal' | 'easter_egg'`，彩蛋批注前端用不同颜色（黛青色）
 
@@ -183,30 +183,30 @@
 
 ## 八、书架模块
 
-### B-04 山河图视图完善 ⚠️ P2
+### B-04 山河图视图完善 ✅ P2
 - **前端**：`BookshelfView.vue` map 模式，引入一张古风中国地图 SVG（标注主要城市/关隘），根据故事的 `event_card.location` 在地图上放置标记点
 - **交互**：点击标记点展示该地故事列表浮层
 - **数据**：`event_card` 表需补充 `latitude DECIMAL(9,6), longitude DECIMAL(9,6)` 或预定义 `location_code` 映射坐标
 
-### B-05 书架视觉升级 ❌ P2
+### B-05 书架视觉升级 ✅ P2
 - **前端**：grid 模式改造为书架木纹背景（CSS background-image），每本书用竖排 div 模拟书脊（高度按 `total_words / 1000` 缩放），题签用手写楷体，已完成的书脊底部加朱红印鉴 icon
 
 ---
 
 ## 九、分享模块
 
-### SH-01 缺角故事卡生成 ⚠️ P2
+### SH-01 缺角故事卡生成 ✅ P2
 - **后端**：`POST /api/share/create`，生成分享码（`IdGenerator.generateShareCode()`），调用 Canvas/Sharp 库生成图片：
   - 正面：AI 场景图 + 标题 + 判词 + 右下角物理缺角（clip-path）
   - 背面：正文第一段 + 缺角处关键词图标
 - **前端**：`ShareView.vue` 使用 html2canvas 在前端生成分享图，缺角用 CSS clip-path polygon 实现
 - **存储**：生成图片上传 OSS，返回图片 URL
 
-### SH-02 分享码 ⚠️ P2
+### SH-02 分享码 ✅ P2
 - **后端**：`IdGenerator` 生成 8 位随机字母数字码（排除易混淆字符 0OIl），写入 `story_share.share_code`
 - **安全**：分享码不可枚举（足够随机 + 速率限制）
 
-### SH-03 合券机制 ⚠️ P2
+### SH-03 合券机制 ✅ P2
 - **后端**：`POST /api/share/{code}/joint`，参数 `{ cardId: number }`
   1. 查 `story_share` 找到 `missing_corner_card_id`
   2. 校验请求者的 `user_card` 是否拥有该 card_id
@@ -284,7 +284,7 @@
 - **后端**：各 Agent 启动时从 DB 加载 prompt，Redis 缓存 10 分钟 TTL；管理接口 `PUT /api/admin/prompt/{id}` 更新后清缓存
 - **好处**：调整 prompt 不需要重新编译部署
 
-### AI-08 AI 内容安全检测 ❌ P0
+### AI-08 AI 内容安全检测 ✅ P0
 - **后端**：`common/util/ContentSafetyChecker.java`，调用阿里云内容安全 API（`green.cn-shanghai.aliyuncs.com`），检测 AI 输出文本是否包含色情/暴力/政治敏感内容
 - **调用点**：说书人/稗官返回文本 → `ContentSafetyChecker.check(text)` → 不通过则重新生成（最多 3 次）→ 仍不通过则返回兜底文案
 - **配置**：`CONTENT_SAFETY_API_KEY` 环境变量
@@ -297,12 +297,12 @@
 
 ## 十三、数据模块
 
-### D-01 关键词卡池全量导入 ⚠️ P0
+### D-01 关键词卡池全量导入 ✅ P0
 - **数据来源**：卡池数据.md 已定义 340+ 条，需补齐到 1000 条
 - **实现**：编写 SQL 导入脚本 `scripts/import_keyword_cards.sql`，从 markdown 表格解析为 INSERT 语句
 - **格式**：`INSERT INTO keyword_card (card_no, name, category, rarity, weight) VALUES ('KW-001', '旧船票', 1, 1, 100);`
 
-### D-02 历史事件卡池 ❌ P0
+### D-02 历史事件卡池 ✅ P0
 - **数据**：整理 600+ 历史事件，按朝代分类（先秦/秦汉/三国/隋唐/宋元/明清/近代/虚构传说）
 - **表结构**：`event_card` 表，含 dynasty, year, location, latitude, longitude, description, identity_options JSON（三种身份视角配置）
 - **优先导入**：先导入设计文档提到的核心事件（巨鹿/赤壁/马嵬驿/陈桥驿/崖山/玄武门/断桥等）
@@ -311,7 +311,7 @@
 
 ## 十四、基础设施
 
-### I-06 输入校验完善 ⚠️ P0
+### I-06 输入校验完善 ✅ P0
 - **后端**：所有 Controller 请求体加 `@Valid` 注解，DTO 字段加 `@NotNull`, `@Size`, `@Min/@Max`
 - **XSS**：添加 `XssFilter`（Spring Filter），对所有 request parameter 做 HTML 转义
 - **SQL 注入**：MyBatis-Plus 已使用参数化查询，确认无 `${}` 拼接
