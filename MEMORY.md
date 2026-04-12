@@ -62,7 +62,11 @@ _最后更新: 2026-04-12 21:39_
 | I-13 CI/CD流水线 | P2 | ✅ 完成 — `.github/workflows/ci.yml` (2026-04-12 05:40) |
 | D-04 卡池数据分包扩展机制 | P3 | ✅ 已完成 — commit e6aea473 |
 | I-07 分享码不可枚举 | P2 | ✅ 完成 — RateLimitInterceptor (IP限流60s/10次) + Timing Attack防护 (50-200ms延迟) |
+| M-10 批注彩蛋 | P3 | ✅ 完成 — useAchievementToast.ts (commit 51e7098a) |
+| SH-01~03 分享模块完整链路 | P2 | 🔄 进行中 — sub-agent bc6cf6bd |
 | U-05 墨晶充值/购买 | P2 | ❌ 未做（需微信商户号凭证） |
+| U-03 游客模式正式方案 | P1 | ⚠️ 需设计（现有guest-login为调试用） |
+| I-11 微信环境适配 | P2 | ⚠️ 部分（useWeChatShare已有基础） |
 
 ## Git
 - 分支: master，与 origin/master 同步
@@ -84,3 +88,5 @@ _最后更新: 2026-04-12 21:39_
 - 2026-04-12 10:39: U-02 手机号登录 — ✅ 已完成 (commit 2f51000a)
 - 2026-04-12 17:39: D-04 卡池分包扩展 — ✅ 已完成 (commit e6aea473)
 - 2026-04-12 21:39: I-07 分享码不可枚举 — ✅ 完成 (commit: feat(I-07), RateLimitInterceptor + TimingAttack防护)
+- 2026-04-13 00:39: 成就解锁通知 — ✅ 已完成 (commit 51e7098a, useAchievementToast composable)
+- 2026-04-13 00:39: SH-01~03 分享模块完整链路 — 🔄 进行中 (session: bc6cf6bd)
