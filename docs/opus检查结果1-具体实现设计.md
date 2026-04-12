@@ -56,7 +56,7 @@
 - **后端**：`POST /api/card/recycle`，参数 `cardId`。校验：每日限 1 次（Redis key `recycle:{userId}:{date}`），删除 user_card 记录，返还 1 次免费抽取机会（Redis incr `free_draw:{userId}:{date}`）
 - **前端**：卡匣页长按卡片弹出"投入墨池回炉"确认框
 
-### C-14 卡面图片生成（AI 画师） ⚠️ P3
+### C-14 卡面图片生成（AI 画师） ✅ P3
 - **后端**：`POST /api/ai/generate-card-image`，调用通义万相 API，prompt 由 `aiPainter.ts` 中已有的 `buildCardPrompt()` 逻辑迁移到后端
 - **风格**：水墨淡彩 + 浮世绘版画感，分辨率 512×768
 - **存储**：生成图片上传 OSS，URL 写入 `keyword_card.image_url`
@@ -214,11 +214,11 @@
   4. 授予请求者对该故事的阅读权限 → 插入 `story_reader` 表
 - **前端**：扫码/输入分享码 → 显示缺角卡 → 匹配展示动画（两半卡合拢）
 
-### SH-04 合券纪念卡 ❌ P3
+### SH-04 合券纪念卡 ✅ P3
 - **数据**：`special_card` 表（id, name, image_url, source_story_id, source_share_code）
 - **前端**：卡匣新增"纪念卡"tab，展示合券纪念卡
 
-### SH-05 微信 JSSDK 分享 ❌ P2
+### SH-05 微信 JSSDK 分享 ✅ P2
 - **后端**：`GET /api/wx/js-config`，返回签名配置（appId, timestamp, nonceStr, signature）
 - **前端**：引入微信 JSSDK，`wx.config()` 后调用 `wx.updateAppMessageShareData()` 和 `wx.updateTimelineShareData()`，分享标题/描述/图片/链接
 
@@ -226,14 +226,14 @@
 
 ## 十、UI/动效
 
-### UI-06 窗格光影 ❌ P3
+### UI-06 窗格光影 ✅ P3
 - **前端**：`HomeView.vue` 新增光影覆盖层 div，根据 `new Date().getHours()` 切换：
   - 6-11 点：`background: linear-gradient(135deg, rgba(74,107,107,0.1), transparent)`（黛青冷调）
   - 12-16 点：无光影
   - 17-19 点：`background: linear-gradient(135deg, rgba(139,94,60,0.15), transparent)`（赭石暖调）
   - 20-5 点：烛光效果（CSS animation flicker），关闭窗格影
 
-### UI-07 卷轴天杆/地杆 ❌ P2
+### UI-07 卷轴天杆/地杆 ✅ P2
 - **前端**：`StoryView.vue` 顶部和底部各加一个 `div.scroll-bar`，背景为木纹图片（`background-image`），高度 8px，圆角，阴影模拟立体感
 
 ### UI-08 进度墨线 ❌ P1
@@ -316,21 +316,21 @@
 - **XSS**：添加 `XssFilter`（Spring Filter），对所有 request parameter 做 HTML 转义
 - **SQL 注入**：MyBatis-Plus 已使用参数化查询，确认无 `${}` 拼接
 
-### I-10 图片懒加载 ❌ P2
+### I-10 图片懒加载 ✅ P2
 - **前端**：自定义 Vue 指令 `v-lazy-img`，使用 `IntersectionObserver` 监听元素进入视口后才设置 src
 
 ### I-11 微信 WebView 适配 ❌ P2
 - **前端**：vite.config.ts 配置 `@vitejs/plugin-legacy`（polyfill）；index.html 加 `<meta>` 禁止缩放；CSS 加 `-webkit-overflow-scrolling: touch`
 
-### I-09 Service Worker 离线缓存 ❌ P3
+### I-09 Service Worker 离线缓存 ✅ P3
 - **前端**：使用 `vite-plugin-pwa`，配置 precache 静态资源 + runtime cache 策略（CacheFirst 用于图片，NetworkFirst 用于 API）
 
-### I-12 Docker 部署 ❌ P2
+### I-12 Docker 部署 ✅ P2
 - 前端：`Dockerfile` multi-stage build（node build → nginx serve）
 - 后端：`Dockerfile`（maven package → java -jar）
 - `docker-compose.yml`：frontend + backend + mysql + redis 四容器编排
 
-### I-13 CI/CD ❌ P2
+### I-13 CI/CD ✅ P2
 - `.github/workflows/ci.yml`：push 触发 → npm test + mvn test → docker build → deploy
 
 ---
