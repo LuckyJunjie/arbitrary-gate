@@ -221,7 +221,7 @@ export interface EventCardItem {
  */
 export async function fetchEventCards(expansion?: string): Promise<EventCardItem[]> {
   const params = expansion ? { expansion } : {}
-  return api.get('/card/event-cards', params)
+  return api.get('/card/event-cards', { params })
 }
 
 // ========== C-12 陈卡回炉 ==========
