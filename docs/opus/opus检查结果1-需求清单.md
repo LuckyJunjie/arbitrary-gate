@@ -60,7 +60,7 @@
 | P-01 | 选定 3 关键词 + 1 事件后生成判词 | P1 | ✅ 已有 | POST /api/story/preview-judgment + CardService.generatePreviewJudgment() |
 | P-02 | 稀有组合检测 + 成就触发 | P2 | ✅ 已有 | achievementStore.checkCombinationAchievements() 完整实现: 物是人非/百感交集/离人/铜墨兼备/全部珍奇 |
 | P-03 | 三器物成就【物是人非】 | P2 | ✅ 已有 | achievementStore.checkCombinationAchievements(): combo_three_objects/百感交集/离人/铜墨兼备/全部珍奇 |
-| P-04 | 三水意象彩蛋（故事必现一场雨） | P3 | ❌ 未做 | 需 AI prompt 动态注入 |
+| P-04 | 三水意象彩蛋（故事必现一场雨） | P3 | ✅ 已有 | StorytellerAgent.isThreeWaterImagery() 实现，p04RainHint 注入首章 prompt |
 
 ---
 
@@ -116,7 +116,7 @@
 | M-08 | 印鉴（"时光笺"篆书印） | P1 | ✅ 已有 | ManuscriptView 含印鉴 |
 | M-09 | 印色随偏离度变化 | P1 | ✅ 已有 | 正史偏朱红，野史偏赭石 |
 | M-10 | 批注彩蛋（打破第四面墙） | P3 | ❌ 未做 | 说书人开玩笑式批注 |
-| M-11 | 文学风格选项输出差异 | P1 | ⚠️ 部分 | style 字段存在，4 种风格 prompt 差异不确定 |
+| M-11 | 文学风格选项输出差异 | P1 | ✅ 已有 | StorytellerAgent.getStyleGuidance() 完整实现：白描简洁素净/江湖刀光剑影/笔记志怪半文半白/话本说书人口吻 |
 | M-12 | 掌眼 Agent 文学质感检查 | P1 | ❌ 未做 | 剔除"宛如""仿佛"等 AI 腔 |
 
 ---
@@ -142,7 +142,7 @@
 | SH-02 | 分享码唯一生成 | P2 | ⚠️ 部分 | story_share 表存在，后端完整度不确定 |
 | SH-03 | 合券机制 | P2 | ⚠️ 部分 | shareCoupon 集成测试存在，后端不确定 |
 | SH-04 | 合券纪念卡 | P3 | ❌ 未做 | 限定纪念卡设计 |
-| SH-05 | 微信 JSSDK 分享 | P2 | ❌ 未做 | 分享到朋友圈/朋友 |
+| SH-05 | 微信 JSSDK 分享 | P2 | ✅ 已有 | WeChatService.java (access_token/jsapi_ticket/签名) + useWeChatShare.ts 完整实现 |
 
 ---
 
@@ -214,14 +214,14 @@
 | I-03 | 分布式锁（Redisson） | P0 | ✅ 已有 | 防并发抽卡 |
 | I-04 | Redis 缓存 | P0 | ✅ 已有 | 会话 + 保底状态 |
 | I-05 | CORS 跨域配置 | P0 | ✅ 已有 | WebConfig |
-| I-06 | 用户输入校验（防注入/XSS） | P0 | ⚠️ 部分 | Validation 依赖存在，全面校验不确定 |
+| I-06 | 用户输入校验（防注入/XSS） | P0 | ✅ 已有 | XssFilter + XssHttpServletRequestWrapper（JSoup白名单+SQL注入检测403拦截+故事内容接口宽松白名单） |
 | I-07 | 分享码不可枚举 | P2 | ⚠️ 部分 | IdGenerator 工具类存在 |
 | I-08 | API Key 环境变量注入 | P0 | ✅ 已有 | DASHSCOPE_API_KEY 等 |
 | I-09 | Service Worker 离线缓存 | P3 | ✅ 已有 | vite-plugin-pwa + workbox: 静态CacheFirst/API NetworkFirst/HTML NetworkFirst |
-| I-10 | 图片懒加载 | P2 | ❌ 未做 | IntersectionObserver |
+| I-10 | 图片懒加载 | P2 | ✅ 已有 | useLazyLoad.ts + vLazy指令 + IntersectionObserver，Card.vue/KeywordEnlightenment.vue 已使用 |
 | I-11 | 微信环境适配（WebView） | P2 | ❌ 未做 | polyfill + 缓存策略 |
-| I-12 | Docker 部署 | P2 | ❌ 未做 | |
-| I-13 | CI/CD 流水线 | P2 | ❌ 未做 | |
+| I-12 | Docker 部署 | P2 | ✅ 已有 | docker-compose.yml, Dockerfile, nginx.conf, src/backend/Dockerfile 均存在 |
+| I-13 | CI/CD 流水线 | P2 | ✅ 已有 | .github/workflows/ci.yml 完整，Backend+Frontend+Docker 三阶段构建 |
 
 ---
 

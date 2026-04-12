@@ -105,6 +105,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- JSoup HTML 净化（XSS 防注入） -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.18.1</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
