@@ -52,7 +52,7 @@ _最后更新: 2026-04-12 21:39_
 - AI显灵阈值: 5次共鸣
 
 ## 测试状态
-- 320/320 tests ✅ (vitest)
+- 357/357 tests ✅ (vitest)
 - Build ✅
 - E2E 测试: playwright (需配置)
 
