@@ -5,7 +5,7 @@ import { useStoryStore } from '@/stores/storyStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import RippleEffect from '@/components/RippleEffect.vue'
 import TitleSelectModal from '@/components/TitleSelectModal.vue'
-import { updateStoryTitle } from '@/services/api'
+import { updateStoryTitle, aiPainter } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -80,12 +80,41 @@ onMounted(async () => {
     }
   }
 
+  // C-14: 手稿加载后生成场景图（用于分享卡/纪念卡）
+  await generateSceneImage()
+
   // 首次查看时，检查是否需要弹出标题选择浮层
   // 有备选标题 且 用户尚未选择过标题 → 弹出浮层
   if (candidateTitles.value.length > 0 && !hasTitleSelected.value) {
     openTitleModal()
   }
 })
+
+// C-14: AI 画师场景图
+const sceneImageUrl = ref<string>('')
+const isGeneratingScene = ref(false)
+
+async function generateSceneImage() {
+  const ms = storyStore.manuscript
+  if (!ms || !storyStore.currentStory) return
+  isGeneratingScene.value = true
+  try {
+    const title = storyStore.currentStory.title || '时光笺'
+    const description = ms.baiguanComment || ms.fullText?.slice(0, 100) || title
+    const keywords = ms.inscription ? [ms.inscription] : ['水墨', '古风']
+    const result = await aiPainter.generateSceneImage({
+      storyTitle: title,
+      chapterNo: 1,
+      sceneDescription: description,
+      keywords,
+    })
+    sceneImageUrl.value = result.imageUrl
+  } catch (err) {
+    console.warn('[ManuscriptView] 场景图生成失败:', err)
+  } finally {
+    isGeneratingScene.value = false
+  }
+}
 
 const manuscript = computed(() => storyStore.manuscript)
 const storyTitle = computed(() => storyStore.currentStory?.title ?? '时光笺')
@@ -171,6 +200,20 @@ function goBack() {
       <button class="retry-btn" @click="() => { loadError = null; isLoading = true; storyStore.fetchManuscript(storyId).finally(() => { isLoading = false }) }">
         重试
       </button>
+    </div>
+
+    <!-- C-14: AI 生成场景图（横幅装饰） -->
+    <div v-if="sceneImageUrl || isGeneratingScene" class="scene-image-banner">
+      <img
+        v-if="sceneImageUrl"
+        :src="sceneImageUrl"
+        class="scene-image"
+        alt="故事场景"
+        @error="sceneImageUrl = ''"
+      />
+      <div v-else-if="isGeneratingScene" class="scene-image-placeholder">
+        <span>墨痕浮现中...</span>
+      </div>
     </div>
 
     <!-- 手稿正文 -->
@@ -652,5 +695,34 @@ function goBack() {
   border: 2px solid currentColor;
   border-radius: 3px;
   padding: 0.2rem 0.3rem;
+}
+
+/* ── C-14: AI 场景图横幅 ── */
+.scene-image-banner {
+  width: 100%;
+  max-height: 180px;
+  overflow: hidden;
+  position: relative;
+  background: #e8e0d5;
+}
+
+.scene-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.scene-image-placeholder {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e8e0d5 0%, #d4c8b8 100%);
+  color: #8b7355;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
 }
 </style>

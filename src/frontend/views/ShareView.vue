@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchShareInfo, jointShare, fetchSpecialCards, type ShareInfoResponse, type SpecialCard } from '../services/api'
+import { fetchShareInfo, jointShare, fetchSpecialCards, aiPainter, type ShareInfoResponse, type SpecialCard } from '../services/api'
 import { playJadeClick } from '@/composables/useSound'
 import { initWeChatJSSDK, isWeChatBrowser } from '@/services/wechat'
 import { useWeChatShare } from '@/composables/useWeChatShare'
@@ -48,6 +48,10 @@ const showSpecialCardModal = ref(false)
 const specialCardData = ref<SpecialCard | null>(null)
 const commemorativeCardId = ref<number | null>(null)
 const commemorativeCardNo = ref<string | null>(null)
+
+// C-14: AI 画师分享卡图片
+const shareCardImageUrl = ref<string>('')
+const isGeneratingShareCard = ref(false)
 
 // 分类名称映射
 const categoryNames: Record<number, string> = {
@@ -369,6 +373,8 @@ async function handleJoint() {
       sourceShareCode: shareCode,
       acquiredAt: new Date().toISOString()
     }
+    // C-14: 生成 AI 分享卡图片
+    await generateShareCardImage(result.storyTitle, result.specialCardName)
     setTimeout(() => {
       showSpecialCardModal.value = true
     }, 800)
@@ -406,6 +412,26 @@ async function playMergeAnimation() {
 
     requestAnimationFrame(step)
   })
+}
+
+// C-14: AI 画师生成分享卡图片
+async function generateShareCardImage(storyTitle: string, specialCardName: string) {
+  isGeneratingShareCard.value = true
+  try {
+    // 从 shareInfo 获取判词（如果有）
+    const judgeQuote = shareInfo.value?.cardName || specialCardName
+    const result = await aiPainter.generateShareCard({
+      storyTitle,
+      judgeQuote,
+      firstParagraph: '一段跨越时空的相遇，始于缺角卡的重逢。',
+      coreKeyword: specialCardName,
+    })
+    shareCardImageUrl.value = result
+  } catch (err) {
+    console.warn('[ShareView] 分享卡图片生成失败:', err)
+  } finally {
+    isGeneratingShareCard.value = false
+  }
 }
 
 // 跳转到故事页
@@ -554,6 +580,19 @@ onMounted(loadShareInfo)
             <p class="modal-title">合券成功！</p>
           </div>
           <div class="modal-card">
+            <!-- C-14: AI 生成分享卡图片 -->
+            <div v-if="shareCardImageUrl || isGeneratingShareCard" class="share-card-image-wrapper">
+              <img
+                v-if="shareCardImageUrl"
+                :src="shareCardImageUrl"
+                class="share-card-image"
+                alt="分享卡"
+                @error="shareCardImageUrl = ''"
+              />
+              <div v-else-if="isGeneratingShareCard" class="share-card-generating">
+                <span>墨痕浮现中...</span>
+              </div>
+            </div>
             <div class="special-card-inner">
               <p class="sc-rarity">奇品</p>
               <p class="sc-name">{{ specialCardData?.name }}</p>
@@ -1059,5 +1098,34 @@ onMounted(loadShareInfo)
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
+}
+
+/* ── C-14: AI 分享卡图片 ── */
+.share-card-image-wrapper {
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.share-card-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 4px;
+}
+
+.share-card-generating {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px dashed rgba(201, 168, 76, 0.3);
+  border-radius: 4px;
+  color: rgba(201, 168, 76, 0.6);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
 }
 </style>

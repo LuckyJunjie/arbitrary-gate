@@ -30,6 +30,7 @@ public class ImageService {
 
     private static final String WANX_URL =
             "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis";
+    private static final String WANX_MODEL = "wanx-v1"; // 与 application.yml spring.ai.images.options.model 保持一致
 
     private static final String CACHE_PREFIX = "img:cache:";
     private static final long CACHE_TTL_HOURS = 24;
@@ -66,7 +67,7 @@ public class ImageService {
     }
 
     /**
-     * 调用通义万相 wanx2.1 API
+     * 调用通义万相 wanx-v1 API
      */
     private String callWanxApi(String prompt, String size) {
         if (apiKey == null || apiKey.isBlank()) {
@@ -75,18 +76,17 @@ public class ImageService {
         }
 
         try {
-            // 构建请求体
-            String requestBody = String.format("""
-                {
-                  "model": "wanx2.1",
-                  "input": { "prompt": %s },
-                  "parameters": {
-                    "size": "%s",
-                    "steps": 20,
-                    "n": 1
-                  }
-                }
-                """, toJsonString(prompt), size);
+            // 构建请求体（wanx-v1 API 格式）
+            String escapedPrompt = toJsonString(prompt);
+            String requestBody = "{"
+                    + "\"model\":\"" + WANX_MODEL + "\","
+                    + "\"input\":{\"prompt\":" + escapedPrompt + "},"
+                    + "\"parameters\":{"
+                    + "\"size\":\"" + size + "\","
+                    + "\"steps\":20,"
+                    + "\"n\":1"
+                    + "}"
+                    + "}";
 
             var headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
@@ -137,16 +137,17 @@ public class ImageService {
 
     /**
      * 生成占位图 URL（SVG data URI）
+     * 注意：SVG 本身已含 %23 格式的颜色值，直接拼入 data URI 即可，无需额外编码
      */
     private String buildPlaceholderUrl(String prompt) {
         String text = prompt.length() > 20 ? prompt.substring(0, 20) : prompt;
-        return "data:image/svg+xml," + java.net.URLEncoder.encode(
-                "<svg xmlns='http://www.w3.org/2000/svg' width='280' height='400'>" +
-                "<rect width='280' height='400' fill='#E8E0D5'/>" +
-                "<rect x='20' y='20' width='240' height='360' fill='none' stroke='%238B5E3C' stroke-width='2' rx='4'/>" +
-                "<text x='140' y='200' font-family='serif' font-size='24' fill='%238B5E3C' text-anchor='middle'>[Image]</text>" +
-                "</svg>",
-                StandardCharsets.UTF_8);
+        String encodedText = java.net.URLEncoder.encode(text, StandardCharsets.UTF_8);
+        String svg = "<svg xmlns='http://www.w3.org/2000/svg' width='280' height='400'>"
+                + "<rect width='280' height='400' fill='%23E8E0D5'/>"
+                + "<rect x='20' y='20' width='240' height='360' fill='none' stroke='%238B5E3C' stroke-width='2' rx='4'/>"
+                + "<text x='140' y='200' font-family='serif' font-size='24' fill='%238B5E3C' text-anchor='middle'>[Image]</text>"
+                + "</svg>";
+        return "data:image/svg+xml;charset=UTF-8," + svg;
     }
 
     /**
