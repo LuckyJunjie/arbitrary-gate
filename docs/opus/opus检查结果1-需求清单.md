@@ -219,7 +219,7 @@
 | I-08 | API Key 环境变量注入 | P0 | ✅ 已有 | DASHSCOPE_API_KEY 等 |
 | I-09 | Service Worker 离线缓存 | P3 | ✅ 已有 | vite-plugin-pwa + workbox: 静态CacheFirst/API NetworkFirst/HTML NetworkFirst |
 | I-10 | 图片懒加载 | P2 | ✅ 已有 | useLazyLoad.ts + vLazy指令 + IntersectionObserver，Card.vue/KeywordEnlightenment.vue 已使用 |
-| I-11 | 微信环境适配（WebView） | P2 | ❌ 未做 | polyfill + 缓存策略 |
+| I-11 | 微信环境适配（WebView） | P2 | ✅ 已完成 | @vitejs/plugin-legacy (core-js/regenerator-runtime) + wechat.css (webkit-scroll) + console polyfill |
 | I-12 | Docker 部署 | P2 | ✅ 已有 | docker-compose.yml, Dockerfile, nginx.conf, src/backend/Dockerfile 均存在 |
 | I-13 | CI/CD 流水线 | P2 | ✅ 已有 | .github/workflows/ci.yml 完整，Backend+Frontend+Docker 三阶段构建 |
 
