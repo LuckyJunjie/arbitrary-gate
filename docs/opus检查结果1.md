@@ -51,7 +51,7 @@
 | K-04 | 稀有度筛选（凡/珍/奇/绝） | P0 | ✅ 已有 | 同上 |
 | K-05 | 墨香值显示 | P1 | ✅ 已有 | InkLevelBadge 组件 |
 | K-06 | 累计共鸣次数显示 | P1 | ✅ 已完成 | `resonanceCount` 字段存在于 `UserKeywordCard`；`CardService.UserCardVO` 包含该字段；前端 CardsView 展示共鸣次数 |
-| K-07 | 卡片边缘墨迹晕染效果（按墨香值） | P2 | ❌ 未做 | UI 规范要求，新卡墨迹浓 → 渐淡 |
+| K-07 | 卡片边缘墨迹晕染效果（按墨香值） | P2 | ✅ 已完成 | Card.vue ink-bleed-{0-3} CSS classes + getInkBleedLevel()；commit 0312a9bc |
 
 ---
 
@@ -160,7 +160,7 @@
 | UI-04 | 墨池抽卡涟漪大起动画 | P0 | ✅ 已有 | 点击后涟漪扩散 |
 | UI-05 | 卡片从墨中浮出动画 | P0 | ✅ 已有 | InkPool 组件 |
 | UI-06 | 窗格光影（随手机时间变化） | P3 | ✅ 完成 | useWindowLight.ts composable + HomeView.vue 黛青/赭石/烛光 CSS |
-| UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ❌ 未做 | UI 规范要求 |
+| UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ✅ 已完成 | ManuscriptView.vue + StoryView.vue scroll rods；commit 90a68466 |
 | UI-08 | 进度墨线 | P1 | ✅ 已完成 | `StoryView.vue` `.ink-progress-line` 底部进度墨线 + `.header-progress` 顶部章节进度条 |
 | UI-09 | 缓动曲线统一 ease-out | P1 | ⚠️ 部分 | 多处使用 ease-out / cubic-bezier(0.22, 1, 0.36, 1)，基本统一但未强制收敛 |
 | UI-10 | 逐字渲染动画 | P1 | ✅ 已完成 | `StoryView.vue` 逐字渲染引擎：`pendingTextQueue` + 每字 30ms fadeIn + `.char` class CSS 动画 |
