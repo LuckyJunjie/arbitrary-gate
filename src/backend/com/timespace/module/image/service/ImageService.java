@@ -76,7 +76,7 @@ public class ImageService {
         }
 
         try {
-            // 构建请求体（wanx-v1 API 格式）
+            // 构建请求体（wanx2.1 API 格式）
             String escapedPrompt = toJsonString(prompt);
             String requestBody = "{"
                     + "\"model\":\"" + WANX_MODEL + "\","
