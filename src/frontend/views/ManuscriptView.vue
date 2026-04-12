@@ -3,9 +3,10 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
+import { useCardStore } from '@/stores/cardStore'
 import RippleEffect from '@/components/RippleEffect.vue'
 import TitleSelectModal from '@/components/TitleSelectModal.vue'
-import { updateStoryTitle, aiPainter } from '@/services/api'
+import { updateStoryTitle, aiPainter, createShare } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,6 +55,52 @@ async function onTitleSelected(title: string) {
   } catch (err) {
     console.error('[ManuscriptView] onTitleSelected failed:', err)
     // 即使失败也关闭浮层，保留默认标题
+  }
+}
+
+// ── SH-01: 分享创建 ──
+const cardStore = useCardStore()
+
+const showShareModal = ref(false)
+const selectedKeywordCardId = ref<number | null>(null)
+const isCreatingShare = ref(false)
+const shareCreationError = ref<string | null>(null)
+
+const categoryNames: Record<number, string> = {
+  1: '器物', 2: '职人', 3: '风物', 4: '情绪', 5: '称谓'
+}
+
+const rarityNames: Record<number, string> = {
+  1: '凡', 2: '珍', 3: '奇', 4: '绝'
+}
+
+// 可用于分享的关键词卡（从卡匣加载）
+const selectableKeywordCards = computed(() => {
+  return cardStore.keywordCards
+})
+
+function openShareModal() {
+  showShareModal.value = true
+  selectedKeywordCardId.value = null
+  shareCreationError.value = null
+}
+
+async function handleCreateShare() {
+  if (!selectedKeywordCardId.value || !storyStore.currentStory?.id) return
+  isCreatingShare.value = true
+  shareCreationError.value = null
+  try {
+    const result = await createShare({
+      storyId: storyStore.currentStory.id,
+      cardId: selectedKeywordCardId.value,
+    })
+    showShareModal.value = false
+    // 跳转到分享页
+    router.push(`/share/${result.shareCode}`)
+  } catch (err: any) {
+    shareCreationError.value = err?.response?.data?.message || err.message || '生成分享码失败'
+  } finally {
+    isCreatingShare.value = false
   }
 }
 
@@ -294,6 +341,13 @@ function goBack() {
           <div class="manuscript-seal" :style="{ color: sealColor }" data-testid="manuscript-seal">
             <span class="seal-char">笺</span>
           </div>
+
+          <!-- SH-01: 分享此笺按钮 -->
+          <div v-if="manuscript" class="manuscript-share-action">
+            <button class="share-story-btn" @click="openShareModal">
+              分享此笺
+            </button>
+          </div>
         </div>
       </div>
 
@@ -320,6 +374,56 @@ function goBack() {
       @selected="onTitleSelected"
       @close="showTitleModal = false"
     />
+
+    <!-- SH-01: 分享创建浮层 -->
+    <transition name="modal">
+      <div v-if="showShareModal" class="modal-overlay" @click.self="showShareModal = false">
+        <div class="share-create-modal">
+          <div class="modal-header">
+            <p class="modal-title">选择缺角卡</p>
+            <p class="modal-subtitle">选择一张关键词卡作为缺角，与同类卡主合券后可解锁完整故事</p>
+          </div>
+
+          <!-- 关键词卡列表 -->
+          <div class="keyword-card-list">
+            <button
+              v-for="card in selectableKeywordCards"
+              :key="card.id"
+              class="keyword-card-item"
+              :class="{
+                selected: selectedKeywordCardId === card.id,
+                [`rarity-${card.rarity}`]: true
+              }"
+              @click="selectedKeywordCardId = card.id"
+            >
+              <span class="kc-name">{{ card.name }}</span>
+              <span class="kc-category">{{ categoryNames[card.category] || '器物' }}</span>
+              <span class="kc-rarity">{{ rarityNames[card.rarity] || '凡' }}</span>
+            </button>
+          </div>
+
+          <p v-if="selectableKeywordCards.length === 0" class="no-cards-hint">
+            暂无关键词卡，请先去抽卡
+          </p>
+
+          <p v-if="shareCreationError" class="share-error">{{ shareCreationError }}</p>
+
+          <div class="modal-actions">
+            <button
+              class="modal-btn cancel"
+              @click="showShareModal = false"
+            >取消</button>
+            <button
+              class="modal-btn confirm"
+              :disabled="!selectedKeywordCardId || isCreatingShare"
+              @click="handleCreateShare"
+            >
+              {{ isCreatingShare ? '生成中...' : '生成分享码' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -724,5 +828,186 @@ function goBack() {
   color: #8b7355;
   font-size: 0.85rem;
   letter-spacing: 0.1em;
+}
+
+/* ── SH-01: 分享此笺按钮 ── */
+.manuscript-share-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  padding-bottom: 1rem;
+}
+
+.share-story-btn {
+  padding: 0.5rem 1.8rem;
+  border: 1px solid #c9a84c;
+  border-radius: 2px;
+  background: rgba(201, 168, 76, 0.1);
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #8b6914;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.2s ease;
+}
+
+.share-story-btn:hover {
+  background: rgba(201, 168, 76, 0.25);
+}
+
+/* ── SH-01: 分享创建浮层 ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 31, 20, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.share-create-modal {
+  background: #f5efe0;
+  border-radius: 6px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 8px 40px rgba(44, 31, 20, 0.5);
+}
+
+.modal-header {
+  text-align: center;
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  color: #2c1f14;
+  letter-spacing: 0.15em;
+  margin: 0 0 0.4rem;
+}
+
+.modal-subtitle {
+  font-size: 0.75rem;
+  color: #8b7355;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.keyword-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.keyword-card-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(139, 115, 85, 0.3);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-family: inherit;
+}
+
+.keyword-card-item.selected {
+  border-color: #c9a84c;
+  background: rgba(201, 168, 76, 0.15);
+}
+
+.kc-name {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #2c1f14;
+}
+
+.kc-category {
+  font-size: 0.7rem;
+  color: #8b7355;
+}
+
+.kc-rarity {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 2px;
+  background: rgba(201, 168, 76, 0.2);
+  color: #8b6914;
+}
+
+.keyword-card-item.rarity-3 .kc-rarity,
+.keyword-card-item.rarity-4 .kc-rarity {
+  background: rgba(139, 62, 60, 0.15);
+  color: #8b3e3c;
+}
+
+.no-cards-hint {
+  font-size: 0.8rem;
+  color: #8b7355;
+  text-align: center;
+  margin: 0;
+}
+
+.share-error {
+  font-size: 0.78rem;
+  color: #a05050;
+  text-align: center;
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 0.6rem;
+  border: 1px solid #8b7355;
+  border-radius: 2px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #8b7355;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.cancel {
+  background: transparent;
+}
+
+.modal-btn.confirm {
+  background: #2c1f14;
+  color: #f5efe0;
+  border-color: #2c1f14;
+}
+
+.modal-btn.confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.modal-btn:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+/* 过渡动画 */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
 }
 </style>

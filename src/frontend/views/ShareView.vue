@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchShareInfo, jointShare, fetchSpecialCards, aiPainter, type ShareInfoResponse, type SpecialCard } from '../services/api'
+import { fetchShareInfo, jointShare, aiPainter, type ShareInfoResponse, type SpecialCard } from '../services/api'
+import { useCardStore } from '@/stores/cardStore'
 import { playJadeClick } from '@/composables/useSound'
 import { initWeChatJSSDK, isWeChatBrowser } from '@/services/wechat'
 import { useWeChatShare } from '@/composables/useWeChatShare'
@@ -114,22 +115,20 @@ async function loadShareInfo() {
 }
 
 // 加载用户可选的关键词卡（用于合券）
+// SH-03: 从 cardStore 加载用户关键词卡，筛选与缺角同类别或高稀有度的卡
 async function loadUserCards() {
-  try {
-    const cards = await fetchSpecialCards()
-    // 筛选同类卡或高稀有度卡
-    if (shareInfo.value) {
-      userCards.value = cards
-        .filter((_: SpecialCard) => {
-          // 这里应该用用户拥有的关键词卡，但目前接口是 special-cards
-          // 暂时显示所有纪念卡，实际应调用户关键词卡接口
-          return true
-        })
-        .slice(0, 5)
-        .map(c => ({ cardId: c.id, name: c.name, category: c.rarity }))
-    }
-  } catch {
-    // 无卡时忽略
+  const cardStore = useCardStore()
+  if (shareInfo.value) {
+    const missingCategory = shareInfo.value.cardCategory
+    // 同类卡（category 相同）或高稀有度（奇/绝品可跨类）
+    userCards.value = cardStore.keywordCards
+      .filter(card => {
+        const sameCategory = card.category === missingCategory
+        const highRarity = card.rarity >= 3
+        return sameCategory || highRarity
+      })
+      .slice(0, 10)
+      .map(c => ({ cardId: c.id, name: c.name, category: c.rarity }))
   }
 }
 

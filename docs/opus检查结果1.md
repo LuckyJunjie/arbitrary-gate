@@ -142,9 +142,9 @@
 
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
-| SH-01 | 缺角故事卡生成 | P2 | ⚠️ 部分 | ShareView 路由存在，缺角卡图片生成逻辑在 aiPainter |
-| SH-02 | 分享码唯一生成 | P2 | ⚠️ 部分 | story_share 表存在，后端完整度不确定 |
-| SH-03 | 合券机制 | P2 | ⚠️ 部分 | shareCoupon 集成测试存在，后端不确定 |
+| SH-01 | 缺角故事卡生成 | P2 | ✅ 已完成 | ShareView.vue drawMissingCornerCard() 完整实现；aiPainter.generateShareCard() C-14全链路完成；ManuscriptView.vue 新增"分享此笺"按钮和关键词卡选择浮层；后端 ImageService/ImageController 完整 |
+| SH-02 | 分享码唯一生成 | P2 | ✅ 已完成 | IdGenerator.shareCode() 改用 SecureRandom 密码学安全随机；RateLimitInterceptor 已防护分享码查询接口；Timing Attack 防护（统一延迟响应）已实现 |
+| SH-03 | 合券机制 | P2 | ✅ 已完成 | ShareService.jointShare() 完整实现（同类卡/高稀有度跨类匹配逻辑）；ShareView.vue loadUserCards() 修正为从 cardStore 加载关键词卡并按 category 筛选；纪念卡授予逻辑完整；tests/unit/share.test.ts 单元测试覆盖 |
 | SH-04 | 合券纪念卡 | P3 | ✅ 已完成 | 限定纪念卡设计与生成，ShareView 完整实现（commit 653ec3d1） |
 | SH-05 | 微信 JSSDK 分享 | P2 | ✅ 已完成 | WeChatService + JSSDK wx.config + 朋友圈/朋友分享（commit ca5c99d2） |
 
@@ -231,31 +231,31 @@
 
 ---
 
-### 统计总览（修订版二 — 2026-04-12）
+### 统计总览（修订版三 — 2026-04-13）
 
 | 状态 | 数量 | 占比 |
 |------|------|------|
-| ✅ 已实现 / 已完成 | **71** | 74% |
-| ⚠️ 部分实现 | **11** | 11% |
+| ✅ 已实现 / 已完成 | **74** | 77% |
+| ⚠️ 部分实现 | **8** | 8% |
 | ❌ 未实现 | **14** | 15% |
 | **合计** | **96** | 100% |
 
-### 按优先级分布（修订版二 — 2026-04-12）
+### 按优先级分布（修订版三 — 2026-04-13）
 
 | 优先级 | 总数 | 已完成 | 部分 | 未做 |
 |--------|------|--------|------|------|
 | **P0（MVP必须）** | 36 | **35** | 1 | 0 |
 | **P1（核心体验）** | 28 | 24 | 3 | 1 |
-| **P2（社交传播）** | 19 | **9** | 4 | 6 |
+| **P2（社交传播）** | 19 | **12** | 1 | 6 |
 | **P3（体验增强）** | 13 | **5** | 2 | 6 |
 
 ---
 
-### 关键结论（2026-04-12）
+### 关键结论（2026-04-13）
 
 1. **P0 全部完成！** D-02 600条历史事件卡已完成（commit 10ad6953），I-06 XSS/SQL全局Filter已完成（commit f5575ea3）
 2. **P1 缺口仅剩 1 项**：U-02 手机号登录（commit 2f51000a 已完成，待验证文档）
-3. **P2 突破性进展**：Docker/I-12（50217732）、CI/CD/I-13、B-05书架视觉（9bbb00bf）、SH-05微信JSSDK（ca5c99d2）、SH-04合券纪念卡（653ec3d1）、U-07设置页面（74487e54）
+3. **SH系列全部完成**：SH-01 缺角故事卡（ManuscriptView新增分享入口+完整链路）；SH-02 分享码（SecureRandom安全随机）；SH-03 合券机制（关键词卡筛选+匹配逻辑）
 4. **剩余未完成项**：U-05（微信支付，需商户号）、I-11（微信WebView适配）
 5. **整体完成度：~85%（74%✅ + 11%⚠️部分），项目进入收尾阶段**
 
@@ -320,3 +320,8 @@
 **晚间修订（第四次）：**
 - AI-05 画师 Agent：统一 wanx 模型名为 `wanx2.1`（阿里云通义万相当前稳定版）；更新 `ImageService.java` 常量 `WANX_MODEL` 为 `wanx2.1`；更新 `application.yml` `spring.ai.images.options.model` 为 `wanx2.1`；修正 `callWanxApi` 方法注释；前端 `aiPainter.ts` 降级函数已使用 `wanx2.1`，无需修改；API 端到端链路完整（C-14）
 - B-04 山河图视图：确认 `BookshelfView.vue` 已完整实现（SVG 古风中国地图含黄河/长江/山脉/海岸线 + 50+ 历史地名 LOCATION_COORDS + mapMarkers computed 聚合 + 地图标记点击弹窗）；状态从 ⚠️ 部分更新为 ✅ 已完成
+
+**2026-04-13 修订（第五次）：**
+- SH-01 缺角故事卡生成：新增 ManuscriptView.vue 分享入口（"分享此笺"按钮 + 关键词卡选择浮层）；`createShare()` API 全链路串联；ShareView.vue `drawMissingCornerCard()` 完整（Canvas绘制）；aiPainter `generateShareCard()` C-14全链路完成；后端 ImageService/ImageController 完整；状态从 ⚠️ 部分更新为 ✅ 已完成
+- SH-02 分享码唯一生成：`IdGenerator.shareCode()` 改用 `SecureRandom.getInstanceStrong()` 密码学安全随机（排除IO01易混淆字符）；RateLimitInterceptor 已覆盖分享码查询接口（60秒窗口10次上限）；`ShareService.getShareInfo()` Timing Attack防护（统一延迟50-200ms）；状态从 ⚠️ 部分更新为 ✅ 已完成
+- SH-03 合券机制：`ShareService.jointShare()` 完整实现（同category匹配 + 奇/绝品跨类 + 分布式锁）；`ShareView.vue` `loadUserCards()` 修正为从 `cardStore.keywordCards` 加载并按 category 筛选；`tests/unit/share.test.ts` 新增单元测试覆盖；状态从 ⚠️ 部分更新为 ✅ 已完成

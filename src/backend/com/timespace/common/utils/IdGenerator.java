@@ -3,6 +3,8 @@ package com.timespace.common.utils;
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.UUID;
 
 public class IdGenerator {
@@ -40,10 +42,21 @@ public class IdGenerator {
 
     /**
      * 生成分享码（8位字母数字混合，不含易混淆字符）
+     * 使用 SecureRandom 确保密码学安全，防止分享码被枚举
      */
     public static String shareCode() {
         String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 排除 I,O,0,1
-        return cn.hutool.core.util.RandomUtil.randomString(chars, 8);
+        StringBuilder sb = new StringBuilder(8);
+        SecureRandom sr;
+        try {
+            sr = SecureRandom.getInstanceStrong(); // 强随机源
+        } catch (NoSuchAlgorithmException e) {
+            sr = new SecureRandom(); // 降级
+        }
+        for (int i = 0; i < 8; i++) {
+            sb.append(chars.charAt(sr.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 
     /**
