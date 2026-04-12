@@ -31,7 +31,7 @@
 - **后端**：`CardService.drawEventCard()` 复用 `DrawAlgorithm`，事件卡独立保底计数器（GuaranteeState key 加 `event:` 前缀）
 - **前端**：`PoolView.vue` 新增"事件卡池"tab 切换，复用抽卡动画
 
-### C-07 手牌上限检查 ❌ P1
+### C-07 手牌上限检查 ✅ P1
 - **后端**：`CardService.drawKeywordCard()` 开头增加检查 `SELECT COUNT(*) FROM user_card WHERE user_id=? AND card_type=1`，超 9 张返回错误码 `CARD_LIMIT_REACHED`
 - **前端**：提示"卡匣已满，请先使用或回炉卡牌"
 
@@ -40,7 +40,7 @@
 - **前端**：`PoolView.vue` 墨池上方用烟灰色 `方正清刻本悦宋` 字体展示，opacity 0.5，3 秒 fadeIn 动画
 - **数据**：新建 `fortune_text` 配置表，或 JSON 配置文件存 30+ 条文案
 
-### C-09 残片拼接交互 ⚠️ P1
+### C-09 残片拼接交互 ✅ P1
 - **前端**：`InkPool.vue` 改造抽卡流程：
   1. 点击后卡片 1/5 露出（clip-path 遮罩）
   2. 监听 touch move 事件，使用 Canvas `destination-out` 混合模式做涂抹遮罩
@@ -48,7 +48,7 @@
   4. 墨汁滴落回池的 CSS drop 动画（translateY + opacity）
 - **交互**：提示文字"墨中有物，拂去墨迹"，`方正清刻本悦宋` 字体
 
-### C-11 墨香渐淡（时间衰减） ❌ P1
+### C-11 墨香渐淡（时间衰减） ✅ P1
 - **后端**：定时任务（`@Scheduled(cron="0 0 0 * * ?")` 每日零点），扫描所有 `user_card`，`ink_fragrance = MAX(0, ink_fragrance - 1)`
 - **前端**：`inkValueStore` 显示时根据 `ink_fragrance` 值控制卡片边缘 blur 滤镜强度（7=浓墨 → 0=无墨迹）
 
@@ -66,7 +66,7 @@
 
 ## 三、卡匣模块
 
-### K-06 累计共鸣次数显示 ⚠️ P1
+### K-06 累计共鸣次数显示 ✅ P1
 - **前端**：`CardsView.vue` 卡片详情弹层中展示 `resonanceCount`，用赭石色小字 "共鸣 ×{n}"
 - **后端**：确保 `GET /api/card/owned` 返回 `resonance_count` 字段
 
@@ -104,7 +104,7 @@
 
 ## 五、入局模块
 
-### E-06 配角初见·一句话印象 ❌ P1
+### E-06 配角初见·一句话印象 ✅ P1
 - **后端**：`StorytellerAgent` 配角生成 prompt 增加约束：
   ```
   每个配角出场时，不要用上帝视角介绍身份。
@@ -114,11 +114,11 @@
   返回的 `story_character` 新增 `first_impression VARCHAR(128)` 字段
 - **前端**：StoryView 章节开始时，配角名旁用烟灰色斜体展示一句话印象
 
-### E-07 关键词落位可视化 ⚠️ P1
+### E-07 关键词落位可视化 ✅ P1
 - **后端**：AI 生成开局时，说书人返回 JSON 标注三个关键词的角色：`{ "核心意象": "旧船票", "转折道具": "铜锁芯", "人物关联": "摆渡人" }`
 - **前端**：入局页面底部用三列布局展示关键词落位，卡片下方标注角色名，泥金色连线
 
-### E-08 风格选项 UI ⚠️ P1
+### E-08 风格选项 UI ✅ P1
 - **前端**：`EntryQuestionsView.vue` 在提交三问答案前，增加风格选择步骤：四个选项卡"白描 / 江湖 / 笔记 / 话本"，各附一句示例文风
 - **后端**：`submitEntryAnswers` 请求体增加 `style: number`（1-4），写入 `story.style`，说书人 prompt 根据 style 切换叙述口吻
 
@@ -126,7 +126,7 @@
 
 ## 六、叙事推进模块
 
-### S-11 手势轻重缓急 ⚠️ P1
+### S-11 手势轻重缓急 ✅ P1
 - **前端**：`useGesture.ts` 增强：
   - **慢速检测**：滑动耗时 > 800ms 判定为"悄悄"动作
   - **快速检测**：滑动耗时 < 200ms 判定为"紧急"动作
@@ -155,7 +155,7 @@
 - **后端**：`StoryOrchestrationService.finishStory()` 中，说书人 prompt 增加 `"请为这个故事生成3个备选标题，用JSON数组返回"`，解析后存入 `story.candidate_titles JSON`
 - **前端**：`ManuscriptView.vue` 首次查看时弹出标题选择浮层，用户选定后 `POST /api/story/{id}/title` 更新
 
-### M-03 题记生成 ❌ P1
+### M-03 题记生成 ✅ P1
 - **后端**：finishStory 流程中增加一步，说书人 prompt：`"为本故事写一句题记，散文诗风格，不超过30字"`
 - **数据**：`story_manuscript` 新增 `epigraph VARCHAR(128)` 字段
 - **前端**：手稿页正文前，居中竖排展示题记，字号略大，赭石色
