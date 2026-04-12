@@ -178,6 +178,12 @@ public class ShareService extends ServiceImpl<StoryShareMapper, StoryShare> {
         );
 
         if (share == null) {
+            // I-07: Timing Attack 防护 — 不存在的分享码也延迟响应，统一响应时间
+            try {
+                Thread.sleep(50 + (long) (Math.random() * 150));
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
             throw BusinessException.SHARE_CODE_INVALID;
         }
 
