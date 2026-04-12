@@ -1,6 +1,6 @@
 # arbitrary-gate 项目记忆
 
-_最后更新: 2026-04-12 05:39_
+_最后更新: 2026-04-12 19:39_
 
 ## 项目概述
 时光笺 - AI说书人游戏，Android/iOS H5应用
@@ -60,7 +60,8 @@ _最后更新: 2026-04-12 05:39_
 | 任务 | 优先级 | 状态 |
 |------|--------|------|
 | I-13 CI/CD流水线 | P2 | ✅ 完成 — `.github/workflows/ci.yml` (2026-04-12 05:40) |
-| U-05 墨晶充值/购买 | P2 | ❌ 未做（微信支付接入） |
+| D-04 卡池数据分包扩展机制 | P3 | ✅ 已完成 — commit e6aea473 |
+| U-05 墨晶充值/购买 | P2 | ❌ 未做（需微信商户号凭证） |
 
 ## Git
 - 分支: master，与 origin/master 同步
@@ -77,4 +78,7 @@ _最后更新: 2026-04-12 05:39_
 - 初始化SQL: `docker/mysql/init/02-event_cards.sql` (600条事件)
 
 ## Sub-agent 任务记录
-- 2026-04-12 05:39: I-13 CI/CD pipeline — sub-agent spawned (session: 9edc667e-eae6-4fa3-9dda-44543cfb0f4d)
+- 2026-04-12 05:39: I-13 CI/CD pipeline — ✅ 已完成
+- 2026-04-12 07:39: U-07 设置页面 — ✅ 已完成 (commit 74487e54)
+- 2026-04-12 10:39: U-02 手机号登录 — ✅ 已完成 (commit 2f51000a)
+- 2026-04-12 17:39: D-04 卡池分包扩展 — 🔄 进行中 (session: bb4c706f, label: jarvis-d04-card-expansion)
