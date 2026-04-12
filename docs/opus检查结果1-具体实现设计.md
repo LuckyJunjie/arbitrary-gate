@@ -273,16 +273,11 @@
 ### AI-04 掌眼 Agent ❌ P1
 （见 M-12，同一功能）
 
-### AI-06 AI 腔词黑名单过滤 ❌ P1
-- **后端**：`common/util/AITextFilter.java`，使用正则匹配黑名单词表：
-  ```java
-  private static final List<String> BANNED_WORDS = List.of(
-    "宛如", "仿佛", "无法言说", "不禁", "缓缓说道", 
-    "轻声说道", "目光中满是", "心中一动", "似乎在诉说"
-  );
-  ```
-  替换策略：直接删除或替换为空字符串，由掌眼 Agent 二次润色
-- **调用点**：所有 AI 返回文本经过 `AITextFilter.filter(text)` 后再存库
+### AI-06 AI 腔词黑名单过滤 ✅ P1
+- **后端**：`src/backend/com/timespace/module/ai/agent/ZhangyanAgent.java`，使用 `BLACKLIST` 词表 + `Replacement` 映射表过滤
+- **前端**：`src/frontend/services/zhangyan.ts`（本地预过滤）+ `src/frontend/services/aiPhraseFilter.ts`（完整黑名单）
+- **替换策略**：直接替换为空字符串或映射为更自然表达
+- **调用点**：`ZhangyanAgent.filter(text)` 在故事生成结束后自动触发
 
 ### AI-07 Prompt 热更新 ❌ P1
 - **数据库**：新建 `ai_prompt_template` 表（id, agent_name, prompt_key, prompt_text, version, updated_at）
