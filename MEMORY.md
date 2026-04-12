@@ -63,7 +63,7 @@ _最后更新: 2026-04-12 21:39_
 | D-04 卡池数据分包扩展机制 | P3 | ✅ 已完成 — commit e6aea473 |
 | I-07 分享码不可枚举 | P2 | ✅ 完成 — RateLimitInterceptor (IP限流60s/10次) + Timing Attack防护 (50-200ms延迟) |
 | M-10 批注彩蛋 | P3 | ✅ 完成 — useAchievementToast.ts (commit 51e7098a) |
-| SH-01~03 分享模块完整链路 | P2 | 🔄 进行中 — sub-agent bc6cf6bd |
+| SH-01~03 分享模块完整链路 | P2 | ✅ 完成 — commit 6ff6c220（缺角卡/合券/分享码完整链路，2026-04-13 01:39推送） |
 | U-05 墨晶充值/购买 | P2 | ❌ 未做（需微信商户号凭证） |
 | U-03 游客模式正式方案 | P1 | ⚠️ 需设计（现有guest-login为调试用） |
 | I-11 微信环境适配 | P2 | ⚠️ 部分（useWeChatShare已有基础） |
