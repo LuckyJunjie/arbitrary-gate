@@ -281,31 +281,21 @@ export const useAchievementStore = defineStore('achievement', () => {
       }
     }
 
-    // 2. 三情绪【百感交集】— 三张都是 category=4（情绪）
-    if (categories.every(c => c === 4)) {
-      unlockAchievement('combo_three_emotions')
-      return {
-        type: CombinationType.THREE_EMOTIONS,
-        name: '百感交集',
-        description: '三张情绪卡，悲欢离合，尽集于此',
-        bonus: '后日谈采用更感伤的语气',
-        triggered: true,
-      }
-    }
-
-    // 3. 三称谓【三生石上】— 三张都是 category=5（称谓）
+    // 2. 三称谓【三生石上】— 三张都是 category=5（称谓）
+    // 注意：需在三绝品之前检测，因为称谓卡也可能都是 rarity=4
     if (categories.every(c => c === 5)) {
       unlockAchievement('combo_three_titles')
       return {
         type: CombinationType.THREE_TITLES,
         name: '三生石上',
-        description: '三张称谓卡，命运羁绊',
+        description: '三张称谓卡，命运羁绊，配角左右结局',
         bonus: '配角命运值大幅影响结局',
         triggered: true,
       }
     }
 
-    // 4. 三水意象【水过三秋】— 三张都含水意象
+    // 3. 三水意象【水过三秋】— 三张都含水意象
+    // 注意：需在三情绪之前检测，因为含"泪"的卡也是情绪类
     const waterCardCount = keywordCards.filter(card =>
       WATER_KEYWORDS.some(w => card.name.includes(w))
     ).length
@@ -316,6 +306,18 @@ export const useAchievementStore = defineStore('achievement', () => {
         name: '水过三秋',
         description: '三张水意象卡，水过三秋',
         bonus: '故事必现一场雨',
+        triggered: true,
+      }
+    }
+
+    // 4. 三情绪【百感交集】— 三张都是 category=4（情绪）
+    if (categories.every(c => c === 4)) {
+      unlockAchievement('combo_three_emotions')
+      return {
+        type: CombinationType.THREE_EMOTIONS,
+        name: '百感交集',
+        description: '三张情绪卡，悲欢离合，尽集于此',
+        bonus: '后日谈采用更感伤的语气',
         triggered: true,
       }
     }
