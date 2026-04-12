@@ -18,6 +18,7 @@ import ManuscriptView from './views/ManuscriptView.vue'
 import ShopView from './views/ShopView.vue'
 import SettingsView from './views/SettingsView.vue'
 import CommemorativeCardView from './views/CommemorativeCardView.vue'
+import PhoneLoginView from './views/PhoneLoginView.vue'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView },
@@ -31,6 +32,7 @@ const routes = [
   { path: '/shop', name: 'shop', component: ShopView },
   { path: '/settings', name: 'settings', component: SettingsView },
   { path: '/commemorative-card/:cardId', name: 'commemorative-card', component: CommemorativeCardView },
+  { path: '/phone-login', name: 'phone-login', component: PhoneLoginView },
 ]
 
 const router = createRouter({

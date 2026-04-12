@@ -46,6 +46,11 @@ public class User {
      */
     private String guestDeviceId;
 
+    /**
+     * 手机号（用于手机号登录）
+     */
+    private String phone;
+
     @TableLogic
     private Integer deleted;
 }

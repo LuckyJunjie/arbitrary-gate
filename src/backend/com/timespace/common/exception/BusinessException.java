@@ -35,4 +35,7 @@ public class BusinessException extends RuntimeException {
     public static BusinessException KEYWORD_CARD_LIMIT_REACHED = new BusinessException(400, "关键词卡已达上限9张，请先使用或回炉卡牌");
     public static BusinessException EVENT_CARD_LIMIT_REACHED = new BusinessException(400, "事件卡已达上限3张，请先使用或回炉卡牌");
     public static BusinessException AI_SERVICE_ERROR = new BusinessException(500, "AI服务异常");
+    public static BusinessException SMS_CODE_INVALID = new BusinessException(400, "验证码错误或已过期");
+    public static BusinessException SMS_CODE_SEND_FAILED = new BusinessException(500, "验证码发送失败，请稍后重试");
+    public static BusinessException PHONE_ALREADY_BOUND = new BusinessException(400, "该手机号已绑定其他账号");
 }

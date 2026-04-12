@@ -704,6 +704,7 @@ export interface GuestLoginResponse {
     completedStories: number
     isGuest: number // 0=正式用户，1=游客
     guestDeviceId?: string // 游客设备标识 UUID
+    phone?: string // 手机号
   }
 }
 
@@ -744,6 +745,24 @@ export async function ensureLogin(): Promise<boolean> {
     console.error('[Auth] Guest login failed:', err)
     return false
   }
+}
+
+// ========== U-02 手机号登录 ==========
+
+/**
+ * U-02 POST /api/user/send-code
+ * 发送短信验证码
+ */
+export async function sendPhoneCode(phone: string): Promise<void> {
+  await api.post('/user/send-code', { phone })
+}
+
+/**
+ * U-02 POST /api/user/phone-login
+ * 手机号一键登录/注册
+ */
+export async function phoneLogin(phone: string, code: string): Promise<GuestLoginResponse> {
+  return api.post('/user/phone-login', { phone, code })
 }
 
 export default api

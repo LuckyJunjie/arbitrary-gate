@@ -236,6 +236,101 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         return vo;
     }
 
+    // ========== U-02 手机号登录 ==========
+
+    private static final String SMS_CODE_KEY_PREFIX = "sms:code:";
+    private static final long SMS_CODE_EXPIRE_SECONDS = 300; // 5分钟
+
+    /**
+     * U-02 发送短信验证码
+     * 开发阶段：验证码写入Redis，key=phone，实际调用时用万能码 888888
+     * 正式阶段：调用阿里云SMS API (dysmsapi.aliyuncs.com)
+     */
+    public void sendSmsCode(String phone) {
+        // 1. 验证手机号格式
+        if (!isValidPhone(phone)) {
+            throw new BusinessException(400, "手机号格式不正确");
+        }
+        // 2. 生成6位随机验证码
+        String code = RandomUtil.randomNumbers(6);
+        // 3. 写入Redis（开发阶段）
+        redisTemplate.opsForValue().set(SMS_CODE_KEY_PREFIX + phone, code, SMS_CODE_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        // TODO: 正式SMS接入 - 调用阿里云SMS API
+        // 正式实现参考：
+        // DefaultProfile profile = DefaultProfile.getProfile("cn-hangzhou", accessKeyId, accessKeySecret);
+        // IAcsClient client = new DefaultAcsClient(profile);
+        // SendSmsRequest request = new SendSmsRequest();
+        // request.setPhoneNumbers(phone);
+        // request.setSignName("时光笺");
+        // request.setTemplateCode("SMS_xxx");
+        // request.setTemplateParam("{\"code\":\"" + code + "\"}");
+        // client.getAcsResponse(request);
+        log.info("[SMS] 验证码已发送(开发模式), phone={}, code={}", phone, code);
+    }
+
+    /**
+     * U-02 手机号登录/注册
+     * 验证验证码，正确则用户存在则登录，不存在则自动注册（is_guest=0）
+     */
+    @Transactional
+    public WxLoginVO phoneLogin(String phone, String code) {
+        // 1. 验证手机号格式
+        if (!isValidPhone(phone)) {
+            throw new BusinessException(400, "手机号格式不正确");
+        }
+        // 2. 校验验证码（万能码 888888 也接受）
+        String storedCode = redisTemplate.opsForValue().get(SMS_CODE_KEY_PREFIX + phone);
+        if (storedCode == null || (!storedCode.equals(code) && !"888888".equals(code))) {
+            throw BusinessException.SMS_CODE_INVALID;
+        }
+        // 3. 验证通过后删除验证码（一次性）
+        redisTemplate.delete(SMS_CODE_KEY_PREFIX + phone);
+        // 4. 查询用户是否已存在（按手机号）
+        User user = getOne(new LambdaQueryWrapper<User>().eq(User::getPhone, phone));
+        if (user == null) {
+            // 不存在则自动注册
+            user = new User();
+            user.setPhone(phone);
+            user.setNickname("旅人" + RandomUtil.randomInt(1000, 9999));
+            user.setInkStone(100); // 新用户赠送100墨晶
+            user.setDailyFreeDraws(dailyFreeCount);
+            user.setLastFreeResetTime(LocalDateTime.now());
+            user.setTotalStories(0);
+            user.setCompletedStories(0);
+            user.setIsGuest(0); // 正式用户
+            user.setCreatedAt(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+            save(user);
+            log.info("[PhoneLogin] 新用户注册, phone={}, userId={}", phone, user.getId());
+        } else {
+            // 已存在则检查是否为游客（升级账号）
+            if (user.getIsGuest() != null && user.getIsGuest() == 1) {
+                user.setIsGuest(0); // 游客升级为正式用户
+                user.setUpdatedAt(LocalDateTime.now());
+                updateById(user);
+                log.info("[PhoneLogin] 游客账号升级, phone={}, userId={}", phone, user.getId());
+            }
+        }
+        // 5. 重置每日免费次数
+        resetDailyFreeDrawsIfNeeded(user);
+        // 6. 签发 Sa-Token
+        StpUtil.login(user.getId());
+        String token = StpUtil.getTokenValue();
+        // 7. 构建返回
+        WxLoginVO vo = new WxLoginVO();
+        vo.setToken(token);
+        vo.setUser(toUserVO(user));
+        log.info("[PhoneLogin] 登录成功, phone={}, userId={}", phone, user.getId());
+        return vo;
+    }
+
+    private boolean isValidPhone(String phone) {
+        if (phone == null || phone.length() != 11) return false;
+        return phone.matches("^1[3-9]\\d{9}$");
+    }
+
+    // ========== 微信相关（原有）============
+
     /**
      * 调用微信接口用code换session
      * 实际项目中通过Feign或RestTemplate调用微信API

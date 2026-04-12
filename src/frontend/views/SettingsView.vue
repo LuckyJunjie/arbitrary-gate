@@ -126,6 +126,12 @@ function onMusicVolumeChange(e: Event) {
                 <span class="bind-dot" />
                 <span>{{ wechatBound ? '微信已绑定' : isGuest ? '游客身份' : '已登录' }}</span>
               </div>
+              <!-- U-02 手机号登录入口 -->
+              <button class="phone-bind-btn" @click="router.push('/phone-login')">
+                <span class="phone-bind-icon">📱</span>
+                <span class="phone-bind-text">{{ isGuest ? '升级正式账号' : '绑定手机号' }}</span>
+                <span class="phone-bind-arrow">›</span>
+              </button>
             </div>
           </div>
         </div>
@@ -589,6 +595,31 @@ function onMusicVolumeChange(e: Event) {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.3; }
 }
+
+/* ── U-02 手机号绑定按钮 ── */
+.phone-bind-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding: 0.45rem 0.75rem;
+  background: rgba(201, 169, 110, 0.08);
+  border: 1px solid rgba(201, 169, 110, 0.3);
+  border-radius: 4px;
+  color: #c9a84c;
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  width: fit-content;
+}
+.phone-bind-btn:hover {
+  background: rgba(201, 169, 110, 0.15);
+  border-color: rgba(201, 169, 110, 0.5);
+}
+.phone-bind-icon { font-size: 0.9rem; }
+.phone-bind-text { letter-spacing: 0.05em; }
+.phone-bind-arrow { font-size: 1rem; opacity: 0.6; }
 
 /* ── 设置行 ── */
 .setting-row {

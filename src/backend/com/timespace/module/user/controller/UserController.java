@@ -87,6 +87,78 @@ public class UserController {
         return Result.ok(vo);
     }
 
+    // ========== U-02 手机号登录 ==========
+
+    /**
+     * POST /api/user/send-code
+     * 发送短信验证码
+     *
+     * 请求：
+     * {
+     *   "phone": "13800138000"
+     * }
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "message": "success",
+     *   "data": { "success": true }
+     * }
+     */
+    @PostMapping("/send-code")
+    public Result<SendCodeVO> sendCode(@Valid @RequestBody SendCodeRequest request) {
+        log.info("发送验证码请求, phone={}", request.getPhone());
+        userService.sendSmsCode(request.getPhone());
+        SendCodeVO vo = new SendCodeVO();
+        vo.setSuccess(true);
+        return Result.ok(vo);
+    }
+
+    /**
+     * POST /api/user/phone-login
+     * 手机号一键登录（登录/注册）
+     *
+     * 请求：
+     * {
+     *   "phone": "13800138000",
+     *   "code": "888888"
+     * }
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "message": "success",
+     *   "data": {
+     *     "token": "Satoken认证Token",
+     *     "user": { ... }
+     *   }
+     * }
+     */
+    @PostMapping("/phone-login")
+    public Result<WxLoginVO> phoneLogin(@Valid @RequestBody PhoneLoginRequest request) {
+        log.info("手机号登录请求, phone={}", request.getPhone());
+        WxLoginVO vo = userService.phoneLogin(request.getPhone(), request.getCode());
+        return Result.ok(vo);
+    }
+
+    // ========== DTOs ==========
+
+    @Data
+    public static class SendCodeRequest {
+        private String phone;
+    }
+
+    @Data
+    public static class SendCodeVO {
+        private boolean success;
+    }
+
+    @Data
+    public static class PhoneLoginRequest {
+        private String phone;
+        private String code;
+    }
+
     @Data
     public static class WxLoginRequest {
         private String code;
