@@ -221,7 +221,7 @@
 | I-04 | Redis 缓存 | P0 | ✅ 已有 | 会话 + 保底状态 |
 | I-05 | CORS 跨域配置 | P0 | ✅ 已有 | WebConfig |
 | I-06 | 用户输入校验（防注入/XSS） | P0 | ✅ 已完成 | 全局 XSS/SQL 注入 Filter（commit f5575ea3） |
-| I-07 | 分享码不可枚举 | P2 | ⚠️ 部分 | IdGenerator 工具类存在 |
+| I-07 | 分享码不可枚举 | P2 | ✅ 完成 | RateLimitInterceptor (Redis IP限流) + Timing Attack防护 (ShareService.getShareInfo) |
 | I-08 | API Key 环境变量注入 | P0 | ✅ 已有 | DASHSCOPE_API_KEY 等 |
 | I-09 | Service Worker 离线缓存 | P3 | ✅ 完成 | public/sw.js (CacheFirst/NetworkFirst/StaleWhileRevalidate) + index.html 注册 |
 | I-10 | 图片懒加载 | P2 | ✅ 已完成 | v-lazy directive + IntersectionObserver + fadeIn 动画（commit 9ec088d8） |
