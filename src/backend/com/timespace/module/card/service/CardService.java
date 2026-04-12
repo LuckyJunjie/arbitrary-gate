@@ -101,10 +101,19 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
 
             // 检查免费次数或墨晶
             if (useFreeDraw) {
-                if (!userService.hasDailyFreeDraw(userId)) {
+                // C-12: 同时检查DB免费次数和Redis额外免费次数（来自陈卡回炉）
+                int dbFreeDraws = userService.getDailyFreeDraws(userId);
+                int redisFreeDraws = getExtraFreeDrawsFromRedis(userId);
+                if (dbFreeDraws <= 0 && redisFreeDraws <= 0) {
                     throw BusinessException.DAILY_FREE_EXHAUSTED;
                 }
-                userService.useDailyFreeDraw(userId);
+                // 优先消耗DB免费次数，其次消耗Redis额外次数
+                if (dbFreeDraws > 0) {
+                    userService.useDailyFreeDraw(userId);
+                } else {
+                    // Redis额外次数-1
+                    consumeExtraFreeDrawFromRedis(userId);
+                }
             } else {
                 // U-03: 游客不能消耗墨晶抽卡
                 if (userService.isGuest(userId)) {
@@ -520,6 +529,21 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
         String freeDrawKey = String.format(FREE_DRAW_REDIS_KEY, userId, today);
         Long val = redissonClient.getAtomicLong(freeDrawKey).get();
         return val != null ? val.intValue() : 0;
+    }
+
+    /**
+     * C-12: 消耗Redis中的额外免费抽卡次数（来自陈卡回炉）
+     */
+    private void consumeExtraFreeDrawFromRedis(Long userId) {
+        String today = java.time.LocalDate.now().toString();
+        String freeDrawKey = String.format(FREE_DRAW_REDIS_KEY, userId, today);
+        RAtomicLong freeDrawAtomic = redissonClient.getAtomicLong(freeDrawKey);
+        long remaining = freeDrawAtomic.decrementAndGet();
+        // 如果降到0或以下，删除key
+        if (remaining <= 0) {
+            redissonClient.getBucket(freeDrawKey).delete();
+        }
+        log.info("[C-12] 消耗Redis额外免费次数: userId={}, remaining={}", userId, remaining);
     }
 
     /**
