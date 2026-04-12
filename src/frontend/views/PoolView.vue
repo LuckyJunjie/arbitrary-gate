@@ -9,7 +9,7 @@ import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { useAchievementStore } from '@/stores/achievementStore'
-import { drawKeywordCard, fetchFortune, drawEventCard, ensureLogin, type EventDrawResult } from '@/services/api'
+import { drawKeywordCard, fetchFortune, drawEventCard, fetchExpansions, ensureLogin, type EventDrawResult, type CardExpansion } from '@/services/api'
 import { playInkDrop, playWindChime } from '@/composables/useSound'
 import type { KeywordCard } from '@/services/api'
 
@@ -116,6 +116,16 @@ const hasDrawnEvent = ref(false)
 const showLimitModal = ref(false)
 const limitErrorMessage = ref('')
 
+// ========== D-04 卡池分包扩展 ========== //
+const expansions = ref<CardExpansion[]>([])
+const selectedExpansion = ref<string>('') // 空字符串表示"全部"
+
+const showExpansionTabs = computed(() => expansions.value.length > 1)
+
+function selectExpansion(code: string) {
+  selectedExpansion.value = code
+}
+
 // 从 localStorage 读取已有卡牌
 onMounted(async () => {
   // U-03: 确保已登录（未登录时自动触发游客登录）
@@ -126,6 +136,13 @@ onMounted(async () => {
   inkValueStore.loadFromStorage()
   loadDailyFreeDraws()
   loadSavedCards()
+  // D-04: 加载扩展包列表
+  try {
+    const expansionList = await fetchExpansions()
+    expansions.value = expansionList
+  } catch {
+    expansions.value = []
+  }
   // C-08: 今日运势本地缓存，同一天不重复请求
   const today = new Date().toDateString()
   const cacheKey = `fortune:${today}`
@@ -500,6 +517,21 @@ function closeLimitModal() {
 
   <!-- 事件卡池 -->
   <div v-if="activeTab === 'event'" class="event-pool-stage">
+    <!-- D-04: 扩展包切换 Tab（扩展包数量 > 1 时显示） -->
+    <div v-if="showExpansionTabs" class="expansion-tabs">
+      <button
+        class="expansion-tab"
+        :class="{ active: selectedExpansion === '' }"
+        @click="selectExpansion('')"
+      >全部</button>
+      <button
+        v-for="exp in expansions"
+        :key="exp.expansionCode"
+        class="expansion-tab"
+        :class="{ active: selectedExpansion === exp.expansionCode }"
+        @click="selectExpansion(exp.expansionCode)"
+      >{{ exp.expansionName }}</button>
+    </div>
     <RippleEffect :active="!hasDrawnEvent" data-testid="event-ripple-animation" />
 
     <!-- 事件卡展示 -->
@@ -612,6 +644,44 @@ function closeLimitModal() {
 
 .tab-btn:not(.active):hover {
   color: rgba(232, 220, 200, 0.8);
+}
+
+/* D-04: 扩展包切换 Tab */
+.expansion-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.expansion-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.expansion-tab {
+  padding: 0.3rem 0.75rem;
+  background: rgba(232, 220, 200, 0.05);
+  border: 1px solid rgba(232, 220, 200, 0.15);
+  border-radius: 2px;
+  color: rgba(232, 220, 200, 0.5);
+  font-family: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+}
+
+.expansion-tab.active {
+  background: rgba(201, 168, 76, 0.15);
+  border-color: rgba(201, 168, 76, 0.4);
+  color: #c9a84c;
+}
+
+.expansion-tab:not(.active):hover {
+  color: rgba(232, 220, 200, 0.8);
+  border-color: rgba(232, 220, 200, 0.3);
 }
 
 .header-right {

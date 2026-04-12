@@ -410,6 +410,23 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
                 .collect(Collectors.toList());
     }
 
+    // ========== D-04 卡池分包扩展 ========== //
+
+    /**
+     * D-04: 按扩展包获取事件卡列表
+     *
+     * @param expansion 扩展包代码（可选，传 null 或空字符串则返回所有）
+     * @return 事件卡列表
+     */
+    public List<EventCard> getEventCards(String expansion) {
+        LambdaQueryWrapper<EventCard> wrapper = new LambdaQueryWrapper<>();
+        if (expansion != null && !expansion.trim().isEmpty()) {
+            wrapper.eq(EventCard::getExpansion, expansion.trim());
+        }
+        wrapper.orderByAsc(EventCard::getCardNo);
+        return eventCardMapper.selectList(wrapper);
+    }
+
     /**
      * 检查用户是否拥有某张关键词卡
      */

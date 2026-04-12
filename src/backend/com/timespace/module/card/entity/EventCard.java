@@ -38,4 +38,7 @@ public class EventCard implements Serializable {
 
     /** 时代标签，如 "秦末汉初" */
     private String era;
+
+    /** 所属扩展包：core=核心卡池，legend=传说扩展，wuxia=武侠扩展 */
+    private String expansion;
 }

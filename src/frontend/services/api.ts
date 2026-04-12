@@ -68,6 +68,7 @@ export interface EventDrawResult {
   location: string
   description: string
   era: string
+  expansion: string
   isGuaranteedRare: boolean
 }
 
@@ -180,6 +181,47 @@ export async function drawKeywordCard(): Promise<DrawResponse> {
 // 抽事件卡
 export async function drawEventCard(): Promise<EventDrawResult> {
   return api.post('/card/draw/event')
+}
+
+// ========== D-04 卡池分包扩展 ==========
+
+export interface CardExpansion {
+  id: number
+  expansionCode: string
+  expansionName: string
+  description: string
+  cardCount: number
+  enabled: number
+  sortOrder: number
+}
+
+/**
+ * D-04: 获取所有已启用的扩展包列表
+ * GET /api/card/expansions
+ */
+export async function fetchExpansions(): Promise<CardExpansion[]> {
+  return api.get('/card/expansions')
+}
+
+export interface EventCardItem {
+  id: number
+  cardNo: string
+  title: string
+  dynasty: string
+  location: string
+  description: string
+  weight: number
+  era: string
+  expansion: string
+}
+
+/**
+ * D-04: 按扩展包拉取事件卡列表
+ * GET /api/card/event-cards?expansion=xxx
+ */
+export async function fetchEventCards(expansion?: string): Promise<EventCardItem[]> {
+  const params = expansion ? { expansion } : {}
+  return api.get('/card/event-cards', params)
 }
 
 // ========== C-12 陈卡回炉 ==========

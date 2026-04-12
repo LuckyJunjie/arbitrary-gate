@@ -2,7 +2,11 @@ package com.timespace.module.card.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.timespace.common.exception.GlobalExceptionHandler.Result;
+import com.timespace.module.card.entity.CardExpansion;
+import com.timespace.module.card.entity.EventCard;
+import com.timespace.module.card.service.CardExpansionService;
 import com.timespace.module.card.service.CardService;
+import com.timespace.module.card.service.CardService.DrawEventResult;
 import com.timespace.module.card.service.CardService.DrawResult;
 import com.timespace.module.card.service.CardService.RecycleResult;
 import com.timespace.module.card.service.CardService.UserCardVO;
@@ -20,6 +24,7 @@ import java.util.List;
 public class CardController {
 
     private final CardService cardService;
+    private final CardExpansionService cardExpansionService;
 
     /**
      * POST /api/card/draw/keyword
@@ -260,5 +265,68 @@ public class CardController {
         CardService.PreviewResult result = cardService.generatePreviewJudgment(
                 request.getKeywordIds(), request.getEventId());
         return Result.ok(result);
+    }
+
+    // ========== D-04 卡池分包扩展 ========== //
+
+    /**
+     * GET /api/card/expansions
+     * 获取所有已启用的扩展包列表
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "data": [
+     *     {
+     *       "id": 1,
+     *       "expansionCode": "core",
+     *       "expansionName": "核心卡池",
+     *       "description": "游戏初始卡池",
+     *       "cardCount": 600,
+     *       "enabled": 1,
+     *       "sortOrder": 0
+     *     }
+     *   ]
+     * }
+     */
+    @GetMapping("/expansions")
+    public Result<List<CardExpansion>> getExpansions() {
+        log.info("获取扩展包列表请求");
+        List<CardExpansion> expansions = cardExpansionService.getEnabledExpansions();
+        return Result.ok(expansions);
+    }
+
+    /**
+     * GET /api/card/event-cards
+     * 按扩展包拉取事件卡列表
+     *
+     * 参数：
+     * - expansion: 扩展包代码（可选，不传则返回所有）
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "data": [
+     *     {
+     *       "id": 1,
+     *       "cardNo": "EV001",
+     *       "title": "巨鹿·破釜沉舟",
+     *       "dynasty": "秦",
+     *       "location": "巨鹿",
+     *       "description": "...",
+     *       "weight": 100,
+     *       "era": "秦末",
+     *       "expansion": "core"
+     *     }
+     *   ]
+     * }
+     */
+    @GetMapping("/event-cards")
+    public Result<List<EventCard>> getEventCards(
+            @RequestParam(required = false) String expansion
+    ) {
+        log.info("获取事件卡列表请求: expansion={}", expansion);
+        List<EventCard> cards = cardService.getEventCards(expansion);
+        return Result.ok(cards);
     }
 }
