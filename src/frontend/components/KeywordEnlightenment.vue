@@ -197,10 +197,10 @@ function handleOverlayClick() {
 
 /* ── Transition ──────────────────────────────────────────────────────────── */
 .enlightenment-enter-active {
-  animation: enlightenment-fade-in 0.5s ease forwards;
+  animation: enlightenment-fade-in 0.5s var(--ease-smooth) forwards;
 }
 .enlightenment-leave-active {
-  animation: enlightenment-fade-out 0.6s ease forwards;
+  animation: enlightenment-fade-out 0.6s var(--ease-smooth) forwards;
 }
 
 @keyframes enlightenment-fade-in {
@@ -222,7 +222,7 @@ function handleOverlayClick() {
     rgba(180, 140, 60, 0.08) 40%,
     transparent 70%
   );
-  animation: glow-expand 2s ease-in-out infinite;
+  animation: glow-expand 2s var(--ease-loop) infinite;
   pointer-events: none;
 }
 
@@ -377,7 +377,7 @@ function handleOverlayClick() {
     rgba(180, 140, 80, 0.1) 40%,
     transparent 70%
   );
-  animation: glow-pulse 2s ease-in-out infinite;
+  animation: glow-pulse 2s var(--ease-loop) infinite;
   pointer-events: none;
   z-index: -1;
   border-radius: 50%;

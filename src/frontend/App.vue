@@ -150,7 +150,7 @@ body {
   position: absolute;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(44, 31, 20, 0.06) 0%, transparent 70%);
-  animation: ink-spread 12s ease-in-out infinite;
+  animation: ink-spread 12s var(--ease-loop) infinite;
   pointer-events: none;
 }
 
@@ -271,11 +271,11 @@ body {
 
 /* ── 路由过渡 - 墨迹淡入效果 ── */
 .ink-transition-enter-active {
-  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.35s var(--ease-smooth), transform 0.35s var(--ease-smooth);
 }
 
 .ink-transition-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s var(--ease-smooth), transform 0.2s var(--ease-smooth);
 }
 
 .ink-transition-enter-from {
@@ -290,7 +290,7 @@ body {
 
 /* 入场时墨迹晕染效果 */
 .ink-entering {
-  animation: ink-splash 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: ink-splash 0.4s var(--ease-smooth) both;
 }
 
 @keyframes ink-splash {
@@ -310,7 +310,7 @@ body {
 /* 懒加载图片：加载前透明，加载后淡入 */
 img[data-src] {
   opacity: 0;
-  transition: opacity 0.3s ease-in-out;
+  transition: opacity 0.3s var(--ease-smooth);
 }
 
 img.loaded,

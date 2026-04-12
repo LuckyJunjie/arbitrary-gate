@@ -88,7 +88,7 @@ async function confirmSelection() {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: overlay-in 0.3s ease;
+  animation: overlay-in 0.3s var(--ease-spring);
 }
 
 @keyframes overlay-in {
@@ -102,7 +102,7 @@ async function confirmSelection() {
   border-radius: 4px;
   width: min(480px, 90vw);
   box-shadow: 0 8px 32px rgba(44, 44, 42, 0.3);
-  animation: modal-in 0.3s ease;
+  animation: modal-in 0.3s var(--ease-spring);
 }
 
 @keyframes modal-in {

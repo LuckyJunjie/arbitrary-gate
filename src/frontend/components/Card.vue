@@ -181,7 +181,7 @@ const inkFragranceStatus = computed(() => {
   inset: 0;
   border-radius: 6px;
   backface-visibility: hidden;
-  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.7s var(--ease-smooth);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -313,7 +313,7 @@ const inkFragranceStatus = computed(() => {
 
 .glow-4 {
   background: radial-gradient(ellipse at center, rgba(201, 168, 76, 0.4) 0%, transparent 70%);
-  animation: goldenPulse 2s ease-in-out infinite;
+  animation: goldenPulse 2s var(--ease-loop) infinite;
 }
 
 @keyframes goldenPulse {
@@ -386,7 +386,7 @@ const inkFragranceStatus = computed(() => {
 
 .fragrance-dot.filled {
   border-color: transparent;
-  animation: inkFade 4s ease-in-out infinite both;
+  animation: inkFade 4s var(--ease-loop) infinite both;
 }
 
 /* 墨香星级渐淡动画 */
@@ -511,7 +511,7 @@ const inkFragranceStatus = computed(() => {
 /* S-13 关键词显灵样式：共鸣值 >= 5 时，卡面从黑白变为彩色+金色光晕 */
 .card.keyword-enlightened {
   filter: saturate(1.5);
-  animation: enlightened-glow 2s ease-in-out infinite;
+  animation: enlightened-glow 2s var(--ease-loop) infinite;
 }
 
 .card.keyword-enlightened .card-back {
@@ -545,7 +545,7 @@ const inkFragranceStatus = computed(() => {
   );
   pointer-events: none;
   z-index: 10;
-  animation: enlightened-aura 2s ease-in-out infinite;
+  animation: enlightened-aura 2s var(--ease-loop) infinite;
 }
 
 @keyframes enlightened-glow {

@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 // I-11: 微信 WebView 样式适配（滚动优化）
+import './assets/main.css'
 import './assets/wechat.css'
 import { initCardStore } from './stores/cardStore'
 import { initInkValueStore } from './stores/inkValueStore'

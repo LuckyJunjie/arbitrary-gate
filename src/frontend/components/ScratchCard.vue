@@ -368,7 +368,7 @@ function onMouseLeave() { onPointerUp() }
   letter-spacing: 0.15em;
   margin: 0;
   font-style: italic;
-  animation: hintPulse 2.5s ease-in-out infinite;
+  animation: hintPulse 2.5s var(--ease-loop) infinite;
   z-index: 20;
   position: relative;
   font-family: '方正清刻本悦宋', 'FZQingKeBenYueSong', 'STKaiti', 'KaiTi', serif;
@@ -403,7 +403,7 @@ function onMouseLeave() { onPointerUp() }
   top: -10px;
   border-radius: 50%;
   background: rgba(42, 31, 20, 0.8);
-  animation: inkDrop 0.8s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+  animation: inkDrop 0.8s var(--ease-out) forwards;
 }
 
 @keyframes inkDrop {
@@ -423,7 +423,7 @@ function onMouseLeave() { onPointerUp() }
 /* Phase: revealing — card floats up */
 .phase-revealing .card-layer,
 .phase-done .card-layer {
-  animation: cardFloatUp 0.6s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+  animation: cardFloatUp 0.6s var(--ease-spring) forwards;
 }
 
 @keyframes cardFloatUp {
@@ -443,7 +443,7 @@ function onMouseLeave() { onPointerUp() }
 
 /* Phase: done */
 .phase-done .card-layer {
-  animation: cardRevealFinal 0.5s ease-out forwards;
+  animation: cardRevealFinal 0.5s var(--ease-out) forwards;
 }
 
 @keyframes cardRevealFinal {

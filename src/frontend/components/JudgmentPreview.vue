@@ -247,7 +247,7 @@ function handleCancel() {
   height: 5px;
   border-radius: 50%;
   background: rgba(180, 120, 60, 0.5);
-  animation: dot-bounce 1.2s ease-in-out infinite;
+  animation: dot-bounce 1.2s var(--ease-loop) infinite;
 }
 
 .loading-dot:nth-child(2) {

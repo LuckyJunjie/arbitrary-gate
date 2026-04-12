@@ -98,7 +98,7 @@ async function handleDraw() {
   position: absolute;
   border-radius: 50%;
   border: 1px solid rgba(232, 220, 200, 0.25);
-  animation: rippleExpand 3s ease-out infinite;
+  animation: rippleExpand 3s var(--ease-out) infinite;
   pointer-events: none;
 }
 
@@ -135,7 +135,7 @@ async function handleDraw() {
   position: absolute;
   border-radius: 50%;
   background: rgba(90, 70, 40, 0.5);
-  animation: float 4s ease-in-out infinite;
+  animation: float 4s var(--ease-loop) infinite;
   pointer-events: none;
 }
 

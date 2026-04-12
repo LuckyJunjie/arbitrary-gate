@@ -68,7 +68,7 @@ function createToastEl(achievement: Achievement, isCombo: boolean): HTMLElement 
       max-width: 300px;
       width: calc(100vw - 48px);
       text-align: center;
-      animation: achievementToastIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: achievementToastIn 0.5s var(--ease-spring) forwards;
       pointer-events: none;
     `
     const badge = el.querySelector('.toast-badge') as HTMLElement
@@ -127,7 +127,7 @@ function createToastEl(achievement: Achievement, isCombo: boolean): HTMLElement 
       max-width: 300px;
       width: calc(100vw - 48px);
       text-align: center;
-      animation: achievementToastIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      animation: achievementToastIn 0.4s var(--ease-spring) forwards;
       pointer-events: none;
     `
     const icon = el.querySelector('.toast-icon') as HTMLElement
