@@ -1,0 +1,5 @@
+/* I-11: 微信 WebView 滚动优化 */
+html, body {
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+}

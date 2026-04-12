@@ -9,6 +9,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- SH-05: 微信 JSSDK（用于分享到微信好友/朋友圈） -->
     <script src="//res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+    <!-- I-11: 微信 WebView console polyfill（避免 wx.config 失败时报错） -->
+    <script>
+      if (typeof window.console === 'undefined') {
+        window.console = {
+          log: function() {},
+          debug: function() {},
+          info: function() {},
+          warn: function() { console.warn.apply(console, arguments) },
+          error: function() {},
+        }
+      }
+    </script>
     <!-- I-09: 注册 Service Worker 离线缓存 -->
     <script>
       if ('serviceWorker' in navigator) {

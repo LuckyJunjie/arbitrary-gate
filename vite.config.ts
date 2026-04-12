@@ -2,10 +2,15 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
+import legacy from '@vitejs/plugin-legacy'
 
 export default defineConfig({
   plugins: [
     vue(),
+    // I-11: 微信 WebView ES6 兼容 polyfill（自动注入 core-js + regenerator-runtime）
+    legacy({
+      targets: ['defaults', 'not IE 11'],
+    }),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'assets/**'],
