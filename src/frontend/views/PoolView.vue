@@ -11,12 +11,16 @@ import { useInkValueStore } from '@/stores/inkValueStore'
 import { useAchievementStore } from '@/stores/achievementStore'
 import { drawKeywordCard, fetchFortune, drawEventCard, fetchExpansions, ensureLogin, type EventDrawResult, type CardExpansion } from '@/services/api'
 import { playInkDrop, playWindChime } from '@/composables/useSound'
+import { useAchievementToast } from '@/composables/useAchievementToast'
 import type { KeywordCard } from '@/services/api'
 
 const cardStore = useCardStore()
 const inkValueStore = useInkValueStore()
 const achievementStore = useAchievementStore()
 const router = useRouter()
+
+// ── 成就解锁通知 ──
+useAchievementToast(achievementStore)
 
 const hasDrawn = ref(false)
 const drawnCard = ref<KeywordCard | null>(null)

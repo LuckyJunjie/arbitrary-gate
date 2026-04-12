@@ -5,6 +5,8 @@ import { useCardStore } from '@/stores/cardStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { aiPainter, generateVerdict, recycleCard } from '@/services/api'
 import { playBrushTap } from '@/composables/useSound'
+import { useAchievementToast } from '@/composables/useAchievementToast'
+import { useAchievementStore } from '@/stores/achievementStore'
 import Card from '@/components/Card.vue'
 import InkLevelBadge from '@/components/InkLevelBadge.vue'
 import JudgmentPreview from '@/components/JudgmentPreview.vue'
@@ -12,6 +14,10 @@ import type { KeywordCard } from '@/services/api'
 
 const router = useRouter()
 const cardStore = useCardStore()
+const achievementStore = useAchievementStore()
+
+// ── 成就解锁通知 ──
+useAchievementToast(achievementStore)
 const activeTab = ref<'keyword' | 'event'>('keyword')
 const activeRarity = ref<number | null>(null)
 
