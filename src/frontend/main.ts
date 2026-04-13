@@ -62,7 +62,7 @@ if ('serviceWorker' in navigator) {
 
 // I-11: iOS WebView 键盘弹出适配（visualViewport）
 // 解决 iOS Safari/微信 WebView 中输入框聚焦时 100vh 页面整体偏移问题
-if (typeof window.visualViewport !== 'undefined') {
+if (typeof window.visualViewport !== 'undefined' && window.visualViewport) {
   let lastHeight = window.innerHeight
   window.visualViewport.addEventListener('resize', () => {
     const vt = window.visualViewport!

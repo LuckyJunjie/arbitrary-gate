@@ -98,5 +98,6 @@
   {"id": 97, "cardNo": "KW097", "name": "开路先锋", "category": 5, "rarity": 2, "weight": 25},
   {"id": 98, "cardNo": "KW098", "name": "末代王朝", "category": 5, "rarity": 4, "weight": 3},
   {"id": 99, "cardNo": "KW099", "name": "遗民泪", "category": 5, "rarity": 3, "weight": 12},
-  {"id": 100, "cardNo": "KW100", "name": "新朝气象", "category": 5, "rarity": 2, "weight": 25}
+  {"id": 100, "cardNo": "KW100", "name": "新朝气象", "category": 5, "rarity": 2, "weight": 25},
+  {"id": 101, "cardNo": "KW101", "name": "说书人", "category": 5, "rarity": 2, "weight": 25}
 ]
