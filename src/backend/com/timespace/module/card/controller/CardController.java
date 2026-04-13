@@ -329,4 +329,36 @@ public class CardController {
         List<EventCard> cards = cardService.getEventCards(expansion);
         return Result.ok(cards);
     }
+
+    /**
+     * GET /api/card/keyword-cards
+     * 按扩展包拉取关键词卡列表
+     *
+     * 参数：
+     * - expansion: 扩展包代码（可选，不传则返回所有）
+     *
+     * 响应：
+     * {
+     *   "code": 200,
+     *   "data": [
+     *     {
+     *       "id": 1,
+     *       "cardNo": "KC0001",
+     *       "name": "旧船票",
+     *       "category": 1,
+     *       "rarity": 1,
+     *       "description": "...",
+     *       "expansionCode": "kw_core"
+     *     }
+     *   ]
+     * }
+     */
+    @GetMapping("/keyword-cards")
+    public Result<List<KeywordCard>> getKeywordCards(
+            @RequestParam(required = false) String expansion
+    ) {
+        log.info("获取关键词卡列表请求: expansion={}", expansion);
+        List<KeywordCard> cards = cardService.getKeywordCardsByExpansion(expansion);
+        return Result.ok(cards);
+    }
 }

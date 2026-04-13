@@ -31,6 +31,9 @@ public class KeywordCard {
 
     private Integer weight;         // 抽中权重
 
+    /** D-04 扩展包代码：如 'kw_core', 'kw_classic', 'kw_poetic' */
+    private String expansionCode;   // 扩展包代码
+
     private LocalDateTime createdAt;
 
     @TableLogic

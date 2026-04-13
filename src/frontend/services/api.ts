@@ -48,6 +48,7 @@ export interface KeywordCard {
   imageUrl?: string
   inkFragrance?: number // 0-7
   resonanceCount?: number
+  expansionCode?: string // D-04 扩展包代码
   drawnAt?: string
 }
 
@@ -230,6 +231,15 @@ export interface EventCardItem {
 export async function fetchEventCards(expansion?: string): Promise<EventCardItem[]> {
   const params = expansion ? { expansion } : {}
   return api.get('/card/event-cards', { params })
+}
+
+/**
+ * D-04: 按扩展包拉取关键词卡列表
+ * GET /api/card/keyword-cards?expansion=xxx
+ */
+export async function fetchKeywordCards(expansion?: string): Promise<KeywordCard[]> {
+  const params = expansion ? { expansion } : {}
+  return api.get('/card/keyword-cards', { params })
 }
 
 // ========== C-12 陈卡回炉 ==========

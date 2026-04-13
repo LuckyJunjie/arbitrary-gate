@@ -428,6 +428,21 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     }
 
     /**
+     * D-04: 按扩展包获取关键词卡列表
+     *
+     * @param expansion 扩展包代码（可选，传 null 或空字符串则返回所有）
+     * @return 关键词卡列表
+     */
+    public List<KeywordCard> getKeywordCardsByExpansion(String expansion) {
+        LambdaQueryWrapper<KeywordCard> wrapper = new LambdaQueryWrapper<>();
+        if (expansion != null && !expansion.trim().isEmpty()) {
+            wrapper.eq(KeywordCard::getExpansionCode, expansion.trim());
+        }
+        wrapper.orderByAsc(KeywordCard::getCardNo);
+        return keywordCardMapper.selectList(wrapper);
+    }
+
+    /**
      * 检查用户是否拥有某张关键词卡
      */
     public boolean hasCard(Long userId, Long cardId) {
