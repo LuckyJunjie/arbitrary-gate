@@ -15,8 +15,8 @@ interface Package {
 
 const packages: Package[] = [
   { id: 'inkstone_10', name: '墨晶10枚', inkStone: 10, price: 6 },
-  { id: 'inkstone_50', name: '墨晶50枚', inkStone: 50, price: 28, tag: '限时特惠', tagColor: '#c9a84c' },
-  { id: 'inkstone_200', name: '墨晶200枚', inkStone: 200, price: 98, tag: '超值套餐', tagColor: '#8b5e3c' },
+  { id: 'inkstone_50', name: '墨晶50枚（赠10晶）', inkStone: 50, price: 30, tag: '限时特惠', tagColor: '#c9a84c' },
+  { id: 'inkstone_200', name: '墨晶200枚（赠30晶）', inkStone: 200, price: 118, tag: '超值套餐', tagColor: '#8b5e3c' },
 ]
 
 // ── 状态 ──────────────────────────────────────────────────────────────────────
@@ -52,8 +52,8 @@ function selectPackage(pkg: Package) {
 const discountHint = computed(() => {
   if (!selectedPackage.value) return ''
   const { inkStone } = selectedPackage.value
-  if (inkStone === 200) return '相当于 ¥0.49/枚，比单买省 ¥2'
-  if (inkStone === 50) return '相当于 ¥0.56/枚'
+  if (inkStone === 200) return '相当于 ¥0.59/枚，比单买省 ¥2'
+  if (inkStone === 50) return '相当于 ¥0.60/枚（含赠10晶）'
   return '单买 ¥0.60/枚'
 })
 

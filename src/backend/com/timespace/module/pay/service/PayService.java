@@ -51,13 +51,14 @@ public class PayService {
     private String wxCertPath;
 
     // 套餐配置
+    // 小池: 10晶/¥6 | 中池: 50晶+赠10晶/¥30 | 大池: 200晶+赠30晶/¥118
     private static final Map<String, PackageConfig> PACKAGES = Map.of(
-            "inkstone_10", new PackageConfig("墨晶10枚", 10, new BigDecimal("6.00")),
-            "inkstone_50", new PackageConfig("墨晶50枚", 50, new BigDecimal("28.00")),
-            "inkstone_200", new PackageConfig("墨晶200枚", 200, new BigDecimal("98.00"))
+            "inkstone_10",  new PackageConfig("墨晶10枚",  10, 0,  new BigDecimal("6.00")),
+            "inkstone_50",  new PackageConfig("墨晶50枚",  50, 10, new BigDecimal("30.00")),
+            "inkstone_200", new PackageConfig("墨晶200枚", 200, 30, new BigDecimal("118.00"))
     );
 
-    public record PackageConfig(String name, int inkStone, BigDecimal price) {}
+    public record PackageConfig(String name, int inkStone, int giftStone, BigDecimal price) {}
 
     /**
      * 创建订单并获取微信支付参数
@@ -87,6 +88,7 @@ public class PayService {
                     .setPackageId(request.getPackageId())
                     .setAmount(pkg.price())
                     .setInkStoneCount(pkg.inkStone())
+                    .setGiftStoneCount(pkg.giftStone())
                     .setStatus(PayOrder.STATUS_PENDING)
                     .setCreatedAt(java.time.LocalDateTime.now());
             payMapper.insert(order);

@@ -27,6 +27,10 @@ public class PayOrder {
     /** 墨晶数量 */
     private Integer inkStoneCount;
 
+    /** 赠送墨晶数量（非持久化，仅计算用） */
+    @TableField(exist = false)
+    private Integer giftStoneCount;
+
     /** 套餐ID */
     private String packageId;
 
