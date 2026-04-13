@@ -357,6 +357,13 @@ public class CardService extends ServiceImpl<KeywordCardMapper, KeywordCard> {
     }
 
     /**
+     * 根据 ID 获取事件卡
+     */
+    public EventCard getEventCardById(Long eventCardId) {
+        return eventCardMapper.selectById(eventCardId);
+    }
+
+    /**
      * 获取用户拥有的关键词卡列表
      */
     public List<UserCardVO> getUserCards(Long userId, Integer category, Integer rarity, int page, int size) {

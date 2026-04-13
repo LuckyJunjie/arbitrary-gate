@@ -366,8 +366,7 @@ public class AIGatewayService {
             return new ArrayList<>();
         }
         try {
-            // TODO: 通过 CardService 查询
-            return new ArrayList<>();
+            return cardService.listByIds(story.getKeywordCardIds());
         } catch (Exception e) {
             log.warn("获取关键词卡失败: storyId={}, error={}", story.getId(), e.getMessage());
             return new ArrayList<>();

@@ -1257,17 +1257,11 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
     }
 
     private String getEventCardName(Long eventCardId) {
-        // TODO: 实际从 EventCardService 查询
-        // 暂时返回默认名称
-        Map<Long, String> eventNames = Map.of(
-            1L, "巨鹿城·破釜沉舟",
-            2L, "赤壁崖·东风骤起",
-            3L, "马嵬驿·贵妃缢死",
-            4L, "陈桥驿·黄袍加身",
-            5L, "崖山海·十万投海",
-            6L, "玄武门·李世民射兄"
-        );
-        return eventNames.getOrDefault(eventCardId, "未知历史事件");
+        if (eventCardId == null) {
+            return "未知历史事件";
+        }
+        EventCard card = cardService.getEventCardById(eventCardId);
+        return card != null ? card.getTitle() : "未知历史事件";
     }
 
     private String generateStoryTitle(StartStoryRequest request) {
