@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useInkValueStore } from '@/stores/inkValueStore'
 import { playBrushTap, playJadeClick } from '@/composables/useSound'
+import { updateNickname } from '@/services/api'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
@@ -31,6 +32,44 @@ const userAvatar = computed(() => storedUser.value.avatarUrl || '')
 const inkStone = computed(() => storedUser.value.inkStone ?? inkValueStore.totalPoints)
 const isGuest = computed(() => storedUser.value.isGuest === 1)
 const wechatBound = computed(() => !isGuest.value && !!storedUser.value.avatarUrl)
+
+// U-06 昵称编辑状态
+const editingNickname = ref(false)
+const nicknameInput = ref('')
+const nicknameError = ref('')
+
+function startEditNickname() {
+  if (isGuest.value) return
+  nicknameInput.value = storedUser.value.nickname || ''
+  nicknameError.value = ''
+  editingNickname.value = true
+}
+
+async function saveNickname() {
+  const trimmed = nicknameInput.value.trim()
+  if (!trimmed) {
+    nicknameError.value = '昵称不能为空'
+    return
+  }
+  if (trimmed.length > 20) {
+    nicknameError.value = '昵称最多20个字符'
+    return
+  }
+  try {
+    await updateNickname(trimmed)
+    storedUser.value = { ...storedUser.value, nickname: trimmed }
+    localStorage.setItem('arbitrary_gate_user', JSON.stringify(storedUser.value))
+    editingNickname.value = false
+    playJadeClick()
+  } catch {
+    nicknameError.value = '保存失败，请重试'
+  }
+}
+
+function cancelEditNickname() {
+  editingNickname.value = false
+  nicknameError.value = ''
+}
 
 type Speed = 'slow' | 'medium' | 'fast'
 const speedOptions: { value: Speed; label: string; sub: string }[] = [
@@ -116,7 +155,25 @@ function onMusicVolumeChange(e: Event) {
               <div v-if="wechatBound" class="avatar-badge">微</div>
             </div>
             <div class="profile-info">
-              <div class="profile-nickname">{{ userNickname }}</div>
+              <!-- U-06 昵称编辑 -->
+              <div v-if="!editingNickname" class="profile-nickname" @click="startEditNickname" :class="{ editable: !isGuest }">
+                {{ userNickname }}<span v-if="!isGuest" class="edit-icon">✏️</span>
+              </div>
+              <div v-else class="nickname-edit">
+                <input
+                  v-model="nicknameInput"
+                  class="nickname-input"
+                  maxlength="20"
+                  placeholder="输入昵称"
+                  @keyup.enter="saveNickname"
+                  @keyup.esc="cancelEditNickname"
+                />
+                <div class="nickname-edit-actions">
+                  <button class="nickname-btn save" @click="saveNickname">保存</button>
+                  <button class="nickname-btn cancel" @click="cancelEditNickname">取消</button>
+                </div>
+                <div v-if="nicknameError" class="nickname-error">{{ nicknameError }}</div>
+              </div>
               <div class="profile-ink">
                 <span class="ink-icon">◆</span>
                 <span class="ink-value">{{ inkStone }}</span>
@@ -560,6 +617,75 @@ function onMusicVolumeChange(e: Event) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.profile-nickname.editable {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.profile-nickname.editable:hover {
+  color: #c9a96e;
+}
+
+.edit-icon {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.nickname-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.nickname-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(196, 168, 130, 0.4);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  color: #e8dcc8;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  width: 100%;
+  max-width: 200px;
+}
+
+.nickname-input:focus {
+  border-color: rgba(196, 168, 130, 0.8);
+}
+
+.nickname-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nickname-btn {
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.nickname-btn.save {
+  background: #c9a96e;
+  color: #1a1510;
+}
+
+.nickname-btn.cancel {
+  background: rgba(196, 168, 130, 0.2);
+  color: #c9a96e;
+  border: 1px solid rgba(196, 168, 130, 0.3);
+}
+
+.nickname-error {
+  color: #e74c3c;
+  font-size: 0.75rem;
 }
 
 .profile-ink {

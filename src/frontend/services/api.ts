@@ -829,4 +829,12 @@ export async function phoneLogin(phone: string, code: string, guestDeviceId?: st
   return api.post('/user/phone-login', { phone, code, guestDeviceId })
 }
 
+/**
+ * U-06 修改昵称
+ * POST /api/user/update-nickname
+ */
+export async function updateNickname(nickname: string): Promise<void> {
+  return api.post('/user/update-nickname', { nickname })
+}
+
 export default api
