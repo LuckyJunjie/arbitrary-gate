@@ -1,5 +1,61 @@
-/* I-11: 微信 WebView 滚动优化 */
+/**
+ * I-11: 微信 WebView 适配样式
+ *
+ * 包含以下适配：
+ * 1. iOS Safari/微信 WebView 橡皮筋效果（overscroll-behavior）
+ * 2. iOS 100vh 问题（使用 100dvh 动态视口高度）
+ * 3. Android WebView 工具栏区域内边距
+ * 4. 滚动优化（-webkit-overflow-scrolling）
+ * 5. iOS 键盘弹出适配（visualViewport）
+ */
+
+/* ─── 1. 禁止橡皮筋效果（iOS WebView）──────────────────────────── */
 html, body {
+  overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
   overflow-scrolling: touch;
+}
+
+/* ─── 2. iOS 100dvh 动态视口高度（解决地址栏弹出问题）───────────── */
+html {
+  /* 现代浏览器：使用动态 viewport height */
+  height: -webkit-fill-available;
+}
+
+body {
+  /* 回退方案：-webkit-fill-available 配合 min-height */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* ─── 3. Android WebView 顶部工具栏内边距 ─────────────────────── */
+/* Android 微信 WebView 可能占用顶部状态栏区域 */
+@supports (padding-top: env(safe-area-inset-top)) {
+  html, body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* ─── 4. iOS 键盘弹出适配 ──────────────────────────────────────── */
+/* 使用 visualViewport API 时，防止页面被压缩 */
+@supports (height: 100dvh) {
+  body {
+    min-height: 100dvh;
+  }
+}
+
+/* ─── 5. 防止 iOS 输入框聚焦时页面整体偏移 ─────────────────────── */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ─── 6. 修复 iOS fixed 定位在键盘弹出时的抖动 ─────────────────── */
+@supports (bottom: env(safe-area-inset-bottom)) {
+  .fixed-bottom {
+    bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  .fixed-top {
+    top: max(0px, env(safe-area-inset-top));
+  }
 }

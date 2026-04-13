@@ -225,7 +225,7 @@
 | I-08 | API Key 环境变量注入 | P0 | ✅ 已有 | DASHSCOPE_API_KEY 等 |
 | I-09 | Service Worker 离线缓存 | P3 | ✅ 完成 | public/sw.js (CacheFirst/NetworkFirst/StaleWhileRevalidate) + index.html 注册 |
 | I-10 | 图片懒加载 | P2 | ✅ 已完成 | v-lazy directive + IntersectionObserver + fadeIn 动画（commit 9ec088d8） |
-| I-11 | 微信环境适配（WebView） | P2 | ⚠️ 部分 | useWeChatShare.ts 已集成，JSSDK 环境适配已有基础 |
+| I-11 | 微信环境适配（WebView） | P2 | ✅ 已完成 | JSSDK初始化(wechat.ts) + 分享能力(useWeChatShare.ts) + CSS适配(wechat.css: 橡皮筋禁止/100dvh/iOS键盘) + visualViewport键盘弹出处理(main.ts) |
 | I-12 | Docker 部署 | P2 | ✅ 已完成 | docker-compose.yml + Dockerfile + nginx.conf（commit 50217732） |
 | I-13 | CI/CD 流水线 | P2 | ✅ 已完成 | `.github/workflows/ci.yml` 自动构建测试（commit ...） |
 
@@ -256,7 +256,7 @@
 1. **P0 全部完成！** D-02 600条历史事件卡已完成（commit 10ad6953），I-06 XSS/SQL全局Filter已完成（commit f5575ea3）
 2. **P1 缺口仅剩 1 项**：U-02 手机号登录（commit 2f51000a 已完成，待验证文档）
 3. **SH系列全部完成**：SH-01 缺角故事卡（ManuscriptView新增分享入口+完整链路）；SH-02 分享码（SecureRandom安全随机）；SH-03 合券机制（关键词卡筛选+匹配逻辑）
-4. **剩余未完成项**：U-05（微信支付，需商户号）、I-11（微信WebView适配）
+4. **剩余未完成项**：U-05（微信支付，需商户号）
 5. **整体完成度：~85%（74%✅ + 11%⚠️部分），项目进入收尾阶段**
 
 ---

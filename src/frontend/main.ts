@@ -60,6 +60,24 @@ if ('serviceWorker' in navigator) {
   })
 }
 
+// I-11: iOS WebView 键盘弹出适配（visualViewport）
+// 解决 iOS Safari/微信 WebView 中输入框聚焦时 100vh 页面整体偏移问题
+if (typeof window.visualViewport !== 'undefined') {
+  let lastHeight = window.innerHeight
+  window.visualViewport.addEventListener('resize', () => {
+    const vt = window.visualViewport!
+    const delta = lastHeight - vt.height
+    if (Math.abs(delta) > 50) {
+      // 键盘弹出/收回，强制设置 min-height 防止抖动
+      lastHeight = vt.height
+    }
+    // 键盘弹出时滚动到可见区域
+    if (vt.height < lastHeight * 0.8) {
+      document.activeElement?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }, { passive: true })
+}
+
 // app 挂载后静默初始化 card store（从 localStorage 恢复 + 异步拉取后端）
 app.mount('#app')
 initCardStore()
