@@ -9,6 +9,9 @@ import com.timespace.module.card.entity.KeywordCard;
 import com.timespace.module.card.mapper.EventCardMapper;
 import com.timespace.module.card.mapper.KeywordCardMapper;
 import com.timespace.module.ai.agent.JudgeAgent;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.timespace.module.story.entity.Story;
 import com.timespace.module.story.entity.StoryChapter;
 import com.timespace.module.story.service.StoryOrchestrationService;
 import com.timespace.module.story.service.StoryOrchestrationService.StartStoryVO;
@@ -284,15 +287,75 @@ public class StoryController {
 
     /**
      * GET /api/story/list
-     * 获取用户的故事列表
+     * 获取用户的故事列表（分页）
+     *
+     * @param page    页码（默认1）
+     * @param pageSize 每页数量（默认10，最大50）
+     * @return 分页结果 { list: [...], total: N, page: X, pageSize: Y }
      */
     @GetMapping("/list")
-    public Result<List<StoryListItemVO>> getStoryList(
+    public Result<PageResponse<StoryListItemVO>> getStoryList(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int pageSize) {
         long userId = StpUtil.getLoginIdAsLong();
-        // TODO: 分页查询
-        return Result.ok(List.of());
+
+        // 参数校验与限制
+        int safePage = Math.max(page, 1);
+        int safePageSize = Math.min(Math.max(pageSize, 1), 50);
+
+        // 调用服务层分页查询
+        IPage<Story> storyPage = storyService.getStoryPage(userId, safePage, safePageSize);
+
+        // 转换为 VO
+        List<StoryListItemVO> voList = storyPage.getRecords().stream()
+                .map(this::convertToStoryListItemVO)
+                .collect(Collectors.toList());
+
+        // 构建分页响应
+        PageResponse<StoryListItemVO> response = new PageResponse<>(
+                voList,
+                storyPage.getTotal(),
+                safePage,
+                safePageSize
+        );
+
+        return Result.ok(response);
+    }
+
+    /**
+     * 将 Story 实体转换为 StoryListItemVO
+     */
+    private StoryListItemVO convertToStoryListItemVO(Story story) {
+        return StoryListItemVO.builder()
+                .storyId(story.getId())
+                .storyNo(story.getStoryNo())
+                .title(story.getTitle())
+                .style(story.getStyle())
+                .status(story.getStatus())
+                .currentChapter(story.getCurrentChapter())
+                .totalWords(story.getTotalWords())
+                .historyDeviation(story.getHistoryDeviation())
+                .createdAt(story.getCreatedAt() != null ? story.getCreatedAt().toString() : null)
+                .finishedAt(story.getFinishedAt() != null ? story.getFinishedAt().toString() : null)
+                .build();
+    }
+
+    /**
+     * 分页响应封装
+     */
+    @Data
+    public static class PageResponse<T> {
+        private List<T> list;
+        private long total;
+        private int page;
+        private int pageSize;
+
+        public PageResponse(List<T> list, long total, int page, int pageSize) {
+            this.list = list;
+            this.total = total;
+            this.page = page;
+            this.pageSize = pageSize;
+        }
     }
 
     // ========== S-14 偶遇支线 ========== //

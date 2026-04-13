@@ -2,6 +2,8 @@ package com.timespace.module.story.service;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1179,6 +1181,29 @@ public class StoryOrchestrationService extends ServiceImpl<StoryMapper, Story> {
                 .encounterId(encounterId)
                 .fateChange(fateChange)
                 .build();
+    }
+
+    // ========== 分页查询方法 ==========
+
+    /**
+     * 分页查询用户的故事列表
+     *
+     * @param userId   用户ID
+     * @param page     页码（从1开始）
+     * @param pageSize 每页数量（最大50）
+     * @return 分页结果，包含故事列表和总数
+     */
+    public IPage<Story> getStoryPage(Long userId, int page, int pageSize) {
+        // 限制每页最大50条
+        int safePageSize = Math.min(pageSize, 50);
+        // 确保页码最小为1
+        int safePage = Math.max(page, 1);
+
+        LambdaQueryWrapper<Story> wrapper = new LambdaQueryWrapper<Story>()
+                .eq(Story::getUserId, userId)
+                .orderByDesc(Story::getCreatedAt);
+
+        return storyMapper.selectPage(new Page<>(safePage, safePageSize), wrapper);
     }
 
     /** S-14 偶遇选择结果 */
