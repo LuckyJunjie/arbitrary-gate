@@ -133,7 +133,7 @@ export const useStoryStore = defineStore('story', () => {
     ws.value = socket
 
     socket.addEventListener('open', () => {
-      console.log('[storyStore] WebSocket connected')
+      console.debug('[storyStore] WebSocket connected')
       wsStatus.value = 'connected'
       reconnectAttempts.value = 0
 
@@ -174,7 +174,7 @@ export const useStoryStore = defineStore('story', () => {
     })
 
     socket.addEventListener('close', () => {
-      console.log('[storyStore] WebSocket closed')
+      console.debug('[storyStore] WebSocket closed')
       if (currentStream.value?.storyId === storyId && currentStream.value?.chapterNo === chapterNo) {
         wsStatus.value = 'disconnected'
         scheduleReconnect(params)
@@ -226,7 +226,7 @@ export const useStoryStore = defineStore('story', () => {
     }
 
     const delay = RECONNECT_DELAYS[reconnectAttempts.value] ?? RECONNECT_DELAYS[RECONNECT_DELAYS.length - 1]
-    console.log(`[storyStore] Scheduling reconnect attempt ${reconnectAttempts.value + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`)
+    console.debug(`[storyStore] Scheduling reconnect attempt ${reconnectAttempts.value + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`)
     reconnectAttempts.value++
 
     reconnectTimer.value = setTimeout(() => {

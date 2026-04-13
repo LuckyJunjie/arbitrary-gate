@@ -1,6 +1,6 @@
 # arbitrary-gate 项目记忆
 
-_最后更新: 2026-04-14 01:47_
+_最后更新: 2026-04-14 04:39_
 
 ## 项目概述
 时光笺 - AI说书人游戏，Android/iOS H5应用
@@ -77,11 +77,11 @@ _最后更新: 2026-04-14 01:47_
 ## 剩余阻塞任务
 | 任务 | 优先级 | 状态 | 说明 |
 |------|--------|------|------|
-| U-05 墨晶充值/购买 | P2 | 🔄 待凭证 | 主体已完成 ✅ 需微信商户号(mchId/apiKey) 即可上线 |
+| U-05 墨晶充值/购买 | P2 | 🔄 待配置 | PayService+ShopView ✅；仅需在 .env 配置 WECHAT_MCH_ID + WECHAT_API_KEY 即可上线 |
 
 ## Git
 - 分支: master，与 origin/master 同步
-- 无 pending commits
+- 待提交: MEMORY.md, CHANGELOG.md, .gitignore, storyStore.ts, main.ts
 
 ## Docker 部署
 - `docker-compose.yml`: MySQL + Redis + 后端 + 前端 + Nginx
@@ -141,3 +141,4 @@ _更新于 2026-04-13 18:40_
 
 ## Sub-agent 任务记录
 - 2026-04-13 18:40: P-02 文档状态修正 ✅ (主 session 完成)
+- 2026-04-14 03:44: 最终收尾 — 更新opus统计+提交dist — ✅ 已完成
