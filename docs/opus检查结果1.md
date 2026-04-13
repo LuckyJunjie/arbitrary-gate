@@ -162,7 +162,7 @@
 | UI-06 | 窗格光影（随手机时间变化） | P3 | ✅ 完成 | useWindowLight.ts composable + HomeView.vue 黛青/赭石/烛光 CSS |
 | UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ✅ 已完成 | ManuscriptView.vue + StoryView.vue scroll rods；commit 90a68466 |
 | UI-08 | 进度墨线 | P1 | ✅ 已完成 | `StoryView.vue` `.ink-progress-line` 底部进度墨线 + `.header-progress` 顶部章节进度条 |
-| UI-09 | 缓动曲线统一 ease-out | P1 | ⚠️ 部分 | 多处使用 ease-out / cubic-bezier(0.22, 1, 0.36, 1)，基本统一但未强制收敛 |
+| UI-09 | 缓动曲线统一 ease-out | P1 | ✅ 已完成 | 所有硬编码cubic-bezier替换为CSS变量 (commit 9c86273d) |
 | UI-10 | 逐字渲染动画 | P1 | ✅ 已完成 | `StoryView.vue` 逐字渲染引擎：`pendingTextQueue` + 每字 30ms fadeIn + `.char` class CSS 动画 |
 | UI-11 | 触感反馈（震动 API） | P1 | ✅ 已完成 | `useHaptic.ts` composable 实现 `navigator.vibrate()`；`InkPool.vue` 抽卡涟漪触发；`StoryView.vue` 手势选项触发 |
 | UI-12 | 全局加载状态 | P1 | ✅ 已有 | 统一的 loading 状态管理 |

@@ -23,12 +23,12 @@ _最后更新: 2026-04-13 12:12_
 | 任务 | 状态 | 提交/说明 |
 |------|------|----------|
 | D-02 历史事件卡池(600条) | ✅ | 10ad6953 |
-| D-04 卡池数据分包扩展机制 | ✅ | e6aea473 |
+| D-04 卡池数据分包扩展机制 | ✅ | e6aea473 (事件卡) + 2cafbb7f (关键词卡) |
 | I-12 Docker部署 | ✅ | 92421d69 (docker-compose.yml + Dockerfile + nginx.conf) |
 | I-13 CI/CD流水线 | ✅ | `.github/workflows/ci.yml` |
 | UI-06 窗格光影效果 | ✅ | useWindowLight.ts composable + HomeView.vue |
 | UI-07 卷轴天杆/地杆木质视觉 | ✅ | commit 90a68466 |
-| UI-09 缓动曲线统一 | ✅ | commit ab0814cd — CSS变量：--ease-smooth/--ease-spring/--ease-out/--ease-loop；37处收敛 |
+| UI-09 缓动曲线统一 | ✅ | commit 9c86273d — 所有硬编码cubic-bezier替换为CSS变量，100%收敛 |
 | A-01~A-07 音效系统 | ✅ | useSound.ts Web Audio API合成音 |
 | M-03 题记生成 | ✅ | commit 1498f4b5 |
 | M-10 批注彩蛋 | ✅ | useAchievementToast.ts (commit 51e7098a) |
@@ -108,6 +108,17 @@ _最后更新: 2026-04-13 12:12_
   - apiClient.test.ts: fetchStoryList 调用参数修正
   - storyStore.test.ts: fetchStoryList mock 返回值分页结构修正
   - 357/357 tests passing
+- 2026-04-13 12:21: UI-09 缓动曲线全面收敛 — ✅ 已完成 (commit 9c86273d)
+  - 所有硬编码 cubic-bezier 替换为 CSS 变量
+  - cubic-bezier(0.22,1,0.36,1) → var(--ease-spring) (4处)
+  - cubic-bezier(0.34,1.56,0.64,1) → var(--ease-bounce) (3处)
+  - cubic-bezier(0.4,0,0.2,1) → var(--ease-smooth) (1处)
+  - ease → var(--ease-smooth) (2处)
+- 2026-04-13 12:25: D-04 关键词卡扩展包支持 — ✅ 已完成 (commit 2cafbb7f)
+  - Backend: KeywordCard 新增 expansionCode 字段
+  - CardService.getKeywordCardsByExpansion() + GET /api/card/keyword-cards
+  - SQL迁移: docker/mysql/init/04-keyword_card_expansion.sql
+  - Frontend: fetchKeywordCards API + KeywordCard.expansionCode
 
 ---
 
