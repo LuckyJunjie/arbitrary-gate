@@ -41,6 +41,11 @@ export interface GenerationResult {
   cached: boolean
 }
 
+interface ImageGenerateResult {
+  imageUrl: string
+  cached: boolean
+}
+
 // ─── Style Presets ────────────────────────────────────────────────────────────
 
 const RARITY_COLORS: Record<Rarity, string> = {
@@ -216,19 +221,22 @@ class AIPainterService {
   }
 
   /**
-   * 调用通义万相 API
-   * 环境变量: VITE_TONGYI_API_KEY
-   */
-  /**
    * 调用通义万相 API（经后端代理 C-14）
-   * 优先走 /api/image/generate（后端调用 wanx），降级走前端直连
+   * 优先走 /api/image/generate（统一鉴权、缓存），降级走前端直连
    */
   private async callTongyiWanxiang(prompt: string): Promise<string> {
     // C-14: 优先调用后端 API（统一鉴权、缓存）
     try {
-      const { generateImage } = await import('./api')
-      const result = await generateImage(prompt, '1024*1024')
-      return result.imageUrl
+      const result = await fetch('/api/image/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, size: '1024*1024' }),
+      })
+      if (!result.ok) throw new Error(`HTTP ${result.status}`)
+      const data = await result.json()
+      const imageUrl = (data as any).data?.imageUrl ?? (data as ImageGenerateResult)?.imageUrl
+      if (imageUrl) return imageUrl
+      throw new Error('No imageUrl in response')
     } catch (backendErr) {
       console.warn('[AIPainter] 后端图片生成失败，降级到前端直连:', backendErr)
     }
