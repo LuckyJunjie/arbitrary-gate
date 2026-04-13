@@ -94,5 +94,6 @@ export function useStory() {
     loadChapter,
     submitChoice,
     finishStory,
+    saveStoryState,
   }
 }

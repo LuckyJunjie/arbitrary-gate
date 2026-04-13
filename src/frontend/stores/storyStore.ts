@@ -449,6 +449,28 @@ export const useStoryStore = defineStore('story', () => {
     activeCombination.value = combo
   }
 
+  // ===== S-16 恢复状态 =====
+
+  /**
+   * 从 savedState 恢复 storyStore 状态
+   * 用于断线重连后用户选择"继续"时
+   */
+  function restoreState(state: {
+    story: Story | null
+    chapter: Chapter | null
+    chapters: Array<{
+      chapterNo: number
+      selectedOptionId: number
+      deviationDelta: number
+    }>
+    manuscript: Manuscript | null
+  }) {
+    currentStory.value = state.story ?? null
+    currentChapter.value = state.chapter ?? null
+    chapters.value = state.chapters ?? []
+    manuscript.value = state.manuscript ?? null
+  }
+
   return {
     // State
     currentStory,
@@ -490,5 +512,7 @@ export const useStoryStore = defineStore('story', () => {
     saveDraft,
     getDraft,
     clearDraft,
+    // S-16 Restore
+    restoreState,
   }
 })

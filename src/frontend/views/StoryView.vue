@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStoryStore } from '@/stores/storyStore'
+import { useStory } from '@/composables/useStory'
 import { fetchChapter } from '@/services/api'
 import { playBell, playChime } from '@/composables/useSound'
 import KeywordEnlightenmentOverlay from '@/components/KeywordEnlightenment.vue'
@@ -11,6 +12,7 @@ import type { KeywordEnlightenment } from '@/services/api'
 const route = useRoute()
 const router = useRouter()
 const storyStore = useStoryStore()
+const { saveStoryState } = useStory()
 
 const storyId = route.params.id as string
 
@@ -350,6 +352,68 @@ watch(
   { deep: true }
 )
 
+// S-16: 断线重连 Banner 状态
+const STORY_STATE_KEY = 'arbitrary_gate_story_state'
+const showReconnectBanner = ref(false)
+const savedStoryState = ref<{
+  story: any
+  chapter: any
+  chapters: any[]
+  manuscript: any
+  savedAt: string
+} | null>(null)
+
+function checkSavedStoryState() {
+  try {
+    const raw = localStorage.getItem(STORY_STATE_KEY)
+    if (!raw) return
+    const state = JSON.parse(raw) as typeof savedStoryState.value
+    // 仅当保存的 storyId 与当前故事匹配时才显示恢复选项
+    if (state?.story?.id === storyId) {
+      savedStoryState.value = state
+      showReconnectBanner.value = true
+    }
+  } catch {
+    // ignore parse errors
+  }
+}
+
+function continueFromSaved() {
+  if (!savedStoryState.value) return
+  storyStore.restoreState({
+    story: savedStoryState.value.story,
+    chapter: savedStoryState.value.chapter,
+    chapters: savedStoryState.value.chapters,
+    manuscript: savedStoryState.value.manuscript,
+  })
+  // 恢复视图状态
+  currentChapter.value = savedStoryState.value.chapter
+  currentChapterNo.value = savedStoryState.value.chapter?.chapterNo ?? 1
+  displayedText.value = savedStoryState.value.chapter?.sceneText ?? ''
+  // 恢复草稿内容（如果有）
+  const draft = storyStore.getDraft(storyId, currentChapterNo.value)
+  if (draft) {
+    displayedText.value = draft
+  }
+  showReconnectBanner.value = false
+  // 重新连接流式接口
+  connectStoryStream()
+}
+
+function restartFromBeginning() {
+  localStorage.removeItem(STORY_STATE_KEY)
+  storyStore.clearDraft(storyId, currentChapterNo.value)
+  showReconnectBanner.value = false
+  // 重置章节记录并重新加载
+  storyStore.chapters = []
+  loadChapter(1)
+}
+
+// S-16: 每次保存状态后清除旧草稿（内容已提交）
+function clearStoryStateKey() {
+  localStorage.removeItem(STORY_STATE_KEY)
+}
+
 // S-16: 使用 storyStore 的断线重连 WebSocket 流式接口
 function connectStoryStream() {
   storyStore.connectStream({
@@ -374,6 +438,8 @@ function connectStoryStream() {
         if (ch) {
           currentChapter.value = ch
           storyStore.currentChapter = ch
+          // S-16: 重连后保存恢复后的状态
+          saveStoryState()
         }
       }).catch(() => { /* 获取章节失败，继续使用现有数据 */ })
     },
@@ -384,7 +450,11 @@ function connectStoryStream() {
 }
 
 onMounted(async () => {
-  await loadChapter(1)
+  // S-16: 先检查是否有可恢复的阅读状态（仅首次 mount 时检查）
+  checkSavedStoryState()
+  if (!showReconnectBanner.value) {
+    await loadChapter(1)
+  }
   checkFirstVisit()
   // S-16: 连接流式接口，断线自动重连
   connectStoryStream()
@@ -437,6 +507,13 @@ async function loadChapter(chapterNo: number) {
     if (!storyStore.getDraft(storyId, chapterNo) && ch.sceneText) {
       startTypewriterQueue([ch.sceneText])
     }
+
+    // S-16: 章节加载成功后保存状态 + 清除已提交章节的草稿
+    if (storyStore.currentStory) {
+      saveStoryState()
+    }
+    // 清除本章草稿（内容已从服务端完整加载，无需本地草稿兜底）
+    storyStore.clearDraft(storyId, chapterNo)
   } catch (err) {
     streamError.value = '章节加载失败，请检查网络'
     console.error('[StoryView] loadChapter failed:', err)
@@ -530,6 +607,9 @@ async function selectOption(optionId: number, _valueOrientation?: string, event?
       }
       // S-16: 连接新章节的流式接口
       connectStoryStream()
+      // S-16: 选择提交成功后保存状态并清除旧草稿
+      saveStoryState()
+      storyStore.clearDraft(storyId, currentChapterNo.value - 1)
     }
   } catch (err) {
     console.error('[StoryView] selectOption failed:', err)
@@ -596,6 +676,30 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 
 <template>
   <div class="story-view">
+    <!-- S-16 断线重连 Banner -->
+    <Teleport to="body">
+      <div v-if="showReconnectBanner" class="reconnect-overlay" @click.self="restartFromBeginning">
+        <div class="reconnect-card">
+          <div class="reconnect-icon">📜</div>
+          <h3 class="reconnect-title">是否继续上次阅读？</h3>
+          <p class="reconnect-hint">
+            你上次读到第{{ savedStoryState?.chapter?.chapterNo ?? '?' }}章
+            <span v-if="savedStoryState?.savedAt" class="reconnect-time">
+              ({{ new Date(savedStoryState.savedAt).toLocaleString('zh-CN') }})
+            </span>
+          </p>
+          <div class="reconnect-actions">
+            <button class="reconnect-btn reconnect-btn-continue" @click="continueFromSaved">
+              继续阅读
+            </button>
+            <button class="reconnect-btn reconnect-btn-restart" @click="restartFromBeginning">
+              重新开始
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 入局三问弹窗 -->
     <Teleport to="body">
       <div v-if="showEntryModal" class="modal-overlay" @click.self="submitEntry">
@@ -1620,6 +1724,106 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 @keyframes dot-pulse {
   0%, 100% { transform: scale(1); opacity: 0.5; }
   50% { transform: scale(1.4); opacity: 1; }
+}
+
+/* ── S-16 断线重连 Banner ── */
+.reconnect-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 21, 16, 0.8);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: reconnect-fade-in 0.4s ease;
+}
+
+@keyframes reconnect-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.reconnect-card {
+  background: linear-gradient(145deg, #2a2018, #1e1810);
+  border: 1px solid rgba(196, 168, 130, 0.4);
+  border-radius: 8px;
+  padding: 2rem 2.5rem;
+  max-width: 360px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  animation: reconnect-card-in 0.4s var(--ease-spring);
+}
+
+@keyframes reconnect-card-in {
+  from { transform: translateY(20px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.reconnect-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.reconnect-title {
+  font-size: 1.15rem;
+  color: #e8dcc8;
+  margin: 0 0 0.5rem;
+  letter-spacing: 0.08em;
+}
+
+.reconnect-hint {
+  font-size: 0.85rem;
+  color: #8b7355;
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.reconnect-time {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.reconnect-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.reconnect-btn {
+  padding: 0.75rem 1.2rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.25s ease;
+}
+
+.reconnect-btn-continue {
+  background: linear-gradient(135deg, #4a3520, #2c1f14);
+  border: 1px solid #c4a882;
+  color: #c4a882;
+}
+
+.reconnect-btn-continue:hover {
+  background: linear-gradient(135deg, #6b4c30, #3d2a1a);
+  border-color: #e8dcc8;
+  color: #e8dcc8;
+  transform: translateY(-1px);
+}
+
+.reconnect-btn-restart {
+  background: rgba(139, 115, 85, 0.08);
+  border: 1px solid rgba(139, 115, 85, 0.35);
+  color: #8b7355;
+}
+
+.reconnect-btn-restart:hover {
+  background: rgba(139, 115, 85, 0.18);
+  border-color: rgba(196, 168, 130, 0.4);
+  color: #c4a882;
 }
 
 /* ── S-14 偶遇浮层 ── */
