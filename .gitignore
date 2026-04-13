@@ -26,5 +26,8 @@ npm-debug.log*
 # Test
 coverage/
 
+# Data files (synchronized via backend API, not tracked in Git)
+data/*.json
+
 # Misc
 *.local
