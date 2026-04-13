@@ -218,7 +218,7 @@ describe('API functions', () => {
     const { fetchStoryList } = await reloadApi()
     const result = await fetchStoryList()
 
-    expect(mockInstance.get).toHaveBeenCalledWith('/story/list')
+    expect(mockInstance.get).toHaveBeenCalledWith('/story/list', { params: {} })
     expect(result).toHaveLength(2)
     expect(result[0].title).toBe('故事1')
   })

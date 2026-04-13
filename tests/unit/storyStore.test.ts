@@ -325,14 +325,14 @@ describe('useStoryStore — fetchManuscript', () => {
 describe('useStoryStore — fetchStoryList', () => {
   it('fetchStoryListAction 设置 storyList', async () => {
     const stories = [{ ...mockStory }, { ...mockStory, id: 'story-2' }]
-    mockFetchStoryList.mockResolvedValue(stories)
+    mockFetchStoryList.mockResolvedValue({ list: stories, total: 2, page: 1, pageSize: 10 })
     const store = useStoryStore()
 
     const result = await store.fetchStoryList()
 
     expect(mockFetchStoryList).toHaveBeenCalled()
     expect(store.storyList).toHaveLength(2)
-    expect(result).toHaveLength(2)
+    expect(result.list).toHaveLength(2)
   })
 
   it('fetchStoryListAction 设置 isLoading', async () => {
