@@ -375,12 +375,13 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
-  async function fetchStoryListAction() {
+  async function fetchStoryListAction(page?: number, pageSize?: number) {
     isLoading.value = true
     error.value = null
     try {
-      const data = await fetchStoryList()
-      storyList.value = data
+      const data = await fetchStoryList(page, pageSize)
+      // 后端返回分页结构 { list, total, page, pageSize }，提取 list 赋值给 storyList
+      storyList.value = data.list
       return data
     } catch (err) {
       error.value = '获取故事列表失败'

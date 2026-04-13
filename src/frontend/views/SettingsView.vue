@@ -883,7 +883,7 @@ function onMusicVolumeChange(e: Event) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: dialog-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: dialog-in 0.28s var(--ease-spring);
 }
 .modal-dialog--tall { max-height: 85vh; }
 

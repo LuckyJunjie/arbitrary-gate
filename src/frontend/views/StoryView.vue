@@ -1386,7 +1386,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 
 /* 逐字淡入动画 UI-10 */
 :deep(.char) {
-  animation: fadeIn 0.3s ease forwards;
+  animation: fadeIn 0.3s var(--ease-smooth) forwards;
 }
 
 @keyframes fadeIn {
@@ -1648,7 +1648,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   max-width: 420px;
   width: 90%;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(196, 168, 130, 0.1);
-  animation: encounter-card-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: encounter-card-in 0.4s var(--ease-spring);
 }
 
 @keyframes encounter-card-in {

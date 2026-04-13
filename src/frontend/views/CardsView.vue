@@ -829,7 +829,7 @@ async function generateAICardImage() {
   width: 90%;
   text-align: center;
   color: #2c1f14;
-  animation: dialog-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: dialog-in 0.25s var(--ease-spring);
 }
 
 @keyframes dialog-in {
@@ -917,7 +917,7 @@ async function generateAICardImage() {
   z-index: 300;
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  animation: toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1), toast-out 0.3s ease 3.7s forwards;
+  animation: toast-in 0.3s var(--ease-spring), toast-out 0.3s var(--ease-smooth) 3.7s forwards;
 }
 
 @keyframes toast-in {

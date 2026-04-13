@@ -148,6 +148,14 @@ export interface Story {
   keywordPositions?: KeywordPosition[]
 }
 
+/** 分页故事列表响应 */
+export interface StoryListResponse {
+  list: Story[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 /** E-07 关键词落位 */
 export interface KeywordPosition {
   keyword: string
@@ -343,8 +351,11 @@ export async function fetchManuscript(storyId: string): Promise<Manuscript> {
 }
 
 // 获取故事列表
-export async function fetchStoryList(): Promise<Story[]> {
-  return api.get('/story/list')
+export async function fetchStoryList(page?: number, pageSize?: number): Promise<StoryListResponse> {
+  const params: Record<string, number> = {}
+  if (page !== undefined) params.page = page
+  if (pageSize !== undefined) params.pageSize = pageSize
+  return api.get('/story/list', { params })
 }
 
 // 完成故事（触发 AI 生成手稿）

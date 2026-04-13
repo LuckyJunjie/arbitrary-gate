@@ -276,7 +276,7 @@ function handleOverlayClick() {
   flex-direction: column;
   align-items: center;
   gap: 2rem;
-  animation: card-rise 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: card-rise 1.5s var(--ease-spring) forwards;
   max-width: 600px;
   width: 100%;
   padding: 0 2rem;

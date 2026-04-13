@@ -458,7 +458,7 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
   background: rgba(245, 239, 224, 0.85);
   backdrop-filter: blur(4px);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s var(--ease-smooth);
   font-family: inherit;
   position: relative;
   overflow: hidden;
@@ -523,7 +523,7 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
   align-items: center;
   justify-content: center;
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  animation: badge-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: badge-pop 0.3s var(--ease-bounce);
 }
 
 @keyframes badge-pop {

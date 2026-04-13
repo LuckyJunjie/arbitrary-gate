@@ -653,7 +653,7 @@ onMounted(loadShareInfo)
   height: 200px;
   border-radius: 4px;
   overflow: hidden;
-  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.6s var(--ease-bounce);
   transform-origin: center;
 }
 

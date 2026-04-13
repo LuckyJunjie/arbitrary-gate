@@ -71,7 +71,7 @@ const sizeClass = computed(() => `badge--${props.size}`)
 .badge--unlocked {
   background: linear-gradient(135deg, rgba(196, 168, 130, 0.25) 0%, rgba(139, 115, 85, 0.15) 100%);
   border-color: rgba(139, 115, 85, 0.4);
-  animation: badge-unlock 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: badge-unlock 0.5s var(--ease-bounce);
 }
 
 @keyframes badge-unlock {
