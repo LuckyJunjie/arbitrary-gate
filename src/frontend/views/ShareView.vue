@@ -691,7 +691,7 @@ onMounted(loadShareInfo)
   height: 60px;
   background: radial-gradient(circle, rgba(201, 168, 76, 0.8), transparent);
   border-radius: 50%;
-  animation: flash-pulse 0.8s ease-out forwards;
+  animation: flash-pulse 0.8s var(--ease-out) forwards;
   pointer-events: none;
   z-index: 10;
 }
@@ -873,7 +873,7 @@ onMounted(loadShareInfo)
   width: 20px;
   height: 20px;
   background: rgba(201, 168, 76, 0.3);
-  animation: corner-pulse 1.5s ease-in-out infinite;
+  animation: corner-pulse 1.5s var(--ease-loop) infinite;
 }
 
 .loading-corner-tl { top: 8px; left: 8px; }
@@ -1082,7 +1082,7 @@ onMounted(loadShareInfo)
 
 .slide-enter-active,
 .slide-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--ease-smooth);
 }
 .slide-enter-from,
 .slide-leave-to {

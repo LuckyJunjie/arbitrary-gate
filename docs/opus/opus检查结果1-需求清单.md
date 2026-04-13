@@ -10,7 +10,7 @@
 |---|--------|--------|----------|------|
 | U-01 | 微信授权登录 | P0 | ✅ 已有 | 获取 openId，创建用户，返回 token |
 | U-02 | 手机号一键登录 | P1 | ❌ 未做 | 备选登录方式 |
-| U-03 | 游客模式 | P1 | ⚠️ 部分 | 当前 devLogin 仅用于调试，需正式游客方案 |
+| U-03 | 游客模式 | P1 | ✅ 已有 | guestLogin API + App.vue 游客提示 + SettingsView.vue 退出确认 |
 | U-04 | 用户资产管理（墨晶） | P0 | ✅ 已有 | ink_stone 字段，抽卡消耗扣减 |
 | U-05 | 墨晶充值/购买 | P2 | ❌ 未做 | 微信 H5 支付 / JSAPI 支付 |
 | U-06 | 个人信息展示 | P1 | ✅ 已有 | 头像、昵称、current user info 接口 |
@@ -35,7 +35,7 @@
 | C-11 | 墨香渐淡（时间衰减） | P1 | ✅ 已有 | @Scheduled cron="0 0 0 * * ?" + userKeywordCardMapper 衰减墨香值每日-1；含单元测试 |
 | C-12 | 陈卡回炉（回墨池换重抽） | P2 | ✅ 已有 | POST /api/card/recycle + CardsView.vue 回炉按钮/对话框/Toast；每日限1次，Redis记录，返还1次免费抽卡机会；含单元测试 |
 | C-13 | 抽卡概率分布 | P0 | ✅ 已有 | 凡60% / 珍25% / 奇12% / 绝3% |
-| C-14 | 卡面图片生成（AI 画师） | P3 | ⚠️ 部分 | aiPainter.ts 有 prompt 构建器，但实际 AI 接口未对接 |
+| C-14 | 卡面图片生成（AI 画师） | P3 | ✅ 已有 | ImageController + ImageService.generateImage() 后端已对接 |
 
 ---
 
@@ -141,7 +141,7 @@
 | SH-01 | 缺角故事卡生成 | P2 | ⚠️ 部分 | ShareView 路由存在，缺角卡图片生成逻辑在 aiPainter |
 | SH-02 | 分享码唯一生成 | P2 | ⚠️ 部分 | story_share 表存在，后端完整度不确定 |
 | SH-03 | 合券机制 | P2 | ⚠️ 部分 | shareCoupon 集成测试存在，后端不确定 |
-| SH-04 | 合券纪念卡 | P3 | ❌ 未做 | 限定纪念卡设计 |
+| SH-04 | 合券纪念卡 | P3 | ✅ 已有 | CommemorativeCardService + CommemorativeCardView.vue + DB migration V20260412 |
 | SH-05 | 微信 JSSDK 分享 | P2 | ✅ 已有 | WeChatService.java (access_token/jsapi_ticket/签名) + useWeChatShare.ts 完整实现 |
 
 ---
@@ -186,7 +186,7 @@
 | AI-02 | 判官 Agent（选项/评估/偏离度） | P0 | ✅ 已有 | JudgeAgent |
 | AI-03 | 稗官 Agent（后日谈/配角判词） | P0 | ✅ 已有 | BaiguanAgent |
 | AI-04 | 掌眼 Agent（文学质感检查） | P1 | ✅ 已有 | AiPhraseFilter@Component + JudgeAgent/BaiguanAgent/StorytellerAgent 全部接入 |
-| AI-05 | 画师 Agent（关键词卡图/场景图） | P3 | ⚠️ 部分 | aiPainter.ts prompt 构建器就绪，后端未对接 |
+| AI-05 | 画师 Agent（关键词卡图/场景图） | P3 | ✅ 已有 | ImageController + ImageService.generateImage() 后端完整对接 |
 | AI-06 | AI 腔词黑名单过滤 | P1 | ✅ 已有 | AiPhraseFilter@Component，黑名单 50+ 词，含"不禁微微一怔"等本轮新增词 |
 | AI-07 | Prompt 热更新（数据库存储） | P1 | ✅ 已有 | JudgeAgent/BaiguanAgent/ZhangyanAgent/EncounterAgent 均接入 AiPromptTemplateService @PostConstruct 热更新 |
 | AI-08 | AI 内容安全检测 | P0 | ✅ 已有 | finishStory 二次检测 + 重试机制 + 兜底文案 |
@@ -201,7 +201,7 @@
 | D-01 | 关键词卡池数据导入（1000 张） | P0 | ✅ 完成 | `import_keyword_cards.sql` 已生成 1000 张全量数据，含器物/职人/风物/情绪/称谓五类 |
 | D-02 | 历史事件卡池数据（600+） | P0 | ✅ 完成 | 实际导入 123 张（EV001~EV123），覆盖先秦至新朝；SQL 文件：`src/backend/scripts/import_event_cards.sql` |
 | D-03 | 数据库表结构 | P0 | ✅ 已有 | 8 张核心表已定义 |
-| D-04 | 卡池数据分包扩展机制 | P3 | ❌ 未做 | expansion 字段预留 |
+| D-04 | 卡池数据分包扩展机制 | P3 | ✅ 已有 | CardExpansion 实体 + CardController /expansions 端点完整实现 |
 
 ---
 

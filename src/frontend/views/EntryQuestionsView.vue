@@ -475,7 +475,7 @@ function getRoleClass(role: string): string {
 
 .loading-brush {
   font-size: 3rem;
-  animation: brush-dip 1.5s ease-in-out infinite;
+  animation: brush-dip 1.5s var(--ease-loop) infinite;
 }
 
 @keyframes brush-dip {

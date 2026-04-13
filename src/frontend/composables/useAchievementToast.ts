@@ -200,7 +200,7 @@ function showToast(achievement: Achievement, isCombo: boolean): void {
 
   // Auto-remove after duration
   setTimeout(() => {
-    el.style.animation = 'achievementToastOut 0.3s ease-in forwards'
+    el.style.animation = 'achievementToastOut 0.3s var(--ease-out) forwards'
     el.addEventListener('animationend', () => el.remove(), { once: true })
     // Fallback removal
     setTimeout(() => el.remove(), 400)

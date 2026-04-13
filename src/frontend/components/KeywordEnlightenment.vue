@@ -312,12 +312,12 @@ function handleOverlayClick() {
   border-radius: 8px;
   /* S-13: 核心动画 — 灰暗 → 彩色，伴随缩放 */
   filter: grayscale(1) brightness(0.4);
-  animation: card-reveal 1.8s ease forwards;
+  animation: card-reveal 1.8s var(--ease-smooth) forwards;
   box-shadow:
     0 0 0 rgba(212, 175, 55, 0),
     0 20px 60px rgba(0, 0, 0, 0.5);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s var(--ease-smooth);
 }
 
 .keyword-card-img.keyword-card-img-loaded {
@@ -354,7 +354,7 @@ function handleOverlayClick() {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: card-reveal 1.8s ease forwards;
+  animation: card-reveal 1.8s var(--ease-smooth) forwards;
   box-shadow:
     0 0 40px rgba(212, 175, 55, 0.3),
     0 20px 60px rgba(0, 0, 0, 0.5);
@@ -364,7 +364,7 @@ function handleOverlayClick() {
   font-size: 4rem;
   color: rgba(212, 175, 55, 0.5);
   font-family: 'FZQingKeBenYueSong', serif;
-  animation: card-reveal 1.8s ease forwards;
+  animation: card-reveal 1.8s var(--ease-smooth) forwards;
 }
 
 /* 卡片外层光晕 */
@@ -391,7 +391,7 @@ function handleOverlayClick() {
 /* ── 文字区域 ────────────────────────────────────────────────────────────── */
 .enlightenment-text-container {
   text-align: center;
-  animation: text-rise 1.2s ease 0.5s both;
+  animation: text-rise 1.2s var(--ease-smooth) 0.5s both;
 }
 
 @keyframes text-rise {
@@ -435,7 +435,7 @@ function handleOverlayClick() {
   font-size: 0.72rem;
   color: rgba(139, 115, 85, 0.5);
   letter-spacing: 0.15em;
-  animation: hint-fade 1s ease 2s both;
+  animation: hint-fade 1s var(--ease-smooth) 2s both;
   pointer-events: none;
 }
 

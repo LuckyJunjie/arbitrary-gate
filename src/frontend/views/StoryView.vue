@@ -1085,7 +1085,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   );
   background-size: 200% 100%;
   animation: inkFlow 4s linear infinite;
-  transition: width 0.5s ease;
+  transition: width 0.5s var(--ease-smooth);
   z-index: 1000;
   pointer-events: none;
   box-shadow: 0 0 6px rgba(42, 31, 20, 0.5);
@@ -1221,7 +1221,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   border-radius: 3px;
   width: 100%;
   text-align: center;
-  animation: keyword-chip-in 0.5s ease-out both;
+  animation: keyword-chip-in 0.5s var(--ease-out) both;
 }
 
 @keyframes keyword-chip-in {
@@ -1339,7 +1339,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   height: 100%;
   background: linear-gradient(90deg, #8b7355, #c4a882);
   border-radius: 2px;
-  transition: width 0.5s ease;
+  transition: width 0.5s var(--ease-smooth);
   position: absolute;
   left: 0;
   top: 0;
@@ -1352,7 +1352,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   border-radius: 50%;
   background: rgba(139, 115, 85, 0.4);
   border: 1px solid rgba(139, 115, 85, 0.6);
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--ease-smooth);
   z-index: 2;
   transform: translateX(-50%);
 }
@@ -1414,14 +1414,14 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 
 .loader-brush {
   font-size: 2.5rem;
-  animation: brush-pulse 1.5s ease-in-out infinite;
+  animation: brush-pulse 1.5s var(--ease-loop) infinite;
 }
 
 .loader-text {
   font-size: 1rem;
   color: #8b7355;
   letter-spacing: 0.15em;
-  animation: text-pulse 1.5s ease-in-out infinite;
+  animation: text-pulse 1.5s var(--ease-loop) infinite;
 }
 
 @keyframes brush-pulse {
@@ -1466,7 +1466,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   align-items: baseline;
   gap: 0.5rem;
   font-size: 0.85rem;
-  animation: intro-fade-in 0.6s ease-out both;
+  animation: intro-fade-in 0.6s var(--ease-out) both;
 }
 
 .character-intro-name {
@@ -1542,7 +1542,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   height: 3px;
   background: linear-gradient(90deg, #c4a882, #e8dcc8);
   border-radius: 2px;
-  transition: width 0.5s ease;
+  transition: width 0.5s var(--ease-smooth);
 }
 
 .resonance-kw-name {
@@ -1554,7 +1554,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
 .resonance-chip.resonance-full {
   border-color: #c9a84c;
   background: rgba(201, 168, 76, 0.2);
-  animation: resonance-glow 1.5s ease-in-out infinite;
+  animation: resonance-glow 1.5s var(--ease-loop) infinite;
 }
 
 @keyframes resonance-glow {
@@ -1569,7 +1569,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   font-size: 0.7rem;
   color: #c9a84c;
   letter-spacing: 0.15em;
-  animation: achieved-flash 0.8s ease-out;
+  animation: achieved-flash 0.8s var(--ease-out);
   flex-shrink: 0;
 }
 
@@ -1654,7 +1654,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   font-size: 0.95rem;
   text-align: left;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.25s var(--ease-smooth);
   position: relative;
   overflow: hidden;
 }
@@ -1718,7 +1718,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   height: 6px;
   border-radius: 50%;
   background: #8b7355;
-  animation: dot-pulse 1s ease-in-out infinite;
+  animation: dot-pulse 1s var(--ease-loop) infinite;
 }
 
 @keyframes dot-pulse {
@@ -1736,7 +1736,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   align-items: center;
   justify-content: center;
   z-index: 200;
-  animation: reconnect-fade-in 0.4s ease;
+  animation: reconnect-fade-in 0.4s var(--ease-smooth);
 }
 
 @keyframes reconnect-fade-in {
@@ -1798,7 +1798,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   font-size: 0.95rem;
   cursor: pointer;
   letter-spacing: 0.08em;
-  transition: all 0.25s ease;
+  transition: all 0.25s var(--ease-smooth);
 }
 
 .reconnect-btn-continue {
@@ -1836,7 +1836,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   align-items: center;
   justify-content: center;
   z-index: 150;
-  animation: encounter-fade-in 0.4s ease;
+  animation: encounter-fade-in 0.4s var(--ease-smooth);
 }
 
 @keyframes encounter-fade-in {
@@ -1902,7 +1902,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   font-family: inherit;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.25s var(--ease-smooth);
   text-align: left;
 }
 
@@ -1957,7 +1957,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 200;
-  animation: ripple-expand 0.8s ease-out forwards;
+  animation: ripple-expand 0.8s var(--ease-out) forwards;
 }
 
 @keyframes ripple-expand {
@@ -1984,7 +1984,7 @@ const chapterDots = Array.from({ length: totalChapters }, (_, i) => i + 1)
   font-family: inherit;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.25s var(--ease-smooth);
 }
 
 .mode-toggle-btn.active {

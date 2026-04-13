@@ -315,7 +315,7 @@ onMounted(loadCard)
   flex-direction: column;
   align-items: center;
   gap: 1.2rem;
-  animation: card-reveal 0.8s ease-out;
+  animation: card-reveal 0.8s var(--ease-out);
 }
 
 @keyframes card-reveal {

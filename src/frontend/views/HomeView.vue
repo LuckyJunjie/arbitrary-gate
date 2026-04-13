@@ -409,7 +409,7 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
   height: 5px;
   border-radius: 50%;
   background: #c9a84c;
-  animation: guest-pulse 2s ease-in-out infinite;
+  animation: guest-pulse 2s var(--ease-loop) infinite;
 }
 
 @keyframes guest-pulse {
@@ -782,7 +782,7 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
   inset: 0;
   pointer-events: none;
   z-index: 3;
-  animation: light-enter 1.5s ease forwards;
+  animation: light-enter 1.5s var(--ease-out) forwards;
 }
 
 @keyframes light-enter {
@@ -819,7 +819,7 @@ function saveRecentStory(story: { id: string; title: string; status: number; cur
     rgba(44, 31, 20, 0.06) 70%,
     transparent 100%
   );
-  animation: candle-flicker 3s ease-in-out infinite;
+  animation: candle-flicker 3s var(--ease-loop) infinite;
 }
 
 @keyframes candle-flicker {

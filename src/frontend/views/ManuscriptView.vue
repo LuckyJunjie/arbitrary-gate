@@ -595,7 +595,7 @@ function goBack() {
   font-size: 1rem;
   color: #8b7355;
   letter-spacing: 0.15em;
-  animation: text-pulse 1.5s ease-in-out infinite;
+  animation: text-pulse 1.5s var(--ease-loop) infinite;
 }
 
 @keyframes text-pulse {
@@ -848,7 +848,7 @@ function goBack() {
   color: #8b6914;
   cursor: pointer;
   letter-spacing: 0.1em;
-  transition: all 0.2s ease;
+  transition: all 0.2s var(--ease-smooth);
 }
 
 .share-story-btn:hover {

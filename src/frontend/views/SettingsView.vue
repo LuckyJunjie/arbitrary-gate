@@ -715,7 +715,7 @@ function onMusicVolumeChange(e: Event) {
   background: currentColor;
 }
 .bind-status.guest .bind-dot {
-  animation: guest-blink 2s ease-in-out infinite;
+  animation: guest-blink 2s var(--ease-loop) infinite;
 }
 @keyframes guest-blink {
   0%, 100% { opacity: 1; }
@@ -862,7 +862,7 @@ function onMusicVolumeChange(e: Event) {
   height: 16px;
   border-radius: 50%;
   background: #6b5a45;
-  transition: left 0.3s ease, background 0.3s ease;
+  transition: left 0.3s var(--ease-smooth), background 0.3s var(--ease-smooth);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 .toggle-btn.active .toggle-thumb {
@@ -1116,7 +1116,7 @@ function onMusicVolumeChange(e: Event) {
 
 .modal-fade-enter-active,
 .modal-fade-leave-active {
-  transition: opacity 0.25s ease;
+  transition: opacity 0.25s var(--ease-smooth);
 }
 .modal-fade-enter-from,
 .modal-fade-leave-to {

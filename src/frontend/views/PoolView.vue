@@ -638,7 +638,7 @@ function closeLimitModal() {
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--ease-smooth);
 }
 
 .tab-btn.active {
@@ -674,7 +674,7 @@ function closeLimitModal() {
   letter-spacing: 0.1em;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--ease-smooth);
 }
 
 .expansion-tab.active {
@@ -730,7 +730,7 @@ function closeLimitModal() {
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
-  animation: cardReveal 0.5s ease-out;
+  animation: cardReveal 0.5s var(--ease-out);
   position: relative;
 }
 
@@ -755,7 +755,7 @@ function closeLimitModal() {
   font-size: 0.85rem;
   cursor: pointer;
   letter-spacing: 0.1em;
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--ease-smooth);
 }
 
 .reset-btn:hover {
@@ -774,7 +774,7 @@ function closeLimitModal() {
   font-size: 0.95rem;
   cursor: pointer;
   letter-spacing: 0.15em;
-  transition: all 0.3s ease;
+  transition: all 0.3s var(--ease-smooth);
   z-index: 10;
 }
 
@@ -859,7 +859,7 @@ function closeLimitModal() {
   border-radius: 4px;
   padding: 2rem 1.5rem;
   text-align: center;
-  animation: cardReveal 0.5s ease-out;
+  animation: cardReveal 0.5s var(--ease-out);
 }
 
 .event-card-inner {
@@ -924,7 +924,7 @@ function closeLimitModal() {
   gap: 0.4rem;
   /* 初始隐藏，由 .visible 触发淡入 */
   opacity: 0;
-  transition: opacity 2s ease-out;
+  transition: opacity 2s var(--ease-out);
 }
 
 .fortune-wrapper.visible {
@@ -1038,7 +1038,7 @@ function closeLimitModal() {
   width: 90%;
   text-align: center;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  animation: modalFadeIn 0.25s ease-out;
+  animation: modalFadeIn 0.25s var(--ease-out);
 }
 
 @keyframes modalFadeIn {
@@ -1074,7 +1074,7 @@ function closeLimitModal() {
   font-size: 0.85rem;
   letter-spacing: 0.1em;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s var(--ease-smooth);
 }
 
 .limit-modal-btn--secondary {

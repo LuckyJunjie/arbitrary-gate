@@ -386,7 +386,7 @@ function resetAndSelect() {
   border: 1.5px solid rgba(139, 115, 85, 0.2);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.22s ease;
+  transition: all 0.22s var(--ease-smooth);
   overflow: hidden;
 }
 
@@ -646,7 +646,7 @@ function resetAndSelect() {
   border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
   margin: 0 auto 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: ink-drop 0.6s ease-out;
+  animation: ink-drop 0.6s var(--ease-out);
 }
 
 @keyframes ink-drop {
@@ -763,7 +763,7 @@ function resetAndSelect() {
 /* ── 过渡动画 ── */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s var(--ease-smooth);
 }
 
 .fade-enter-from,
