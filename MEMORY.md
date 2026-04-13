@@ -1,6 +1,6 @@
 # arbitrary-gate 项目记忆
 
-_最后更新: 2026-04-13 06:39_
+_最后更新: 2026-04-13 12:12_
 
 ## 项目概述
 时光笺 - AI说书人游戏，Android/iOS H5应用
@@ -48,6 +48,7 @@ _最后更新: 2026-04-13 06:39_
 | I-07 分享码不可枚举 | ✅ | RateLimitInterceptor (IP限流60s/10次) + Timing Attack防护(50-200ms) |
 | I-10 图片懒加载 | ✅ | commit 9ec088d8 |
 | I-11 微信环境适配 | ✅ | viewport禁用缩放 + @vitejs/plugin-legacy + webkit-overflow-scrolling |
+| 批量文档同步 | ✅ | scripts/batch-doc-sync/sync.js (commit 1a78590c) |
 | SH-05 微信JSSDK分享 | ✅ | commit ca5c99d2 |
 | 题记修色(黛青#4A6B6B) | ✅ | commit 4cd7f8b0 |
 | SH-01~03 分享模块完整链路 | ✅ | commit 6ff6c220（缺角卡/合券/分享码，2026-04-13推送） |
@@ -100,7 +101,14 @@ _最后更新: 2026-04-13 06:39_
 - 2026-04-13 02:48: UI-09 缓动曲线标准化 — ✅ 已完成 (commit ab0814cd)；统一使用 CSS 变量：--ease-smooth / --ease-spring / --ease-out / --ease-loop；全部 .vue/.ts 文件 non-standard easing 已收敛，仅 ScratchCard.vue linear 进度条属例外
 - 2026-04-13 05:42: P-03 稀有组合成就单元测试 — ✅ 已完成 (commit eae1800c)
 - 2026-04-13 06:39: MEMORY.md 完整同步 — ✅ 完成
+- 2026-04-13 10:40: 批量文档同步工具 — ✅ 已完成 (commit 1a78590c)
+  - scripts/batch-doc-sync/sync.js: Node.js 批量同步脚本
+  - data/: 示例数据文件 (keyword_cards_sample.json, event_cards_sample.json, achievements_sample.json)
+- 2026-04-13 12:12: 单元测试修复 — ✅ 已完成 (commit feb9619b)
+  - apiClient.test.ts: fetchStoryList 调用参数修正
+  - storyStore.test.ts: fetchStoryList mock 返回值分页结构修正
+  - 357/357 tests passing
 
 ---
 
-_更新于 2026-04-13 06:39_
+_更新于 2026-04-13 12:12_
