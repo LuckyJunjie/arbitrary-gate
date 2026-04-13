@@ -119,6 +119,10 @@ _最后更新: 2026-04-13 12:12_
   - CardService.getKeywordCardsByExpansion() + GET /api/card/keyword-cards
   - SQL迁移: docker/mysql/init/04-keyword_card_expansion.sql
   - Frontend: fetchKeywordCards API + KeywordCard.expansionCode
+- 2026-04-13 12:36: U-06 个人信息页完善 — ✅ 已完成 (commit 02ff40be)
+  - api.ts: updateNickname() 新增
+  - SettingsView.vue: 昵称点击编辑 (仅非游客), 保存/取消, 输入校验
+  - A-01~A-07 音效系统全部确认完成
 
 ---
 
