@@ -1,11 +1,12 @@
 package com.timespace.module.user.service;
 
 import cn.dev33.satoken.stp.StpUtil;
-import cn.hutool.captcha.CaptchaUtil;
-import cn.hutool.captcha.LineCaptcha;
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.crypto.digest.DigestUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.timespace.common.exception.BusinessException;
 import com.timespace.common.utils.FingerprintUtil;
 import com.timespace.module.user.controller.UserController.UserVO;
@@ -17,10 +18,23 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -32,9 +46,35 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     private final com.timespace.module.card.mapper.UserKeywordCardMapper userKeywordCardMapper;
     private final com.timespace.module.card.mapper.UserEventCardMapper userEventCardMapper;
     private final com.timespace.module.story.mapper.StoryMapper storyMapper;
+    private final ObjectMapper objectMapper;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     private static final String WX_SESSION_KEY_PREFIX = "wx:session:";
     private static final long SESSION_EXPIRE_SECONDS = 3600;
+
+    // 阿里云 SMS 配置
+    @Value("${spring.sms.access-key-id:}")
+    private String smsAccessKeyId;
+
+    @Value("${spring.sms.access-key-secret:}")
+    private String smsAccessKeySecret;
+
+    @Value("${spring.sms.sign-name:时光笺}")
+    private String smsSignName;
+
+    @Value("${spring.sms.template-code:SMS_464190095}")
+    private String smsTemplateCode;
+
+    @Value("${spring.sms.endpoint:https://dysmsapi.aliyuncs.com}")
+    private String smsEndpoint;
+
+    // 微信配置
+    @Value("${timespace.wechat.app-id:}")
+    private String wxAppId;
+
+    @Value("${timespace.wechat.app-secret:}")
+    private String wxAppSecret;
 
     /** 游客每日免费抽卡次数上限（正式用户 3 次，游客 1 次） */
     private static final int GUEST_DAILY_FREE_COUNT = 1;
@@ -257,19 +297,105 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         }
         // 2. 生成6位随机验证码
         String code = RandomUtil.randomNumbers(6);
-        // 3. 写入Redis（开发阶段）
+        // 3. 写入Redis（开发阶段 - 用于本地验证码校验）
         redisTemplate.opsForValue().set(SMS_CODE_KEY_PREFIX + phone, code, SMS_CODE_EXPIRE_SECONDS, TimeUnit.SECONDS);
-        // TODO: 正式SMS接入 - 调用阿里云SMS API
-        // 正式实现参考：
-        // DefaultProfile profile = DefaultProfile.getProfile("cn-hangzhou", accessKeyId, accessKeySecret);
-        // IAcsClient client = new DefaultAcsClient(profile);
-        // SendSmsRequest request = new SendSmsRequest();
-        // request.setPhoneNumbers(phone);
-        // request.setSignName("时光笺");
-        // request.setTemplateCode("SMS_xxx");
-        // request.setTemplateParam("{\"code\":\"" + code + "\"}");
-        // client.getAcsResponse(request);
-        log.info("[SMS] 验证码已发送(开发模式), phone={}, code={}", phone, code);
+        // 4. 调用阿里云SMS API 发送真实短信
+        try {
+            sendSmsViaAliyun(phone, code);
+            log.info("[SMS] 验证码已发送, phone={}, code={}", phone, code);
+        } catch (Exception e) {
+            log.error("[SMS] 短信发送失败, phone={}, error={}", phone, e.getMessage(), e);
+            throw BusinessException.SMS_CODE_SEND_FAILED;
+        }
+    }
+
+    /**
+     * 通过阿里云 REST API 发送短信（不依赖 SDK）
+     * API 文档：https://help.aliyun.com/zh/sms/developer-reference/sendSms
+     */
+    private void sendSmsViaAliyun(String phone, String code) {
+        String regionId = "cn-hangzhou";
+        // 公共参数
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("SignatureMethod", "HMAC-SHA1");
+        params.put("SignatureVersion", "1.0");
+        params.put("SignatureNonce", String.valueOf(System.nanoTime()));
+        params.put("AccessKeyId", smsAccessKeyId);
+        params.put("Timestamp", formatIso8601Date());
+        params.put("Format", "JSON");
+        params.put("Action", "SendSms");
+        params.put("Version", "2017-05-25");
+        params.put("RegionId", regionId);
+        params.put("PhoneNumbers", phone);
+        params.put("SignName", smsSignName);
+        params.put("TemplateCode", smsTemplateCode);
+        params.put("TemplateParam", "{\"code\":\"" + code + "\"}");
+
+        // 生成签名
+        String signature = signRequest(params, smsAccessKeySecret);
+        params.put("Signature", signature);
+
+        // 发送请求
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        String body = buildFormBody(params);
+        HttpEntity<String> entity = new HttpEntity<>(body, headers);
+        String resp = restTemplate.postForObject(smsEndpoint, entity, String.class);
+        log.debug("[SMS] Aliyun response: {}", resp);
+
+        if (resp != null) {
+            try {
+                JsonNode node = objectMapper.readTree(resp);
+                String code_ = node.path("Code").asText();
+                if (!"OK".equals(code_)) {
+                    log.warn("[SMS] Aliyun 返回异常: Code={}, Message={}", code_, node.path("Message").asText());
+                    throw new BusinessException(500, "短信发送失败: " + node.path("Message").asText());
+                }
+            } catch (BusinessException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("[SMS] 解析响应异常（仍视为成功）: {}", e.getMessage());
+            }
+        }
+    }
+
+    /** 签名算法：HTTPS FormatQueryString + HMAC-SHA1 + Base64 */
+    private String signRequest(Map<String, String> params, String secret) {
+        // 按字典序排序参数
+        TreeMap<String, String> sorted = new TreeMap<>(params);
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> e : sorted.entrySet()) {
+            if (sb.length() > 0) sb.append("&");
+            sb.append(percentEncode(e.getKey())).append("=").append(percentEncode(e.getValue()));
+        }
+        String stringToSign = "POST&" + percentEncode("/") + "&" + percentEncode(sb.toString());
+        String hmac = DigestUtil.hmacSha1Hex(secret + "&", stringToSign);
+        return Base64.getEncoder().encodeToString(hmac.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String percentEncode(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name())
+                    .replace("+", "%20")
+                    .replace("*", "%2A")
+                    .replace("%7E", "~");
+        } catch (Exception e) {
+            return value;
+        }
+    }
+
+    private String formatIso8601Date() {
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC);
+        return now.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+    }
+
+    private String buildFormBody(Map<String, String> params) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> e : params.entrySet()) {
+            if (sb.length() > 0) sb.append("&");
+            sb.append(percentEncode(e.getKey())).append("=").append(percentEncode(e.getValue()));
+        }
+        return sb.toString();
     }
 
     /**
@@ -390,29 +516,102 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
     /**
      * 调用微信接口用code换session
-     * 实际项目中通过Feign或RestTemplate调用微信API
+     * 文档：https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
      */
     private WxSessionInfo callWxSessionApi(String code) {
-        // TODO: 实际调用 https://api.weixin.qq.com/sns/jscode2session
-        // 临时模拟返回
-        log.warn("微信Session接口调用模拟，code={}", code);
-        WxSessionInfo info = new WxSessionInfo();
-        info.setOpenid("mock_openid_" + code);
-        info.setSessionKey("mock_session_key_" + code);
-        info.setUnionid(null);
-        return info;
+        if (wxAppId == null || wxAppId.isBlank() || wxAppSecret == null || wxAppSecret.isBlank()) {
+            log.warn("[Wx] 微信 AppId 或 AppSecret 未配置，使用模拟返回");
+            WxSessionInfo info = new WxSessionInfo();
+            info.setOpenid("mock_openid_" + code);
+            info.setSessionKey("mock_session_key_" + code);
+            info.setUnionid(null);
+            return info;
+        }
+
+        String url = String.format(
+                "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+                wxAppId, wxAppSecret, code);
+
+        try {
+            String resp = restTemplate.getForObject(url, String.class);
+            log.debug("[Wx] jscode2session response: {}", resp);
+            JsonNode node = objectMapper.readTree(resp);
+
+            if (node.has("errcode") && node.get("errcode").asInt() != 0) {
+                log.error("[Wx] jscode2session 失败: errcode={}, errmsg={}",
+                        node.get("errcode").asInt(), node.path("errmsg").asText());
+                throw new BusinessException(400, "微信登录失败: " + node.path("errmsg").asText());
+            }
+
+            WxSessionInfo info = new WxSessionInfo();
+            info.setOpenid(node.path("openid").asText(null));
+            info.setSessionKey(node.path("session_key").asText(null));
+            info.setUnionid(node.path("unionid").asText(null));
+            log.info("[Wx] 微信Session获取成功, openid={}", info.getOpenid());
+            return info;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[Wx] jscode2session 异常: {}", e.getMessage(), e);
+            throw new BusinessException(500, "微信登录异常，请稍后重试");
+        }
     }
 
     /**
      * 解密微信加密数据
-     * 实际项目中使用AES-128-CBC解密
+     * 微信小程序用户数据解密：https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html
+     * 算法：AES-128-CBC，PKCS7Padding
+     *
+     * @param sessionKey     微信 session_key（Base64 编码）
+     * @param encryptedData  加密数据（Base64 编码）
+     * @param iv             初始向量（Base64 编码）
      */
     private WxUserInfo decryptWxUserInfo(String sessionKey, String encryptedData, String iv) {
-        // TODO: 实际解密
-        WxUserInfo info = new WxUserInfo();
-        info.setNickname("时光旅人");
-        info.setAvatarUrl("https://mmbiz.qpic.cn/mmbiz/fishimg/TJ2aiaZqB0/0");
-        return info;
+        if (sessionKey == null || encryptedData == null || iv == null) {
+            log.warn("[Wx] 解密参数缺失, sessionKey={}, encryptedData={}, iv={}",
+                    sessionKey != null, encryptedData != null, iv != null);
+            return null;
+        }
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(sessionKey);
+            byte[] dataBytes = Base64.getDecoder().decode(encryptedData);
+            byte[] ivBytes = Base64.getDecoder().decode(iv);
+
+            // 校验数据长度（AES-128 = 16字节 key, 16字节 IV）
+            if (keyBytes.length != 16) {
+                log.warn("[Wx] sessionKey 长度非法: {}", keyBytes.length);
+                throw new BusinessException(400, "微信数据解密失败：session_key 无效");
+            }
+
+            SecretKeySpec keySpec = new SecretKeySpec(keyBytes, "AES");
+            IvParameterSpec ivSpec = new IvParameterSpec(ivBytes);
+
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
+            byte[] decrypted = cipher.doFinal(dataBytes);
+
+            // 解密结果 = { "nickName": "...", "avatarUrl": "...", ... }
+            String jsonStr = new String(decrypted, StandardCharsets.UTF_8);
+            log.debug("[Wx] 解密原始数据: {}", jsonStr);
+            JsonNode node = objectMapper.readTree(jsonStr);
+
+            WxUserInfo info = new WxUserInfo();
+            info.setNickname(node.path("nickName").asText(null));
+            info.setAvatarUrl(node.path("avatarUrl").asText(null));
+            info.setUnionId(node.path("unionId").asText(null));
+            log.info("[Wx] 用户数据解密成功, nickname={}", info.getNickname());
+            return info;
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            log.warn("[Wx] Base64 解码失败: {}", e.getMessage());
+            throw new BusinessException(400, "微信数据解密失败：数据格式错误");
+        } catch (Exception e) {
+            log.error("[Wx] 微信数据解密异常: {}", e.getMessage(), e);
+            // 解密失败不影响登录流程，降级返回 null
+            return null;
+        }
     }
 
     @Data

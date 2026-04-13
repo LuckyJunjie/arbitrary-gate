@@ -133,6 +133,13 @@ timespace:
   wechat:
     app-id: ${WECHAT_APP_ID:}
     app-secret: ${WECHAT_APP_SECRET:}
+  # 阿里云短信配置（U-02）
+  sms:
+    access-key-id: ${ALIYUN_ACCESS_KEY_ID:}
+    access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET:}
+    sign-name: ${ALIYUN_SMS_SIGN_NAME:时光笺}
+    template-code: ${ALIYUN_SMS_TEMPLATE_CODE:SMS_464190095}
+    endpoint: https://dysmsapi.aliyuncs.com
 
 # 日志配置
 logging:
