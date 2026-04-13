@@ -60,7 +60,7 @@
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
 | P-01 | 选定 3 关键词 + 1 事件后生成判词 | P1 | ✅ 已完成 | `POST /api/card/preview` 端点；`CardService.generatePreviewJudgment()` AI 生成古文判词（20字以内） |
-| P-02 | 稀有组合检测 + 成就触发 | P2 | ⚠️ 部分 | achievementStore 有 21+ 成就定义，但组合检测逻辑不确定 |
+| P-02 | 稀有组合检测 + 成就触发 | P2 | ✅ 已完成 | `checkKeywordCombination()` 入局组合(含5种检测)+ `checkCombinationAchievements()` 牌库组合；PoolView.vue 两处调用点(263/328行)；combo-achievement.test.ts 全覆盖；⚠️标记系旧文档残留
 | P-03 | 三器物成就【物是人非】 | P2 | ✅ 已完成 | `achievementStore.checkKeywordCombination()` category=1 三器物检测；`checkCombinationAchievements()` 抽卡后调用；`unlockAchievement('combo_three_objects')` 解锁 |
 | P-04 | 三水意象彩蛋（故事必现一场雨） | P3 | ✅ 已完成 | `StorytellerAgent.isThreeWaterImagery()` 检测三水意象；`p04RainHint` prompt 注入"必须出现一场雨" |
 
