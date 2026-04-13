@@ -1,0 +1,137 @@
+[
+  {
+    "id": "ACH_COMBO_THREE_OBJECTS",
+    "name": "物是人非",
+    "description": "集齐三件相同类别的器物关键词",
+    "condition": {
+      "type": "keyword_combination",
+      "category": "器物",
+      "count": 3
+    },
+    "reward": {
+      "type": "resonance_boost",
+      "value": 10
+    }
+  },
+  {
+    "id": "ACH_COMBO_THREE_PERSONS",
+    "name": "三人成虎",
+    "description": "集齐三件相同类别的职人关键词",
+    "condition": {
+      "type": "keyword_combination",
+      "category": "职人",
+      "count": 3
+    },
+    "reward": {
+      "type": "resonance_boost",
+      "value": 10
+    }
+  },
+  {
+    "id": "ACH_COMBO_THREE_SCENES",
+    "name": "触景生情",
+    "description": "集齐三件相同类别的风物关键词",
+    "condition": {
+      "type": "keyword_combination",
+      "category": "风物",
+      "count": 3
+    },
+    "reward": {
+      "type": "resonance_boost",
+      "value": 10
+    }
+  },
+  {
+    "id": "ACH_COMBO_EMOTION_X3",
+    "name": "情难自已",
+    "description": "集齐三个情绪关键词",
+    "condition": {
+      "type": "keyword_combination",
+      "category": "情绪",
+      "count": 3
+    },
+    "reward": {
+      "type": "resonance_boost",
+      "value": 15
+    }
+  },
+  {
+    "id": "ACH_LEGENDARY_COMBO",
+    "name": "三绝奇缘",
+    "description": "集齐三张绝版稀有度关键词卡",
+    "condition": {
+      "type": "keyword_combination",
+      "rarity": "绝",
+      "count": 3
+    },
+    "reward": {
+      "type": "story_bonus",
+      "value": "历史偏移度+20%"
+    }
+  },
+  {
+    "id": "ACH_FIRST_STORY",
+    "name": "初入时光",
+    "description": "完成第一个故事",
+    "condition": {
+      "type": "story_complete",
+      "count": 1
+    },
+    "reward": {
+      "type": "unlock",
+      "value": "成就系统"
+    }
+  },
+  {
+    "id": "ACH_STORY_10",
+    "name": "时光旅人",
+    "description": "累计完成10个故事",
+    "condition": {
+      "type": "story_complete",
+      "count": 10
+    },
+    "reward": {
+      "type": "resonance_boost",
+      "value": 50
+    }
+  },
+  {
+    "id": "ACH_STORY_100",
+    "name": "千帆过尽",
+    "description": "累计完成100个故事",
+    "condition": {
+      "type": "story_complete",
+      "count": 100
+    },
+    "reward": {
+      "type": "special_title",
+      "value": "千帆过尽"
+    }
+  },
+  {
+    "id": "ACH_HISTORY_MASTER",
+    "name": "史学大师",
+    "description": "体验过所有历史事件",
+    "condition": {
+      "type": "event_visited",
+      "count": "all"
+    },
+    "reward": {
+      "type": "special_card",
+      "value": "史学大师专属卡背"
+    }
+  },
+  {
+    "id": "ACH_RESONANCE_100",
+    "name": "心有灵犀",
+    "description": "单次故事中触发100次共鸣",
+    "condition": {
+      "type": "resonance_single_story",
+      "count": 100
+    },
+    "reward": {
+      "type": "story_bonus",
+      "value": "AI文风解读深度+1级"
+    }
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "EV001",
+    "name": "巨鹿城·破釜沉舟",
+    "dynasty": "秦末",
+    "location": "巨鹿",
+    "description": "项羽大败秦军的历史事件，诸侯军作壁上观",
+    "characters": ["项羽", "章邯", "王离", "宋义"]
+  },
+  {
+    "id": "EV002",
+    "name": "赤壁崖·东风骤起",
+    "dynasty": "三国",
+    "location": "赤壁",
+    "description": "周瑜火烧赤壁，以少胜多的经典战役",
+    "characters": ["周瑜", "曹操", "诸葛亮", "黄盖"]
+  },
+  {
+    "id": "EV003",
+    "name": "马嵬驿·杨贵妃缢死",
+    "dynasty": "唐",
+    "location": "马嵬驿",
+    "description": "安史之乱中唐玄宗被迫赐死杨贵妃",
+    "characters": ["杨贵妃", "唐玄宗", "高力士", "陈玄礼"]
+  },
+  {
+    "id": "EV004",
+    "name": "陈桥驿·黄袍加身",
+    "dynasty": "宋",
+    "location": "陈桥驿",
+    "description": "赵匡胤被部下拥立，建立宋朝",
+    "characters": ["赵匡胤", "赵普", "石守信"]
+  },
+  {
+    "id": "EV005",
+    "name": "崖山海·十万投海",
+    "dynasty": "宋末",
+    "location": "崖山",
+    "description": "南宋最后的抵抗，十万军民投海殉国",
+    "characters": ["陆秀夫", "文天祥", "张世杰", "宋帝昺"]
+  },
+  {
+    "id": "EV006",
+    "name": "玄武门·李世民射兄",
+    "dynasty": "唐",
+    "location": "长安玄武门",
+    "description": "玄武门之变，李世民杀死李建成和李元吉",
+    "characters": ["李世民", "李建成", "李元吉", "尉迟敬德"]
+  },
+  {
+    "id": "EV007",
+    "name": "断桥·残雪重逢",
+    "dynasty": "南宋（虚构）",
+    "location": "西湖断桥",
+    "description": "白娘子与许仙的千古爱情传说",
+    "characters": ["白娘子", "许仙", "小青", "法海"]
+  },
+  {
+    "id": "EV008",
+    "name": "风波亭·岳飞之死",
+    "dynasty": "宋",
+    "location": "临安风波亭",
+    "description": "岳飞被秦桧以莫须有罪名害死",
+    "characters": ["岳飞", "秦桧", "宋高宗", "韩世忠"]
+  },
+  {
+    "id": "EV009",
+    "name": "浔阳楼·宋江题诗",
+    "dynasty": "宋",
+    "location": "浔阳楼",
+    "description": "宋江在浔阳楼题诗，暴露心中抱负",
+    "characters": ["宋江", "戴宗", "李逵"]
+  },
+  {
+    "id": "EV010",
+    "name": "汴京城·清明上河",
+    "dynasty": "宋",
+    "location": "汴京",
+    "description": "北宋繁华盛世的缩影，市井生活丰富多彩",
+    "characters": []
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "KC001",
+    "name": "旧船票",
+    "category": "器物",
+    "rarity": "凡",
+    "description": "一张褪色的船票，泛黄的纸边承载着远行的记忆",
+    "weight": 10
+  },
+  {
+    "id": "KC002",
+    "name": "铜锁芯",
+    "category": "器物",
+    "rarity": "珍",
+    "description": "一把生锈的铜锁，锁住的是秘密还是时光",
+    "weight": 8
+  },
+  {
+    "id": "KC003",
+    "name": "搪瓷缸",
+    "category": "器物",
+    "rarity": "凡",
+    "description": "边沿磕碰的搪瓷缸，盛过无数人的悲欢",
+    "weight": 10
+  },
+  {
+    "id": "KC004",
+    "name": "说书匠",
+    "category": "职人",
+    "rarity": "珍",
+    "description": "茶楼里的说书人，三言两语道尽千古兴亡",
+    "weight": 8
+  },
+  {
+    "id": "KC005",
+    "name": "锔瓷匠",
+    "category": "职人",
+    "rarity": "奇",
+    "description": "修补破碎之美的匠人，锔钉串联的不只是瓷器",
+    "weight": 5
+  },
+  {
+    "id": "KC006",
+    "name": "摆渡人",
+    "category": "职人",
+    "rarity": "珍",
+    "description": "一叶扁舟，一根竹篙，渡人过河亦渡心",
+    "weight": 8
+  },
+  {
+    "id": "KC007",
+    "name": "青石板",
+    "category": "风物",
+    "rarity": "凡",
+    "description": "被岁月打磨光滑的青石，印着无数人的脚印",
+    "weight": 10
+  },
+  {
+    "id": "KC008",
+    "name": "风雨桥",
+    "category": "风物",
+    "rarity": "奇",
+    "description": "廊桥遗梦，风雨声中诉说着谁的故事",
+    "weight": 5
+  },
+  {
+    "id": "KC009",
+    "name": "渡口船",
+    "category": "风物",
+    "rarity": "珍",
+    "description": "系在渡口的小船，等待着一个归人",
+    "weight": 8
+  },
+  {
+    "id": "KC010",
+    "name": "意难平",
+    "category": "情绪",
+    "rarity": "奇",
+    "description": "心底最深的遗憾，不是遗忘而是放不下",
+    "weight": 5
+  },
+  {
+    "id": "KC011",
+    "name": "乍见欢",
+    "category": "情绪",
+    "rarity": "珍",
+    "description": "初次相逢的那一刻，心中涌起的欢喜",
+    "weight": 8
+  },
+  {
+    "id": "KC012",
+    "name": "舍不得",
+    "category": "情绪",
+    "rarity": "奇",
+    "description": "明知要分离，却还是想再多看一眼",
+    "weight": 5
+  },
+  {
+    "id": "KC013",
+    "name": "娘亲舅",
+    "category": "称谓",
+    "rarity": "凡",
+    "description": "血缘中最亲近的称呼之一",
+    "weight": 10
+  },
+  {
+    "id": "KC014",
+    "name": "独苗苗",
+    "category": "称谓",
+    "rarity": "珍",
+    "description": "全家唯一的希望与传承",
+    "weight": 8
+  },
+  {
+    "id": "KC015",
+    "name": "掌上珍",
+    "category": "称谓",
+    "rarity": "绝",
+    "description": "捧在手心的珍宝，被万千宠爱于一身",
+    "weight": 3
+  }
+]
