@@ -40,9 +40,10 @@ _最后更新: 2026-04-14 04:39_
 | P-01 入局判词 | ✅ | commit ff5a91da |
 | P-03 稀有组合成就 | ✅ | commit eae1800c (补充单元测试) |
 | P-04 其他成就 | ✅ | commit a065284f |
-| AI-04 掌眼Agent | ✅ | AiPhraseFilter已集成 |
+| AI-04 掌眼Agent | ✅ | AiPhraseFilter + ZhangyanAgent双机制，BLACKLIST已扩充至17词 |
 | AI-05 AI画师后端对接 | ✅ | commit 7eda7b3f — 关键词卡图/场景图/分享卡 |
 | AI-06 AI腔词黑名单 | ✅ | commit cee92bbf |
+| M-12 掌眼Agent文学质感 | ✅ | BLACKLIST扩充：新增如同/恰似/犹如/恰如/一如既往/一如/仿若/宛若 |
 | AI-07 Prompt热更新(4个Agent) | ✅ | Judge/Baiguan/Zhangyan/EncounterAgent |
 | I-06 XSS注入防护 | ✅ | commit bf569099 |
 | I-07 分享码不可枚举 | ✅ | RateLimitInterceptor (IP限流60s/10次) + Timing Attack防护(50-200ms) |

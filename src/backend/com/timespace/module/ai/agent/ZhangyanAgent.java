@@ -51,10 +51,19 @@ public class ZhangyanAgent {
 
     /**
      * 黑名单词表（静态编译，提升性能）
+     * M-12: 扩充AI高频比喻词，剔除"如同""恰似""犹如""恰如""一如既往""一如"等AI腔
      */
     private static final List<String> BLACKLIST = List.of(
             "宛如",
             "仿佛",
+            "如同",
+            "恰似",
+            "宛若",
+            "仿若",
+            "犹如",
+            "恰如",
+            "一如既往",
+            "一如",
             "无法言说",
             "不禁",
             "缓缓说道",
@@ -66,11 +75,20 @@ public class ZhangyanAgent {
 
     /**
      * 替换表：将 AI 腔词汇映射为更自然的表达
+     * M-12: 扩充AI高频比喻词替换规则
      * 部分词汇需要根据上下文判断，以下为通用替换
      */
     private static final List<Replacement> REPLACEMENTS = List.of(
             new Replacement("宛如", "像"),
             new Replacement("仿佛", "好像"),
+            new Replacement("如同", "像"),
+            new Replacement("恰似", "像"),
+            new Replacement("宛若", "像"),
+            new Replacement("仿若", "像"),
+            new Replacement("犹如", "像"),
+            new Replacement("恰如", "像"),
+            new Replacement("一如既往", "照旧"),
+            new Replacement("一如", "跟从前一样"),
             new Replacement("无法言说", "说不清"),
             new Replacement("不禁", ""),           // 直接删除
             new Replacement("缓缓说道", "说"),

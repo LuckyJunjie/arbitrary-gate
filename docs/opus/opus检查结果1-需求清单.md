@@ -117,7 +117,7 @@
 | M-09 | 印色随偏离度变化 | P1 | ✅ 已有 | 正史偏朱红，野史偏赭石 |
 | M-10 | 批注彩蛋（打破第四面墙） | P3 | ✅ 已做 | BaiguanAgent DEFAULT_MANUSCRIPT_COMMENT_PROMPT 含彩蛋指令；数据库 prompt 已更新（V20260413）；AnnotationWithType.type easter_egg 已实现；parseAnnotationResponse 解析彩蛋类型 |
 | M-11 | 文学风格选项输出差异 | P1 | ✅ 已有 | StorytellerAgent.getStyleGuidance() 完整实现：白描简洁素净/江湖刀光剑影/笔记志怪半文半白/话本说书人口吻 |
-| M-12 | 掌眼 Agent 文学质感检查 | P1 | ❌ 未做 | 剔除"宛如""仿佛"等 AI 腔 |
+| M-12 | 掌眼 Agent 文学质感检查 | P1 | ✅ 已做 | BLACKLIST扩充至17词：新增如同/恰似/犹如/恰如/一如既往/一如/仿若/宛若；REPLACEMENTS对应扩充；单元测试覆盖 |
 
 ---
 

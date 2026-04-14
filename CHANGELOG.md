@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### AI 功能
 - [x] AI-06: AI 腔词黑名单过滤 — 新增 AiPhraseFilter 工具类 (commit cee92bbf)
+- [x] M-12: 掌眼Agent文学质感检查 — ZhangyanAgent BLACKLIST扩充至17词，新增如同/恰似/犹如/恰如/一如既往/一如/仿若/宛若；对应REPLACEMENTS扩充；ZhangyanAgentTest新增8个M-12专项测试用例
 
 ### 前端功能
 - [x] C-14: 修复AI画师动态导入循环依赖，添加单元测试 (commit 92c5f3ab)

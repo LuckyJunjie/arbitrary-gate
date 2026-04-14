@@ -167,12 +167,91 @@ class ZhangyanAgentTest {
 
     // ─── getBlacklist() 测试 ────────────────────────────────────────
 
+    // ─── M-12: AI高频比喻词测试 ─────────────────────────────────────
+
     @Test
-    void getBlacklist_返回9个词() {
+    void filter_替换如同为像() {
+        String result = newAgent().filter("灯火如同星辰。");
+        assertFalse(result.contains("如同"));
+        assertTrue(result.contains("像"));
+    }
+
+    @Test
+    void filter_替换恰似为像() {
+        String result = newAgent().filter("白雪恰似银子。");
+        assertFalse(result.contains("恰似"));
+        assertTrue(result.contains("像"));
+    }
+
+    @Test
+    void filter_替换犹如为像() {
+        String result = newAgent().filter("水面犹如镜面。");
+        assertFalse(result.contains("犹如"));
+        assertTrue(result.contains("像"));
+    }
+
+    @Test
+    void filter_替换恰如为像() {
+        String result = newAgent().filter("其人恰如君子。");
+        assertFalse(result.contains("恰如"));
+        assertTrue(result.contains("像"));
+    }
+
+    @Test
+    void filter_替换一如既往为照旧() {
+        String result = newAgent().filter("他一如既往沉默寡言。");
+        assertFalse(result.contains("一如既往"));
+        assertTrue(result.contains("照旧"));
+    }
+
+    @Test
+    void filter_替换一如为跟从前一样() {
+        String result = newAgent().filter("他一如昨日。");
+        assertFalse(result.contains("一如"));
+        assertTrue(result.contains("跟从前一样"));
+    }
+
+    @Test
+    void filter_替换仿若为像() {
+        String result = newAgent().filter("幻境仿若隔世。");
+        assertFalse(result.contains("仿若"));
+        assertTrue(result.contains("像"));
+    }
+
+    @Test
+    void filter_替换宛若为像() {
+        String result = newAgent().filter("身形宛若游龙。");
+        assertFalse(result.contains("宛若"));
+        assertTrue(result.contains("像"));
+    }
+
+    @Test
+    void filter_M12多词共存全部处理() {
+        String input = "灯火如同星辰，恰似明月，宛若水镜，仿若隔世，犹如此生，一如往昔。";
+        String result = newAgent().filter(input);
+        assertFalse(result.contains("如同"));
+        assertFalse(result.contains("恰似"));
+        assertFalse(result.contains("宛若"));
+        assertFalse(result.contains("仿若"));
+        assertFalse(result.contains("犹如"));
+        assertFalse(result.contains("一如"));
+        assertTrue(result.contains("像"));
+    }
+
+    @Test
+    void getBlacklist_返回17个词() {
         List<String> blacklist = newAgent().getBlacklist();
-        assertEquals(9, blacklist.size());
+        assertEquals(17, blacklist.size());
         assertTrue(blacklist.contains("宛如"));
         assertTrue(blacklist.contains("仿佛"));
+        assertTrue(blacklist.contains("如同"));
+        assertTrue(blacklist.contains("恰似"));
+        assertTrue(blacklist.contains("宛若"));
+        assertTrue(blacklist.contains("仿若"));
+        assertTrue(blacklist.contains("犹如"));
+        assertTrue(blacklist.contains("恰如"));
+        assertTrue(blacklist.contains("一如既往"));
+        assertTrue(blacklist.contains("一如"));
         assertTrue(blacklist.contains("无法言说"));
         assertTrue(blacklist.contains("不禁"));
         assertTrue(blacklist.contains("缓缓说道"));
