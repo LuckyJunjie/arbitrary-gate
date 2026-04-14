@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 - [x] S-16: 完成断线重连继续阅读功能 (commit 4aed1de7)
 - [x] U-06: 个人信息页完善 - 昵称编辑功能 (commit 02ff40be)
 - [x] D-04: 关键词卡扩展包支持 (commit 2cafbb7f)
+- [x] UI-11: 触感反馈 — useHaptic.ts 完整实现 hapticLight/hapticMedium/hapticForceful (commit 270140b5)
+- [x] I-11: 微信 WebView 适配 — wechat.css (overscroll-behavior/100dvh/safe-area) + @vitejs/plugin-legacy (commit 270140b5)
+- [x] UI-10: 逐字渲染动画 — typewriter engine 30ms/字逐字fadeIn，完整队列缓冲 (commit 270140b5)
+- [x] SH-05: 微信 JSSDK 分享 — WeChatService.java + useWeChatShare.ts 完整实现 (commit 270140b5)
 
 ### 前端改进
 - [x] UI-09: 缓动曲线全面收敛，所有硬编码 cubic-bezier 替换为 CSS 变量 (commit 9c86273d)
