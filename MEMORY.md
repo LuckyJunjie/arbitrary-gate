@@ -147,3 +147,8 @@ _更新于 2026-04-14 14:46_
   - 测试: 421/421 ✅
   - 构建: ✅
   - 无可执行coding任务（所有P0/P1功能均已完成）
+- 2026-04-14 16:43: UI-02宣纸纹理修复 + U-05 .env.example 微信商户配置补充 — ✅ 已完成 (commit f74950fa)
+  - Task1: .env.example 新增 `WX_PAY_MCH_ID` + `WX_PAY_API_KEY` (对应 PayService.java @Value wx.pay.mch-id / wx.pay.api-key)
+  - Task2: PoolView.vue 根背景 `radial-gradient(#1a1510, #0d0a08)` → `radial-gradient(rgba(26,21,16,0.88), rgba(13,10,8,0.88))`，让底层宣纸纹理透出
+  - ShareView/BookshelfView 根背景已是浅色(#f5efe0)，无需修改
+  - 构建验证: npm run build ✅
