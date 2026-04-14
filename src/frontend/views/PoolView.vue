@@ -599,7 +599,7 @@ function closeLimitModal() {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(ellipse at center, #1a1510 0%, #0d0a08 100%);
+  background: radial-gradient(ellipse at center, rgba(26, 21, 16, 0.88) 0%, rgba(13, 10, 8, 0.88) 100%);
   color: #e8dcc8;
 }
 
