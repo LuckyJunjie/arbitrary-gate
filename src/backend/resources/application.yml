@@ -133,6 +133,14 @@ timespace:
   wechat:
     app-id: ${WECHAT_APP_ID:}
     app-secret: ${WECHAT_APP_SECRET:}
+  # 微信支付配置（U-05）
+  wx:
+    pay:
+      app-id: ${WX_PAY_APP_ID:${WECHAT_APP_ID:}}
+      mch-id: ${WX_PAY_MCH_ID:}
+      api-key: ${WX_PAY_API_KEY:}
+      notify-url: ${WX_PAY_NOTIFY_URL:https://example.com/api/pay/wx-callback}
+      cert-path: ${WX_PAY_CERT_PATH:}
   # 阿里云短信配置（U-02）
   sms:
     access-key-id: ${ALIYUN_ACCESS_KEY_ID:}
