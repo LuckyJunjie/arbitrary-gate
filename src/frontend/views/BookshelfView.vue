@@ -1020,7 +1020,9 @@ onMounted(() => {
 
 .bookshelf-view {
   min-height: 100vh;
-  background: #f5efe0;
+  /* UI-02 fix: transparent so paper texture from App.vue .paper-texture shows through;
+     bookshelf visual mode (grid) renders its own wooden gradient on .bookshelf-container */
+  background: transparent;
   padding-bottom: 2rem;
 }
 

@@ -394,7 +394,8 @@ async function generateAICardImage() {
 <style scoped>
 .cards-view {
   min-height: 100vh;
-  background: #f5efe0;
+  /* UI-02 fix: transparent so paper texture from App.vue .paper-texture shows through */
+  background: transparent;
   padding-bottom: 2rem;
 }
 

@@ -617,7 +617,8 @@ onMounted(loadShareInfo)
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  background: radial-gradient(ellipse at center, #f5efe0 0%, #ede0c8 100%);
+  /* UI-02 fix: transparent so paper texture from App.vue .paper-texture shows through */
+  background: transparent;
   padding: 2.5rem 1rem 3rem;
 }
 

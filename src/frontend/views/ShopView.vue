@@ -241,7 +241,8 @@ function resetAndSelect() {
 <style scoped>
 .shop-view {
   min-height: 100vh;
-  background: linear-gradient(160deg, #f5efe6 0%, #e8dfd0 60%, #d9cdb8 100%);
+  /* UI-02 fix: transparent so paper texture from App.vue .paper-texture shows through */
+  background: transparent;
   position: relative;
   overflow: hidden;
   font-family: 'Georgia', 'SimSun', serif;

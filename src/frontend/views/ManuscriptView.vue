@@ -432,9 +432,9 @@ function goBack() {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f5f0e6;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  /* UI-02 fix: transparent so paper texture from App.vue .paper-texture shows through;
+     eliminates duplicate paper texture definition */
+  background: transparent;
   color: #2c2c2a;
   position: relative;
 }
