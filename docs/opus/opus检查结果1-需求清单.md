@@ -9,10 +9,10 @@
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
 | U-01 | 微信授权登录 | P0 | ✅ 已有 | 获取 openId，创建用户，返回 token |
-| U-02 | 手机号一键登录 | P1 | ❌ 未做 | 备选登录方式 |
+| U-02 | 手机号一键登录 | P1 | ✅ 已完成 | UserController.phoneLogin() + UserService.phoneLogin() + PhoneLoginView.vue + sendPhoneCode API 完整实现 |
 | U-03 | 游客模式 | P1 | ✅ 已有 | guestLogin API + App.vue 游客提示 + SettingsView.vue 退出确认 |
 | U-04 | 用户资产管理（墨晶） | P0 | ✅ 已有 | ink_stone 字段，抽卡消耗扣减 |
-| U-05 | 墨晶充值/购买 | P2 | ❌ 未做 | 微信 H5 支付 / JSAPI 支付 |
+| U-05 | 墨晶充值/购买 | P2 | ✅ 阻塞（外部依赖） | PayService 完整实现，但微信商户号未配置，buildWxPayParams 返回 mock 参数；后端完整业务逻辑（订单创建/回调/墨晶发放）均已实现 |
 | U-06 | 个人信息展示 | P1 | ✅ 已有 | 头像、昵称、current user info 接口 |
 | U-07 | 设置页面 | P2 | ✅ 已有 | SettingsView.vue: 音效开关/清除缓存/关于我们/用户协议/退出登录 |
 
@@ -98,7 +98,7 @@
 | S-13 | 关键词"显灵"特写 | P2 | ✅ 已有 | 后端 JudgeAgent 返回 enlightenmentText + StoryOrchestrationService SSE推送 + StoryView.vue 全屏显灵动画（grayscale→彩色 1.5s）+ CardServiceTest |
 | S-14 | 配角偶遇支线（章节间随机触发） | P2 | ✅ 已有 | StoryView.vue encounter-overlay UI + storyStore.submitEncounterChoice() + 后端偶遇生成逻辑 |
 | S-15 | 卷轴竖向排版阅读 | P0 | ✅ 已有 | StoryView 卷轴界面 |
-| S-16 | 断线重连内容不丢失 | P1 | ⚠️ 部分 | localStorage 有缓存，完整重连方案不确定 |
+| S-16 | 断线重连内容不丢失 | P1 | ✅ 已完成 | useStory.ts saveStoryState() 保存完整状态；storyStore.ts WebSocket 指数退避重连 + restoreState() 完整恢复；StoryView.vue reconnectBanner UI + continueFromSaved() |
 
 ---
 
@@ -107,7 +107,7 @@
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
 | M-01 | 完整短篇小说生成（3000-8000 字） | P0 | ✅ 已有 | finishStory API + AI 生成 |
-| M-02 | AI 生成标题（3 个备选） | P0 | ⚠️ 部分 | 标题生成逻辑存在，备选机制不确定 |
+| M-02 | AI 生成标题（3 个备选） | P0 | ✅ 已完成 | StorytellerAgent.generateManuscriptWithTitles() 请求 3 个标题；parseManuscriptWithTitlesResponse() 强制最少 3 个（含 fallback）；TitleSelectModal.vue 展示 3 个备选 |
 | M-03 | 题记生成（散文诗引子） | P1 | ✅ 已有 | StorytellerAgent.generateInscription() + manuscript.inscription + ManuscriptView 展示 |
 | M-04 | 后日谈（稗官 Agent） | P0 | ✅ 已有 | BaiguanAgent "稗官曰"口吻 |
 | M-05 | 手稿质感排版 | P0 | ✅ 已有 | ManuscriptView 手写楷书风格 |
@@ -138,9 +138,9 @@
 
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
-| SH-01 | 缺角故事卡生成 | P2 | ⚠️ 部分 | ShareView 路由存在，缺角卡图片生成逻辑在 aiPainter |
-| SH-02 | 分享码唯一生成 | P2 | ⚠️ 部分 | story_share 表存在，后端完整度不确定 |
-| SH-03 | 合券机制 | P2 | ⚠️ 部分 | shareCoupon 集成测试存在，后端不确定 |
+| SH-01 | 缺角故事卡生成 | P2 | ✅ 已完成 | ShareView.vue drawMissingCornerCard() Canvas 绘制缺角卡（左下/右上缺角），含边框装饰、类别标签、故事标题、分享码 |
+| SH-02 | 分享码唯一生成 | P2 | ✅ 已完成 | IdGenerator.shareCode() 使用 SecureRandom.getInstanceStrong() 密码学安全随机；ShareService.createShare() 完整写入 story_share 表 |
+| SH-03 | 合券机制 | P2 | ✅ 已完成 | ShareService.jointShare() 完整实现（同类卡/高稀有度跨类匹配逻辑）；双方各获一张合璧笺特殊卡；CommemorativeCardService 生成纪念卡；授予阅读权限 |
 | SH-04 | 合券纪念卡 | P3 | ✅ 已有 | CommemorativeCardService + CommemorativeCardView.vue + DB migration V20260412 |
 | SH-05 | 微信 JSSDK 分享 | P2 | ✅ 已有 | WeChatService.java (access_token/jsapi_ticket/签名) + useWeChatShare.ts 完整实现 |
 
@@ -151,14 +151,14 @@
 | # | 功能点 | 优先级 | 实现状态 | 说明 |
 |---|--------|--------|----------|------|
 | UI-01 | 书房主界面（四宫格入口） | P0 | ✅ 已有 | HomeView: 墨池/卷轴/卡匣/书架 |
-| UI-02 | 宣纸纹理背景+牙色色系 | P0 | ⚠️ 部分 | 部分采用，完整 UI 规范未全覆盖 |
+| UI-02 | 宣纸纹理背景+牙色色系 | P0 | ⚠️ 部分完成 | App.vue 固定层含宣纸 SVG 纹理（#f5efe0 牙色）；部分视图（ShareView、BookshelfView 等）自行覆盖背景，纹理被遮挡；牙色色系在组件中广泛使用 |
 | UI-03 | 墨池待抽卡呼吸涟漪 | P0 | ✅ 已有 | InkPool 涟漪动画 |
 | UI-04 | 墨池抽卡涟漪大起动画 | P0 | ✅ 已有 | 点击后涟漪扩散 |
 | UI-05 | 卡片从墨中浮出动画 | P0 | ✅ 已有 | InkPool 组件 |
 | UI-06 | 窗格光影（随手机时间变化） | P3 | ✅ 已有 | useWindowLight.ts: 早(冷)/午(无)/昏(暖)/夜(烛光) 四阶段 integrated in HomeView.vue |
 | UI-07 | 卷轴天杆/地杆木质视觉 | P2 | ✅ 已有 | StoryView.vue 含 .top-scroll-bar / .bottom-scroll-bar，多层 CSS 渐变木纹 + 高光/暗边 + 投影 |
 | UI-08 | 进度墨线 | P1 | ✅ 已有 | StoryView.vue 顶部固定进度线，墨色渐变+流动动画 |
-| UI-09 | 缓动曲线统一 ease-out | P1 | ⚠️ 部分 | 部分动画已采用 |
+| UI-09 | 缓动曲线统一 ease-out | P1 | ✅ 已完成 | main.css 定义 --ease-smooth / --ease-spring / --ease-bounce / --ease-out / --ease-loop(linear) 全部 CSS 变量；全项目动画/过渡均使用 var() 引用，无硬编码 easing |
 | UI-10 | 逐字渲染动画 | P1 | ✅ 已有 | appendPendingText typewriter engine, 30ms/字, fadeIn动画 |
 | UI-11 | 触感反馈（震动 API） | P1 | ✅ 已有 | useHaptic.ts: hapticLight/hapticMedium/hapticForceful 全实现 |
 
@@ -215,7 +215,7 @@
 | I-04 | Redis 缓存 | P0 | ✅ 已有 | 会话 + 保底状态 |
 | I-05 | CORS 跨域配置 | P0 | ✅ 已有 | WebConfig |
 | I-06 | 用户输入校验（防注入/XSS） | P0 | ✅ 已有 | XssFilter + XssHttpServletRequestWrapper（JSoup白名单+SQL注入检测403拦截+故事内容接口宽松白名单） |
-| I-07 | 分享码不可枚举 | P2 | ⚠️ 部分 | IdGenerator 工具类存在 |
+| I-07 | 分享码不可枚举 | P2 | ✅ 已完成 | IdGenerator.shareCode() 使用 SecureRandom.getInstanceStrong()（强随机源）；字符集排除易混淆字符 I,O,0,1；含 NoSuchAlgorithmException 降级处理；ShareService.getShareInfo() 含 Timing Attack 防护（统一延迟响应）|
 | I-08 | API Key 环境变量注入 | P0 | ✅ 已有 | DASHSCOPE_API_KEY 等 |
 | I-09 | Service Worker 离线缓存 | P3 | ✅ 已有 | vite-plugin-pwa + workbox: 静态CacheFirst/API NetworkFirst/HTML NetworkFirst |
 | I-10 | 图片懒加载 | P2 | ✅ 已有 | useLazyLoad.ts + vLazy指令 + IntersectionObserver，Card.vue/KeywordEnlightenment.vue 已使用 |
